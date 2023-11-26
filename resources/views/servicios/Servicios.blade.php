@@ -39,6 +39,7 @@
             <th scope="col">Nombre</th>
             <th scope="col">Precio</th>  
             <th scope="col">Descripcion</th>        
+            <th scope="col">Tiempo</th>  
             <th scope="col">Empresa</th>
             <th scope="col">Acciones</th>
           </tr>
@@ -51,6 +52,7 @@
               <td>{{$e->nombre}}</td>
               <td>${{$e->precio}}</td>
               <td>{{$e->descripcion}}</td>
+              <td>{{$e->tiempo}}</td>
               <td>{{$e->empresa->nombre .' '.$e->empresa->id}}</td>
               <th>                  
                   <strong><a href="{{route('Servicios.edit',['Servicio'=>$e->id])}}" data-tooltip="Editar">Editar</a></strong> | 

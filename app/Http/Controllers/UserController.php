@@ -32,6 +32,7 @@ class UserController extends Controller
             'nombre' => 'required',
             'correo' => 'required|unique:App\Models\User,email',
             'contraseña' => 'required',
+            'dni' => 'required|unique:users,dni',
         ]);
 
         $user = new User;
@@ -39,6 +40,7 @@ class UserController extends Controller
         $user->name = $request->nombre;
         $user->email = $request->correo;
         $user->password = Hash::make($request->contraseña);
+        $user->dni = $request->dni;
 
         $user->save();
 

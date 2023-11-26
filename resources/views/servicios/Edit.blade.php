@@ -41,6 +41,16 @@
             Descripcion
             <input type="text" id="descripcion" name="descripcion" placeholder="Descripcion" value="{{$Servicio->descripcion}}" required>
           </label>
+
+          <!-- Select -->
+          <label for="tiempo">Tiempo
+          <select id="tiempo" name="tiempo" required>
+            <option value="hora" selected>Hora</option>
+            <option value="dia" selected>Dia</option>
+            <option value="semana" selected>Semana</option>
+            <option value="mes" selected>Mes</option>
+          </select>
+        </label>
       
         </div>
       

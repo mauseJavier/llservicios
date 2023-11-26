@@ -124,7 +124,7 @@ class ClienteController extends Controller
     {
         $usuario = Auth::user();
 
-        $cliente = DB::select('SELECT * FROM `clientes` WHERE correo = ? OR dni = ?', [$request->correo, $request->dni]);
+        $cliente = DB::select('SELECT * FROM `clientes` WHERE dni = ?', [$request->dni]);
         // Obtener la cantidad de filas seleccionadas
         $cantidadFilas = count($cliente);
         // return $cantidadFilas;
@@ -151,8 +151,8 @@ class ClienteController extends Controller
             // return $usuario;
 
             $clienteVinculado = DB::select('SELECT b.correo FROM cliente_empresa a, clientes b WHERE a.cliente_id = b.id AND 
-                                        (b.correo = ? or b.dni = ?) and a.empresa_id = ?', 
-                                            [$request->correo, $request->dni ,$usuario->empresa_id]);
+                                        (b.dni = ?) and a.empresa_id = ?', 
+                                            [$request->dni ,$usuario->empresa_id]);
             // Obtener la cantidad de filas seleccionadas
             $cantidadFilas = count($clienteVinculado);
             if($cantidadFilas == 0){ //se vincula 

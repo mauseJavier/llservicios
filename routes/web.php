@@ -8,6 +8,7 @@ use App\Http\Controllers\EmpresaController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\ServicioController;
 use App\Http\Controllers\ClienteServicioController;
+use App\Http\Controllers\ServicioPagarController;
 
 
 
@@ -43,16 +44,25 @@ Route::middleware('auth')->group(function () {
  
         Route::resource('Servicios', ServicioController::class);
         Route::get('BuscarServicio',  [ServicioController::class, 'BuscarServicio'])->name('BuscarServicio');
+
+
+        //AK ESTOY TRABAJANDO 
+        Route::get('ClientesServicios',  [ClienteServicioController::class, 'index'])->name('ClientesServicios');
+        Route::get('ServiciosAgregarCliente/{Servicio}', [ClienteServicioController::class, 'agregarCliente'])->name('ServiciosAgregarCliente'); 
+        Route::get('agregarClienteAServicio', [ClienteServicioController::class, 'agregarClienteAServicio'])->name('agregarClienteAServicio'); 
+        Route::get('quitarClienteAServicio', [ClienteServicioController::class, 'quitarClienteAServicio'])->name('quitarClienteAServicio'); 
+
+        //RUTAS PAGAR SERVICIOS
+        Route::get('ServicioPagar', [ServicioPagarController::class, 'index'])->name('ServicioPagar'); 
+
+
     });
 
     // Route::get('/usuarios', [UserController::class, 'todosUsuarios'])->name('usuarios');
     Route::view('/panel', 'panel.panel')->name('panel');
     Route::view('/miPerfil', 'usuarios.miPerfil')->name('miPerfil');
 
-    Route::get('ClientesServicios',  [ClienteServicioController::class, 'index'])->name('ClientesServicios');
-    Route::get('ServiciosAgregarCliente/{Servicio}', [ClienteServicioController::class, 'agregarCliente'])->name('ServiciosAgregarCliente'); 
-    Route::get('agregarClienteAServicio', [ClienteServicioController::class, 'agregarClienteAServicio'])->name('agregarClienteAServicio'); 
-    Route::get('quitarClienteAServicio', [ClienteServicioController::class, 'quitarClienteAServicio'])->name('quitarClienteAServicio'); 
+   
 });
 
 

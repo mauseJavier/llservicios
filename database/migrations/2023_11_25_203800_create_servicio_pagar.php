@@ -11,13 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('servicios', function (Blueprint $table) {
+        Schema::create('servicio_pagar', function (Blueprint $table) {
             $table->id();
-            $table->string('nombre');
-            $table->longText('descripcion');
-            $table->double('precio');
-            $table->enum('tiempo', ['hora', 'dia', 'semana','mes'])->default('mes');
-            $table->unsignedInteger('empresa_id')->default(1);
+
+            $table->unsignedBigInteger('cliente_id');
+            $table->unsignedBigInteger('servicio_id');
+            $table->double('precio',2);
+            $table->enum('estado', ['pago', 'impago'])->default('impago');
+
             $table->timestamps();
         });
     }
@@ -27,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('servicios');
+        Schema::dropIfExists('servicio_pagar');
     }
 };

@@ -47,6 +47,11 @@
                   Nombre
                   <input type="text" id="nombre" name="nombre" placeholder="Nombre" required>
                 </label>
+
+                <label for="DNI">
+                  DNI
+                  <input type="text" id="dni" name="dni" placeholder="DNI" required>
+                </label>
             
                 <label for="correo">
                   Correo

@@ -25,6 +25,7 @@ class UpdateServicioRequest extends FormRequest
             //
             'nombre' => 'required',
             'precio' => 'required|numeric',
+            'tiempo' => 'required',
         ];
     }
 }
