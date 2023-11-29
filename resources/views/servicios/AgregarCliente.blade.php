@@ -43,7 +43,8 @@
             <th scope="col">#</th>
             <th scope="col">Nombre</th>
             <th scope="col">Correo</th>  
-            <th scope="col">Dni</th>        
+            <th scope="col">Dni</th>   
+            <th scope="col">Vencimiento</th>        
             <th scope="col">Acciones</th>
           </tr>
         </thead>
@@ -51,17 +52,27 @@
      
           @foreach ($clientes as $e)
 
+          <form action="{{route('agregarClienteAServicio')}}" method="get" onsubmit="return confirm('¿Estás seguro de que quieres agregar este Cliente?')">
             <tr>              
               <td>{{$e->id}}</td>
               <td>{{$e->nombre}}</td>
               <td>{{$e->correo}}</td>
               <td>{{$e->dni}}</td>
-
+              <td><input type="datetime-local" id="vencimiento" name="vencimiento" required value="{{$vencimiento}}"></td>
               <th>                  
-                  <strong><a href="{{route('agregarClienteAServicio',['Servicio'=>$servicio->id,'Cliente'=>$e->id])}}" 
-                          onclick="return confirm('¿Estás seguro de que quieres agregar este Cliente?')" data-tooltip="Agregar Cliente">Agregar-Cliente-A-Servicio</a></strong>
+                  {{-- <strong><a href="{{route('agregarClienteAServicio',['Servicio'=>$servicio->id,'Cliente'=>$e->id])}}" 
+                          onclick="return confirm('¿Estás seguro de que quieres agregar este Cliente?')" data-tooltip="Agregar Cliente">Agregar-Cliente-A-Servicio</a></strong> --}}
+                <input type="hidden" name="Servicio" id="Servicio" value="{{$servicio->id}}">
+                <input type="hidden" name="Cliente" id="Cliente" value="{{$e->id}}">                          
+                        
+                  <button type="submit">Agregar</button>
               </th>
+
+              
             </tr>
+            
+
+          </form>
           @endforeach
         
         </tfoot>
@@ -115,6 +126,7 @@
           <th scope="col">Nombre</th>
           <th scope="col">Correo</th>  
           <th scope="col">Dni</th>        
+          <th scope="col">Vencimiento</th>     
           <th scope="col">Acciones</th>
         </tr>
       </thead>
@@ -126,7 +138,8 @@
             <td>{{$e->nombre}}</td>
             <td>{{$e->correo}}</td>
             <td>{{$e->dni}}</td>
-
+            <td><input type="datetime-local" id="vv" name="vv" readonly value="{{$e->vencimiento}}"></td>
+            {{-- <td>{{$e->vencimiento}}</td> --}}
             <th>                  
               <strong><a href="{{route('quitarClienteAServicio',['Servicio'=>$servicio->id,'Cliente'=>$e->id])}}" onclick="return confirm('¿Estás seguro de que quieres quitar este Cliente?')" data-tooltip="Quitar Cliente">Quitar-Cliente-A-Servicio</a></strong>
  

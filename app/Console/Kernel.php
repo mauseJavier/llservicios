@@ -13,6 +13,8 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         // $schedule->command('inspire')->hourly();
+        $schedule->command('app:cobrador-servicios')->everyFiveSeconds();
+        $schedule->command('app:cobrador-ejemplo-minuto')->everyMinute()->appendOutputTo(storage_path('logs/tareasMinuto.log'));;
     }
 
     /**

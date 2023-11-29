@@ -11,6 +11,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
 
+use Carbon\Carbon;
+
 
 use App\Models\Cliente;
 use App\Models\Servicio;
@@ -42,7 +44,12 @@ class ClienteServicioController extends Controller
         $usuario = Auth::user();
         $servicio = Servicio::find($Servicio);
         $datoBuscado = $request->Buscar;
+        // Obtén la fecha y hora actual
+        $fechaActual = Carbon::now();
 
+        // Formatea la fecha y hora en el formato adecuado para el campo datetime-local
+        $fechaFormateada = $fechaActual->addYears(0)->format('Y-m-d\TH:i');
+     
         // $clientes = Cliente::where('empresa_id','=',$usuario->empresa_id)
         //                     ->where(function($query) use ($datoBuscado){
         //                         $query->where('nombre','like','%' .$datoBuscado.'%')
@@ -74,6 +81,8 @@ class ClienteServicioController extends Controller
         //                 'nuevo'=>$clientes);
 
         $clientesMiembro = DB::select('SELECT a.*,b.* FROM cliente_servicio a, clientes b WHERE a.cliente_id = b.id AND a.servicio_id= ?', [$servicio->id]);
+
+        // return $clientesMiembro;
 
         // Extraer los IDs de los clientes utilizados
         $clientesUtilizadosIds = array_column($clientesMiembro, 'cliente_id');
@@ -135,7 +144,8 @@ class ClienteServicioController extends Controller
      return view('servicios.AgregarCliente',['servicio'=>$servicio,
                 'clientes'=>$clientesPaginados,
                 'clientesMiembro'=>$clientesMiembro,
-                'buscar'=>$datoBuscado]
+                'buscar'=>$datoBuscado,
+                'vencimiento'=>$fechaFormateada]
             )->render();
     }
 
@@ -144,6 +154,11 @@ class ClienteServicioController extends Controller
         // return $request;
         $servicio = Servicio::find($request->Servicio);
         $fecha = date('y-m-d H:i:s');
+        // Convierte la cadena de texto a un objeto Carbon
+        $fechaCarbon = Carbon::parse($request->vencimiento);
+
+        // Formatea la fecha en el formato deseado
+        $fechaFormateada = $fechaCarbon->format('y-m-d H:i:s');
 
         // return $servicio;
 
@@ -162,7 +177,7 @@ class ClienteServicioController extends Controller
                     'cliente_id' => $request->Cliente,
                     'servicio_id' => $request->Servicio,
                     // 'precio' => $servicio->precio,
-                    'vencimiento' => $fecha,
+                    'vencimiento' => $fechaFormateada,
                     'created_at' => $fecha,
                     'updated_at' => $fecha,
                     

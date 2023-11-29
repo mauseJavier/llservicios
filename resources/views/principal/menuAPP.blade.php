@@ -32,6 +32,7 @@
                  Auth::User()->role->nombre == 'Admin')
               <li><a href="{{route('Cliente.index')}}">Clientes</a></li>
               <li><a href="{{route('Servicios.index')}}">Servicios</a></li>
+              <li><a href="{{route('ServicioPagar')}}">Servicios Pagar</a></li>
            
             @endif
 
