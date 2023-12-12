@@ -84,7 +84,9 @@ class ClienteController extends Controller
         // $clientes =  Cliente::where('empresa_id','=',$usuario->empresa_id)
         //                     ->orderBy('id', 'DESC')->paginate(15);
 
-        $clientes = DB::select('SELECT c.*, b.nombre as nombreEmpresa FROM cliente_empresa a, empresas b, clientes c WHERE a.cliente_id = c.id and a.empresa_id = b.id AND a.empresa_id = ?',
+        $clientes = DB::select('SELECT c.*, b.nombre as nombreEmpresa FROM cliente_empresa a, empresas b, clientes c 
+                                WHERE a.cliente_id = c.id and a.empresa_id = b.id AND a.empresa_id = ?
+                                ORDER BY c.id DESC',
                     [$usuario->empresa_id]);
         // return $clientes;
 

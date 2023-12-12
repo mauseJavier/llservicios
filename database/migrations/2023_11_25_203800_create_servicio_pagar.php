@@ -16,6 +16,7 @@ return new class extends Migration
 
             $table->unsignedBigInteger('cliente_id');
             $table->unsignedBigInteger('servicio_id');
+            $table->double('cantidad',2);
             $table->double('precio',2);
             $table->enum('estado', ['pago', 'impago'])->default('impago');
 

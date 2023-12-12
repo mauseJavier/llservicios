@@ -53,14 +53,17 @@ Route::middleware('auth')->group(function () {
         Route::get('quitarClienteAServicio', [ClienteServicioController::class, 'quitarClienteAServicio'])->name('quitarClienteAServicio'); 
 
         //RUTAS PAGAR SERVICIOS
-        Route::get('ServicioPagar', [ServicioPagarController::class, 'index'])->name('ServicioPagar'); 
+        Route::get('ServiciosImpagos', [ServicioPagarController::class, 'ServiciosImpagos'])->name('ServiciosImpagos'); 
+        Route::get('ServiciosPagos', [ServicioPagarController::class, 'ServiciosPagos'])->name('ServiciosPagos'); 
+        Route::get('ServicioPagarBuscarCliente/{estado?}', [ServicioPagarController::class, 'ServicioPagarBuscarCliente'])->name('ServicioPagarBuscarCliente'); 
 
 
     });
 
     // Route::get('/usuarios', [UserController::class, 'todosUsuarios'])->name('usuarios');
     Route::view('/panel', 'panel.panel')->name('panel');
-    Route::view('/miPerfil', 'usuarios.miPerfil')->name('miPerfil');
+    // Route::view('/miPerfil', 'usuarios.miPerfil')->name('miPerfil');
+    Route::get('/miPerfil', [UserController::class, 'miPerfil'])->name('miPerfil'); 
 
    
 });

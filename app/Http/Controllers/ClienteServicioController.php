@@ -176,7 +176,7 @@ class ClienteServicioController extends Controller
                 $id = DB::table('cliente_servicio')->insertGetId([
                     'cliente_id' => $request->Cliente,
                     'servicio_id' => $request->Servicio,
-                    // 'precio' => $servicio->precio,
+                    'cantidad' => $request->cantidad,
                     'vencimiento' => $fechaFormateada,
                     'created_at' => $fecha,
                     'updated_at' => $fecha,

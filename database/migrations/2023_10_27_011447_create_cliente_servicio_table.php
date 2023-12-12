@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('cliente_id');
             $table->unsignedBigInteger('servicio_id');
-            // $table->double('precio'); no correspondo por que se genera a la hora de renovar el servicio segun corresponda 
+            $table->double('cantidad')->default(1);
             $table->timestamp('vencimiento', $precision = 0);
             $table->timestamps();
         });

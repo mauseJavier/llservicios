@@ -128,5 +128,15 @@ class UserController extends Controller
         ->with('status', 'Guardado correcto.');
     }
 
+    public function miPerfil(){
+
+        $empresa = empresa::find(Auth::User()->empresa_id);
+        $rol = role::find(Auth::User()->role_id);
+
+        // return $rol;
+
+        return view('usuarios.miPerfil', ['empresa'=>$empresa, 'rol'=>$rol])->render();
+    }
+
 
 }

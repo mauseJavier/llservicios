@@ -31,8 +31,14 @@ class CobradorServicios extends Command
      */
     public function handle()
     {
-        $datos = DB::select('SELECT * FROM `cliente_servicio` ORDER BY `id` DESC');
+        // $datos = DB::select('SELECT * FROM `cliente_servicio` ORDER BY `id` DESC');
 
+        $fechaHoy = date('y-m-d H:i:s');
+        $datos = DB::select("SELECT a.id as idServicio , DATEDIFF(a.vencimiento, '$fechaHoy') AS diasRestantes, DATEDIFF(a.vencimiento, a.created_at) AS diasCreadoVencimiento, SEC_TO_TIME(TIME_TO_SEC(a.vencimiento) - TIME_TO_SEC(a.created_at)) AS diferencia_tiempo ,
+                        a.cliente_id as clienteId, a.servicio_id as servicioId, b.precio as precio, a.cantidad as cantidad
+                        FROM cliente_servicio a , servicios b WHERE a.servicio_id = b.id and b.tiempo='mes' and a.vencimiento >= '$fechaHoy'");
+
+        // DB::update('update users set votes = 100 where name = ?', ['John']);
 
         $rutaArchivo = 'prueba.txt';
         $texto = json_encode($datos);

@@ -41,6 +41,7 @@
         padding: 10px; /* Espaciado interior del menú */
         width: 150px; /* Ancho del menú */
       }
+
     </style>
 
     <title>{{env('APP_NAME')}}</title>
