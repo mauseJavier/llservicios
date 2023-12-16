@@ -16,7 +16,7 @@ class UserController extends Controller
     //
     public function todosUsuarios(){
 
-        $usuarios = User::orderBy('id', 'desc')->paginate(15);
+        $usuarios = User::orderBy('last_login', 'desc')->paginate(15);
         // $usuarios = $user->paginate(15);
 
         // return $usuarios;

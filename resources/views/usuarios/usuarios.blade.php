@@ -30,6 +30,7 @@
             <th scope="col">Dni</th>
             <th scope="col">Rol</th>
             <th scope="col">Empresa</th>
+            <th scope="col">Login</th>
             <th scope="col">Acciones</th>
           </tr>
         </thead>
@@ -43,6 +44,7 @@
               <td>{{$u->dni}}</td>
               <td>{{$u->role->nombre}}</td>
               <td>{{$u->empresa->nombre}}</td>
+              <td>{{$u->last_login}}</td>
               <th>
                 <a href="{{route('EditarUsuario',['id'=>$u->id])}}" data-tooltip="Editar">Editar</a></strong>
               </th>

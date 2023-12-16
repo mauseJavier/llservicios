@@ -53,7 +53,7 @@
               <td>{{$e->fechaCreacion}}</td>
               
               <th>                  
-                  <strong><a href="{{route('Servicios.edit',['Servicio'=>$e->idServicioPagar])}}" data-tooltip="Editar">Pagar</a></strong> | 
+                  <strong><a href="{{route('PagarServicio',['idServicioPagar'=>$e->idServicioPagar,'importe'=>$e->precio])}}" data-tooltip="Editar">Pagar</a></strong> | 
                   <strong><a href="{{route('ServiciosAgregarCliente',['Servicio'=>$e->idServicioPagar])}}"  data-tooltip="Agregar Cliente">Enviar Notif.</a></strong>
               </th>
             </tr>

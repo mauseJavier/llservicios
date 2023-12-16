@@ -33,6 +33,7 @@
               <li><a href="{{route('Cliente.index')}}">Clientes</a></li>
               <li><a href="{{route('Servicios.index')}}">Servicios</a></li>
               <li><a href="{{route('ServiciosImpagos')}}">S.Pagos-Impagos</a></li>
+              <li><a href="{{route('Pagos')}}">Pagos</a></li>
            
             @endif
 

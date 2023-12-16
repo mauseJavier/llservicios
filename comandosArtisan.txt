@@ -1,0 +1,74 @@
+Los comandos que más utilizo son estos:
+
+
+php artisan serve
+php artisan make:model [nombre_de_Modelo_en_Singular] -a
+php artisan make:controller [nombre_de_Controller] --model=[Modelo_que_se_conectara_con_el_controller]
+php artisan migrate
+php artisan migrate:fresh --seed
+php artisan make:request [nombre]
+php artisan make:resource [nombre_EstoCreara_7_rutasBasicasCRUD]
+php artisan route:list
+php artisan make:component [nombre].
+
+
+🔶 php artisan serve
+Yo utilizo XAMPP para probar mis proyectos en local. Por lo tanto el servidor inicia en la carpeta C:xampp\htdocs. En el navegador debes escribir algo como http ://localhost/proyectoUno. Lo que para mi es tedioso, y en caso de no colocar el nombre después de localhost/ te redireccionará al dashboard de xampp. Pero se complica más en caso de que uses Laravel, pues debes colocar algo como http ://localhost/proyectoUno/public.
+
+Para mejorar esa experiencia yo utilizo desde la terminal de comandos y desde la carpeta de mi proyecto
+php artisan serve
+Esto iniciara el servidor local en http ://localhost:80. Parece poca la diferencia, pero es super practico.
+
+Ojo. En el panel de XAMPP debes tener iniciado MySQL en caso de que trabajes con DB. Usar artisan serve no complicará su uso.
+
+🔶 php artisan make:model [nombre_de_Modelo_en_Singular] -a
+Este comando me ayuda a crear varias cosas a la vez.
+
+Modelo dentro de app\Models.
+Controller dentro de app\Http\Controllers, más su respectivo recurso(7 rutas) para realizar un CRUD.
+Migrate dentro de database/migrations, es el archivo para definir nuestras tablas, y porteriormente subirlas a la DB con php artisan migrate.
+Seeder dentro de database/seeders, para definir que datos/factories subir a la base de datos.
+Factory dentro de database/factories, para definir con que llenar la tabla correspondiente con datos de prueba. Uso Faker para esa tarea.
+Este comando
+php artisan make:model [nombre_de_Modelo_en_Singular] -a 
+es mi mejor amigo 😎.
+
+
+🔶 php artisan make:controller [nombre_de_Controller] --model=[Modelo_que_se_conectara_con_el_controller]
+Aquí crearemos un controlador en app\Http\Controllers que se vinculara a un modelo especifico de la carpeta app\Models. No es muy complicado. Podemos hacerlo a mano. Pero es más rápido con artisan.
+php artisan make:controller [nombre_de_Controller] --model=[Modelo_que_se_conectara_con_el_controller]
+En caso que el modelo no exista, artisan te preguntará si quieres crearlo.
+
+
+🔶 php artisan migrate
+Con este, subirás todas tus migraciones que están en database/migrations. Así crearas las tablas con sus respectivas columnas y tipos de datos a tu DB(Ej. MySQL).
+php artisan migrate
+🔶 php artisan migrate:fresh --seed
+Este es bonito. En caso de que hayas subido tus tablas(migraciones) a la DB, pero se te olvido llenarlas con datos de prueba los cuales definiste en sus factories, con este comando borrarás tus tablas y las volverás a subir pero con datos.🤓
+
+Ojo. Yo utilizo el archivo DatabaseSeede.php que esta dentro de database/seeders. En la función run() invoco los factories.
+php artisan migrate:fresh --seed
+🔶 php artisan make:request [nombre]
+Este nos ayuda a crear un archivo para validar los requests. Lo considero útil en caso de que no quieras validar los request dentro de tu controller. Es bueno aislar cierto códgo.
+php artisan make:request [nombre]
+🔶 php artisan make:resource [nombreRequest]
+Muchas veces los sistemas tienen la misma base, Crear, Leer, Actualizar y Borrar. Este comando nos permite crear 7 rutas ya configuradas para realizar un CRUD. En realidad funciona si en tu archivo web.php que esta dentro de routes/ defines algo como:
+Route::resource('/ruta', \App\Http\Controllers\rutaController::class);
+Despues de tener esa línea de código, puedes ejecutar
+php artisan make:resource [nombreRequest]
+Ojo. Esto no creara el controller. Solo las rutas para ser usadas en tu controller. Las rutas están conectadas con las funciones(7) de tu controller.
+
+🔶 php artisan route:list
+Facil. En caso de que no sepas cuantas rutas tiene tu proyecto, este comando te dirá exactamente cuantas y cuales son.
+php artisan route:list
+🔶 php artisan make:component [nombre]
+El sistema de plantillas de Blade que viene con Laravel es muy poderoso. Usar componentes nos ayudará a crear código más fácil de mantener y de leer, aunque no lo parezca a veces.
+
+De hecho cada componente puede funcionar con sus propias consultas a base de datos o lógica de programación. Cuando creas un component en tu proyecto aparecerán dos carpetas importantes.
+
+app\View\Components\nombreComponent.php aquí podrás desarrollar la lógica para ese único componente.
+
+resources\views\components\nameComponent aquí crearas la vista y el diseño que como presentaras los datos.
+
+Hay mucho que puedes aprender sobre los componentes Blade de Laravel. Son increíbles.
+php artisan make:component [nombre]

@@ -7,6 +7,12 @@ use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Event;
 
+use Illuminate\Auth\Events\Login;
+use App\Listeners\UserLoggedIn;
+
+use App\Events\PagoServicioEvent;
+use App\Listeners\RegistrarPagoListener;
+
 class EventServiceProvider extends ServiceProvider
 {
     /**
@@ -17,6 +23,12 @@ class EventServiceProvider extends ServiceProvider
     protected $listen = [
         Registered::class => [
             SendEmailVerificationNotification::class,
+        ],
+        Login::class => [
+            UserLoggedIn::class,
+        ],
+        PagoServicioEvent::class => [
+            RegistrarPagoListener::class
         ],
     ];
 

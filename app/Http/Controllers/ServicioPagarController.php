@@ -7,6 +7,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
+use App\Models\Pagos;
+use App\Events\PagoServicioEvent;
+
+
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
@@ -192,5 +196,30 @@ class ServicioPagarController extends Controller
      return view('servicios.ServiciosPagos',['servicios'=>$datosPaginados, 'fechaDesde'=>date('Y-m-d', strtotime('first day of this month'))
                                                                             ,'fechaHasta'=>date('Y-m-d', strtotime('last day of this month')),]
             )->render();
+    }
+
+    public function PagarServicio($idServicioPagar,$importe){
+
+        $usuario = Auth::user();
+        DB::update('UPDATE servicio_pagar SET estado=?,updated_at=? WHERE  id = ?',
+                         ['pago',
+                        date('Y-m-d H:i:s'),
+                        $idServicioPagar]);
+
+            // 'id_servicio_pagar'=> $event->pago->idServicioPagar,
+            // 'id_usuario'=> $event->pago->idUsuario,
+            // 'importe'=> $event->pago->importe,
+            $pago = ['idServicioPagar'=>$idServicioPagar,
+                       'idUsuario'=>$usuario->id,
+                     'importe'=>$importe,];
+                     
+            PagoServicioEvent::dispatch($pago);
+
+
+
+        return redirect()->route('ServiciosImpagos')
+        ->with('status', 'Pagado correcto.');
+
+
     }
 }

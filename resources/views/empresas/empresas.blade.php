@@ -50,8 +50,8 @@
               <td>{{$e->cuit}}</td>
               <td>{{$e->correo}}</td>
               <th>
-                  <strong><a href="{{route('UsuariosEmpresasVer',['idEmpresa'=>$e->id])}}" data-tooltip="Editar">Usuarios</a></strong>
-                  <strong><a href="{{route('empresas.edit',['empresa'=>$e->id])}}" data-tooltip="Editar">Editar</a></strong>
+                  <strong><a href="{{route('UsuariosEmpresasVer',['idEmpresa'=>$e->id])}}" data-tooltip="Editar">Usuarios</a></strong> |
+                  <strong><a href="{{route('empresas.edit',['empresa'=>$e->id])}}" data-tooltip="Editar">Editar</a></strong> |
                   <strong><a href="#" data-tooltip="Borrar">Borrar</a></strong>
               </th>
             </tr>

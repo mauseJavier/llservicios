@@ -22,6 +22,8 @@ return new class extends Migration
             $table->unsignedInteger('role_id')->default(1);
             $table->unsignedInteger('empresa_id')->default(1);
             $table->rememberToken();
+            $table->timestamp('last_login', $precision = 0)->nullable();
+
             $table->timestamps();
         });
     }

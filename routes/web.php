@@ -9,6 +9,7 @@ use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\ServicioController;
 use App\Http\Controllers\ClienteServicioController;
 use App\Http\Controllers\ServicioPagarController;
+use App\Http\Controllers\PagosController;
 
 
 
@@ -55,7 +56,12 @@ Route::middleware('auth')->group(function () {
         //RUTAS PAGAR SERVICIOS
         Route::get('ServiciosImpagos', [ServicioPagarController::class, 'ServiciosImpagos'])->name('ServiciosImpagos'); 
         Route::get('ServiciosPagos', [ServicioPagarController::class, 'ServiciosPagos'])->name('ServiciosPagos'); 
-        Route::get('ServicioPagarBuscarCliente/{estado?}', [ServicioPagarController::class, 'ServicioPagarBuscarCliente'])->name('ServicioPagarBuscarCliente'); 
+        Route::get('ServicioPagarBuscarCliente/{estado?}', [ServicioPagarController::class, 'ServicioPagarBuscarCliente'])->name('ServicioPagarBuscarCliente');
+        Route::get('PagarServicio/{idServicioPagar}/{importe}', [ServicioPagarController::class, 'PagarServicio'])->name('PagarServicio');  
+
+
+        //RUTAS PARA LOS PAGOS 
+        Route::get('Pagos', [PagosController::class, 'index'])->name('Pagos');  
 
 
     });
