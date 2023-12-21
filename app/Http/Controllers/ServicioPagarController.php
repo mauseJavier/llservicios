@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
+use App\Models\FormaPago;
 use App\Models\Pagos;
 use App\Events\PagoServicioEvent;
 
@@ -24,11 +25,14 @@ class ServicioPagarController extends Controller
 
         $datos = DB::select('SELECT
                                 a.id AS idServicioPagar,
+                                e.id as idCliente,
                                 e.nombre AS nombreCliente,
                                 e.dni as dniCliente,
                                 b.nombre AS nombreServicio,
                                 c.nombre AS nombreEmpresa,
-                                a.precio,
+                                a.precio AS precioUnitario,
+                                ROUND(a.precio * a.cantidad, 2) AS total,
+                                a.cantidad as cantidad,
                                 a.estado,
                                 a.created_at AS fechaCreacion
                             FROM
@@ -157,7 +161,9 @@ class ServicioPagarController extends Controller
                                 e.dni as dniCliente,
                                 b.nombre AS nombreServicio,
                                 c.nombre AS nombreEmpresa,
-                                a.precio,
+                                a.precio AS precioUnitario,
+                                ROUND(a.precio * a.cantidad, 2) AS total,
+                                a.cantidad as cantidad,
                                 a.estado,
                                 a.created_at AS fechaCreacion
                             FROM
@@ -198,20 +204,31 @@ class ServicioPagarController extends Controller
             )->render();
     }
 
-    public function PagarServicio($idServicioPagar,$importe){
+    public function ConfirmarPago (Request $request){
+
+        $request->validate([
+            'comentario' => 'max:200',
+            'idServicioPagar' => 'required',
+            'importe' => 'required',
+        ]);
+
+        // return $request;
+
 
         $usuario = Auth::user();
         DB::update('UPDATE servicio_pagar SET estado=?,updated_at=? WHERE  id = ?',
                          ['pago',
                         date('Y-m-d H:i:s'),
-                        $idServicioPagar]);
+                        $request->idServicioPagar]);
 
             // 'id_servicio_pagar'=> $event->pago->idServicioPagar,
             // 'id_usuario'=> $event->pago->idUsuario,
             // 'importe'=> $event->pago->importe,
-            $pago = ['idServicioPagar'=>$idServicioPagar,
-                       'idUsuario'=>$usuario->id,
-                     'importe'=>$importe,];
+            $pago = ['idServicioPagar'=>$request->idServicioPagar,
+                        'idUsuario'=>$usuario->id,
+                        'importe'=>$request->importe,
+                        'forma_pago'=>$request->formaPago,
+                        'comentario'=>$request->comentario];
                      
             PagoServicioEvent::dispatch($pago);
 
@@ -220,6 +237,17 @@ class ServicioPagarController extends Controller
         return redirect()->route('ServiciosImpagos')
         ->with('status', 'Pagado correcto.');
 
+    }
+
+    public function PagarServicio($idServicioPagar,$importe){
+
+        $formaPago = FormaPago::all();
+        // return $formaPago;
+
+
+      return view('servicios.PagarServicio',['formaPago'=>$formaPago,'idServicioPagar'=>$idServicioPagar,'importe'=>$importe])->render();
+
 
     }
+
 }

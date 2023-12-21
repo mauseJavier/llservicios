@@ -10,6 +10,7 @@ use App\Http\Controllers\ServicioController;
 use App\Http\Controllers\ClienteServicioController;
 use App\Http\Controllers\ServicioPagarController;
 use App\Http\Controllers\PagosController;
+use App\Http\Controllers\EnviarCorreoController;
 
 
 
@@ -58,10 +59,16 @@ Route::middleware('auth')->group(function () {
         Route::get('ServiciosPagos', [ServicioPagarController::class, 'ServiciosPagos'])->name('ServiciosPagos'); 
         Route::get('ServicioPagarBuscarCliente/{estado?}', [ServicioPagarController::class, 'ServicioPagarBuscarCliente'])->name('ServicioPagarBuscarCliente');
         Route::get('PagarServicio/{idServicioPagar}/{importe}', [ServicioPagarController::class, 'PagarServicio'])->name('PagarServicio');  
+        Route::post('ConfirmarPago', [ServicioPagarController::class, 'ConfirmarPago'])->name('ConfirmarPago');
 
+
+        //CORREOS 
+        Route::get('NotificacionNuevoServicio/{idServicioPagar}', [EnviarCorreoController::class, 'NotificacionNuevoServicio'])->name('NotificacionNuevoServicio');
 
         //RUTAS PARA LOS PAGOS 
         Route::get('Pagos', [PagosController::class, 'index'])->name('Pagos');  
+        Route::get('PagosVer/{idServicioPagar}', [PagosController::class, 'PagosVer'])->name('PagosVer');  
+
 
 
     });

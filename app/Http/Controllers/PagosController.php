@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
+
 use App\Http\Requests\StorePagosRequest;
 use App\Http\Requests\UpdatePagosRequest;
 use App\Models\Pagos;
@@ -20,17 +22,33 @@ class PagosController extends Controller
                                     a.*,
                                     c.name AS nombreUsuario,
                                     d.nombre AS Servicio,
-                                    e.nombre AS Cliente
+                                    e.nombre AS Cliente,
+                                    f.nombre AS formaPago
                                 FROM
                                     pagos a,
                                     servicio_pagar b,
                                     users c,
                                     servicios d,
-                                    clientes e
+                                    clientes e,
+                                    forma_pagos f
                                 WHERE
-                                    a.id_servicio_pagar = b.id AND a.id_usuario = c.id AND b.servicio_id = d.id AND b.cliente_id = e.id');
+                                    a.id_servicio_pagar = b.id AND a.id_usuario = c.id AND b.servicio_id = d.id AND b.cliente_id = e.id AND a.forma_pago = f.id');
 
         return $pagos;
+    }
+
+    public function PagosVer ($idServicioPagar){
+
+        // return $idServicioPagar;
+
+        $pago = Pagos::where('id_servicio_pagar',$idServicioPagar)->get();
+        return $pago;
+    }
+
+    public function ConfirmarPago (Request $request){
+
+        return $request;
+
     }
 
     /**

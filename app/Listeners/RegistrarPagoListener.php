@@ -28,6 +28,8 @@ class RegistrarPagoListener
             'id_servicio_pagar'=> $event->pago['idServicioPagar'],
             'id_usuario'=> $event->pago['idUsuario'],
             'importe'=> $event->pago['importe'],
+            'forma_pago'=> $event->pago['forma_pago'],
+            'comentario'=> $event->pago['comentario'],
         ]);
 
         // $table->unsignedBigInteger('id_servicio_pagar');

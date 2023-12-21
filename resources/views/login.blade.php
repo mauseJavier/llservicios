@@ -34,12 +34,20 @@
 
       <div class="container">
 
-          <form method="POST" action="{{route('loginUsuario')}}">
+        <div class="container">
+
+          
+        </div>
+
+          <form method="POST" action="{{route('loginUsuario')}} " style=" width: 50%;  position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);">
 
               @csrf
               
               <!-- Grid -->
-              <div class="grid">
+              <div class="" >
             
                 <label for="email">
                   Correo

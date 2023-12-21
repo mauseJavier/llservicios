@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use App\Events\NuevoServicioPagarEvent;
 
 class CobradorHora extends Command
 {
@@ -33,15 +34,28 @@ class CobradorHora extends Command
 
         foreach ($datos as $key => $value) {
 
-        DB::insert('INSERT INTO `servicio_pagar`(`cliente_id`, `servicio_id`, `precio`, `estado`, `created_at`, `updated_at`, `cantidad`) 
-                    VALUES (?,?,?,?,?,?,?)', 
-                            [$value->clienteId,
-                            $value->servicioId,
-                            round($value->precio * $value->cantidad, 2),
-                            'impago',
-                            $fechaHoy,
-                            $fechaHoy,
-                            $value->cantidad]);
+            // DB::insert('INSERT INTO `servicio_pagar`(`cliente_id`, `servicio_id`, `precio`, `estado`, `created_at`, `updated_at`, `cantidad`) 
+            //         VALUES (?,?,?,?,?,?,?)', 
+            //                 [$value->clienteId,
+            //                 $value->servicioId,
+            //                 round($value->precio * $value->cantidad, 2),
+            //                 'impago',
+            //                 $fechaHoy,
+            //                 $fechaHoy,
+            //                 $value->cantidad]);
+
+            $id = DB::table('servicio_pagar')->insertGetId([
+                'cliente_id' => $value->clienteId,
+                'servicio_id' => $value->servicioId,
+                'precio' => $value->precio,
+                'estado' => 'impago',
+                'created_at' => $fechaHoy,
+                'updated_at' => $fechaHoy,
+                'cantidad' => $value->cantidad,
+            ]);
+
+            // use App\Events\NuevoServicioPagarEvent;
+            NuevoServicioPagarEvent::dispatch($id);
                             
         }
     }

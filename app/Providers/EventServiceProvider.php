@@ -13,6 +13,9 @@ use App\Listeners\UserLoggedIn;
 use App\Events\PagoServicioEvent;
 use App\Listeners\RegistrarPagoListener;
 
+use App\Events\NuevoServicioPagarEvent;
+use App\Listeners\NuevoServicioPagarListener;
+
 class EventServiceProvider extends ServiceProvider
 {
     /**
@@ -29,6 +32,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         PagoServicioEvent::class => [
             RegistrarPagoListener::class
+        ],
+        NuevoServicioPagarEvent::class => [
+            NuevoServicioPagarListener::class
         ],
     ];
 

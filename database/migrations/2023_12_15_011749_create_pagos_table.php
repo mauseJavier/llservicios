@@ -15,7 +15,9 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('id_servicio_pagar');
             $table->unsignedBigInteger('id_usuario');
+            $table->unsignedBigInteger('forma_pago')->default(1);
             $table->double('importe',2);
+            $table->string('comentario', 200)->nullable();
             
             $table->timestamps();
         });

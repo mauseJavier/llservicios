@@ -55,7 +55,7 @@
             <th>id</th>
             <th scope="col">Cliente</th>
             <th scope="col">Servicio</th>  
-            <th scope="col">Precio</th>        
+            <th scope="col">Total</th>        
             <th scope="col">Estado</th>  
             <th scope="col">Fecha</th>
             <th scope="col">Acciones</th>
@@ -68,14 +68,13 @@
               <td>{{$e->idServicioPagar}}</td>           
               <td>{{$e->nombreCliente}}({{$e->dniCliente}})</td>
               <td>{{$e->nombreServicio}}</td>
-              <td>${{$e->precio}}</td>
+              <td>({{$e->cantidad}}U.)${{$e->total}}</td>
               <td>{{$e->estado}}</td>
               <td>{{$e->fechaCreacion}}</td>
               
-              <th>              
-                <a href="">acciones futuras </a>    
-                  {{-- <strong><a href="{{route('Servicios.edit',['Servicio'=>$e->idServicioPagar])}}" data-tooltip="Editar">Pagar</a></strong> | 
-                  <strong><a href="{{route('ServiciosAgregarCliente',['Servicio'=>$e->idServicioPagar])}}"  data-tooltip="Agregar Cliente">Enviar Notif.</a></strong> --}}
+              <th>                
+                  <strong><a href="{{route('PagosVer',['idServicioPagar'=>$e->idServicioPagar])}}" data-tooltip="Ver Detalle Pago">Ver</a></strong>
+                 
               </th>
             </tr>
           @endforeach

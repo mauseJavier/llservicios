@@ -19,7 +19,7 @@ class Kernel extends ConsoleKernel
         if (App::environment('local')) {
             // The environment is local
             $schedule->command('app:cobrador-servicios')->everyMinute();
-            $schedule->command('app:cobrador-mensual')->everyMinute()->appendOutputTo(storage_path('logs/tareasMensualDesarrollo.log'));
+            // $schedule->command('app:cobrador-mensual')->everyMinute()->appendOutputTo(storage_path('logs/tareasMensualDesarrollo.log'));
         }else{
 
             //¡¡¡¡¡¡¡¡¡¡¡¡¡QUITAR PARA PRUDUCCION¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¿
