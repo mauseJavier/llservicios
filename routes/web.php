@@ -11,6 +11,13 @@ use App\Http\Controllers\ClienteServicioController;
 use App\Http\Controllers\ServicioPagarController;
 use App\Http\Controllers\PagosController;
 use App\Http\Controllers\EnviarCorreoController;
+use App\Http\Controllers\PanelController;
+
+// JOBS
+use App\Jobs\TutorialJob;
+
+//logs
+// use Illuminate\Support\Facades\Log;
 
 
 
@@ -60,10 +67,13 @@ Route::middleware('auth')->group(function () {
         Route::get('ServicioPagarBuscarCliente/{estado?}', [ServicioPagarController::class, 'ServicioPagarBuscarCliente'])->name('ServicioPagarBuscarCliente');
         Route::get('PagarServicio/{idServicioPagar}/{importe}', [ServicioPagarController::class, 'PagarServicio'])->name('PagarServicio');  
         Route::post('ConfirmarPago', [ServicioPagarController::class, 'ConfirmarPago'])->name('ConfirmarPago');
+        Route::get('NuevoCobro', [ServicioPagarController::class, 'NuevoCobro'])->name('NuevoCobro'); 
+        Route::post('AgregarNuevoCobro', [ServicioPagarController::class, 'AgregarNuevoCobro'])->name('AgregarNuevoCobro');
 
 
         //CORREOS 
         Route::get('NotificacionNuevoServicio/{idServicioPagar}', [EnviarCorreoController::class, 'NotificacionNuevoServicio'])->name('NotificacionNuevoServicio');
+        Route::get('NotificacionTodosServiciosImpagos', [EnviarCorreoController::class, 'NotificacionTodosServiciosImpagos'])->name('NotificacionTodosServiciosImpagos');
 
         //RUTAS PARA LOS PAGOS 
         Route::get('Pagos', [PagosController::class, 'index'])->name('Pagos');  
@@ -74,8 +84,9 @@ Route::middleware('auth')->group(function () {
     });
 
     // Route::get('/usuarios', [UserController::class, 'todosUsuarios'])->name('usuarios');
-    Route::view('/panel', 'panel.panel')->name('panel');
-    // Route::view('/miPerfil', 'usuarios.miPerfil')->name('miPerfil');
+    
+    Route::get('/panel', [PanelController::class, 'index'])->name('panel'); 
+    // Route::view('/miPerfil', 'usuarios.miPerfil')->name('panel');
     Route::get('/miPerfil', [UserController::class, 'miPerfil'])->name('miPerfil'); 
 
    
@@ -105,3 +116,27 @@ Route::post('/loginUsuario',[UserController::class,'loginUsuario'])->name('login
 Route::get('/', function () {
     return view('welcome');
 })->name('inicio');
+
+
+
+
+// RUTAS DE PRUEBA
+
+Route::get('/pruebaJob/log', function () {
+    
+    $filePath = '../storage/logs/laravel.log';
+    $fileContent = file_get_contents($filePath);
+    
+    echo $fileContent;
+
+})->name('pruebaJobVerLog');
+
+
+Route::get('/pruebaJob/{mensaje}', function ($mensaje) {
+    
+    TutorialJob::dispatch($mensaje);
+
+})->name('pruebaJob');
+
+// llservicios/routes/web.php
+// llservicios/storage/logs/laravel.log

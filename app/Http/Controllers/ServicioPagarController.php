@@ -9,7 +9,10 @@ use Illuminate\Support\Facades\Auth;
 
 use App\Models\FormaPago;
 use App\Models\Pagos;
+
+
 use App\Events\PagoServicioEvent;
+use App\Events\NuevoServicioPagarEvent;
 
 
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -92,7 +95,12 @@ class ServicioPagarController extends Controller
                                 c.nombre AS nombreEmpresa,
                                 a.precio,
                                 a.estado,
-                                a.created_at AS fechaCreacion
+                                a.created_at AS fechaCreacion,
+                                
+
+                                ROUND(a.precio * a.cantidad, 2) AS total,
+                                a.cantidad as cantidad
+                                
                             FROM
                                 servicio_pagar a,
                                 servicios b,
@@ -248,6 +256,57 @@ class ServicioPagarController extends Controller
       return view('servicios.PagarServicio',['formaPago'=>$formaPago,'idServicioPagar'=>$idServicioPagar,'importe'=>$importe])->render();
 
 
+    }
+
+    public function NuevoCobro (){
+
+
+        $usuario = Auth::user();
+        // return $usuario->empresa_id;
+
+        $servicios = DB::select('SELECT * FROM `servicios` WHERE empresa_id = ? ORDER BY nombre ASC', [$usuario->empresa_id]);
+        $clientes = DB::select('SELECT b.* FROM cliente_empresa a, clientes b WHERE a.cliente_id = b.id AND a.empresa_id = ? ORDER BY b.nombre ASC;', [$usuario->empresa_id]);
+
+        // return $servicios;
+        
+       return view('servicios.NuevoCobro',compact('servicios','clientes'))->render();
+    }
+
+    public function AgregarNuevoCobro (Request $request){
+
+        $request->validate([
+            'precio' => 'required|numeric|min:1',
+            'cantidad' => 'required|numeric|min:0.5',
+        ]);
+
+        // return $request;
+
+        $fechaHoy = date('y-m-d H:i:s');
+
+        // {
+        //     "_method": "POST",
+        //     "_token": "7lpAuohyL0m8WvBWr3oneaxqQ9YJvSIJ2XGxYHJd",
+        //     "servicio": "140",
+        //     "cliente": "4",
+        //     "precio": "0",
+        //     "cantidad": "1"
+        //   }
+
+        $id = DB::table('servicio_pagar')->insertGetId([
+            'cliente_id' => $request->cliente,
+            'servicio_id' => $request->servicio,
+            'precio' => $request->precio,
+            'estado' => 'impago',
+            'created_at' => $fechaHoy,
+            'updated_at' => $fechaHoy,
+            'cantidad' => $request->cantidad,
+        ]);
+
+        // use App\Events\NuevoServicioPagarEvent;
+        NuevoServicioPagarEvent::dispatch($id);
+
+        return redirect()->route('ServiciosImpagos')->with('status','Cobro correcto id:' .$id);
+        
     }
 
 }

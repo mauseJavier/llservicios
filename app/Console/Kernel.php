@@ -19,7 +19,8 @@ class Kernel extends ConsoleKernel
         if (App::environment('local')) {
             // The environment is local
             $schedule->command('app:cobrador-servicios')->everyMinute();
-            // $schedule->command('app:cobrador-mensual')->everyMinute()->appendOutputTo(storage_path('logs/tareasMensualDesarrollo.log'));
+            // $schedule->command('app:notificacion-mensual')->everyMinute()->appendOutputTo(storage_path('logs/notificacionMensual.log'));
+            $schedule->command('app:cobrador-mensual')->everyMinute()->appendOutputTo(storage_path('logs/tareasMensualDesarrollo.log'));
         }else{
 
             //¡¡¡¡¡¡¡¡¡¡¡¡¡QUITAR PARA PRUDUCCION¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¿
@@ -30,6 +31,9 @@ class Kernel extends ConsoleKernel
             $schedule->command('app:cobrador-diario')->daily()->appendOutputTo(storage_path('logs/tareasDia.log'));
             $schedule->command('app:cobrador-semanal')->weekly()->appendOutputTo(storage_path('logs/tareasSemana.log'));
             $schedule->command('app:cobrador-mensual')->monthly()->appendOutputTo(storage_path('logs/tareasMes.log'));
+
+            //NOTIFICACION MENSUAL SE EJECUTA 2 Y 7 A LAS 13 
+            $schedule->command('app:notificacion-mensual')->twiceMonthly(2, 7, '13:00')->appendOutputTo(storage_path('logs/notificacionMensual.log'));
 
         }
         

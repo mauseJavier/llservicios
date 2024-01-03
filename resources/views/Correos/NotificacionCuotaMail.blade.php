@@ -46,10 +46,14 @@
     <div class="container">
         <h1>¡Notificacion de Servicio!</h1>
         <p>Estimado <span class="highlight">{{$datos[0]->nombreCliente}}</span>,</p>
-        <p>Le informamos que ya se encuentra disponible la cuota de su servicio de <span class="highlight">{{$datos[0]->nombreServicio}}</span>. El importe a abonar es de <span class="highlight">${{$datos[0]->precioServicio}}</span>.</p>
+        <p>Le informamos que ya se encuentra disponible la cuota de su servicio de <span class="highlight">{{$datos[0]->nombreServicio}}</span>. El importe a abonar es de <span class="highlight">${{$datos[0]->precioServicio * $datos[0]->cantidadServicio}}</span>.</p>
         <p>¡Agradecemos su confianza y quedamos a su disposición para cualquier consulta!</p>
         <p>¡Gracias por elegir nuestros servicios!</p>
         <p>Fecha {{$datos[0]->fechaServicio}}</p>
+        <p>
+            Visitanos:
+            <a href="{{env('APP_URL')}}">{{env('APP_URL')}}</a>
+        </p>
     </div>
 </body>
 </html>

@@ -26,6 +26,15 @@ class UserSeeder extends Seeder
              'role_id'=> 3
          ]);
          
+         DB::table('users')->insert([
+            'name' => 'Marcelo Gimenez',
+             'email' => 'marce_nqn_19@hotmail.com',
+             'dni' => '35079663',
+             'password'=> Hash::make(1234),
+             'role_id'=> 3
+         ]);
+
+
          User::factory()->count(100)->create();
     }
 }

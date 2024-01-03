@@ -58,7 +58,7 @@ class CobradorMensual extends Command
                 'cantidad' => $value->cantidad,
             ]);
 
-            NuevoServicioPagarEvent::dispatch($id);
+            // NuevoServicioPagarEvent::dispatch($id);
                             
         }
 

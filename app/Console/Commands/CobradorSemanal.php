@@ -55,7 +55,7 @@ class CobradorSemanal extends Command
             ]);
 
             // use App\Events\NuevoServicioPagarEvent;
-            NuevoServicioPagarEvent::dispatch($id);
+            // NuevoServicioPagarEvent::dispatch($id);
                             
         }
     }
