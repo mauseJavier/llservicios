@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('nombre');
             $table->string('correo'); 
-            $table->unsignedInteger('dni')->unique()->nullable();
+            $table->unsignedBigInteger('dni')->unique()->nullable();
+            $table->string('domicilio')->nullable();
             
             $table->timestamps();
         });

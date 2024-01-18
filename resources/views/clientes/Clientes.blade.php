@@ -48,6 +48,7 @@
             <th scope="col">Dni</th>
             <th scope="col">Correo</th>
             <th scope="col">Empresa</th>
+            <th scope="col">Domicilio</th>
             <th scope="col">Acciones</th>
           </tr>
         </thead>
@@ -60,6 +61,7 @@
               <td>{{$e->dni}}</td>
               <td>{{$e->correo}}</td>
               <td>{{$e->nombreEmpresa}}</td>
+              <td>{{$e->domicilio}}</td>
               <th>                  
                   <strong><a href="{{route('Cliente.edit',['Cliente'=>$e->id])}}" data-tooltip="Editar">Editar</a></strong>
               </th>

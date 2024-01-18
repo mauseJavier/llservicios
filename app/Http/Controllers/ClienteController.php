@@ -136,6 +136,7 @@ class ClienteController extends Controller
             $id = Cliente::create(['nombre'=>$request->nombre,
                                 'dni'=>$request->dni,
                                 'correo'=>$request->correo,
+                                'domicilio'=>$request->domicilio,
                                 ]);
             // return $id->id;
 
@@ -204,7 +205,8 @@ class ClienteController extends Controller
     {
         $Cliente->update(['nombre'=>$request->nombre,
                             'dni'=>$request->dni,
-                            'correo'=>$request->correo,]);
+                            'correo'=>$request->correo,
+                            'domicilio'=>$request->domicilio,]);
         return redirect()->route('Cliente.index')
         ->with('status', 'Guardado correcto.');
     }

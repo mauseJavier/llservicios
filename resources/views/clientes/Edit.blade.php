@@ -46,6 +46,17 @@
         <label for="correo">Correo Electronico</label>
         <input type="email" id="correo" name="correo" placeholder="Correo Electronico" value="{{$Cliente->correo}}" required>
         <small>Opcional.</small>
+
+        <details>
+          <summary>Mas Opciones</summary>
+
+          <label for="domicilio">
+            Domicilio Cliente <small>(Opcional).</small>
+            <input type="text" id="domicilio" name="domicilio" placeholder="Domicilio Cliente" value="{{$Cliente->domicilio}}" >
+          </label>
+          
+
+        </details>
       
         <!-- Button -->
         <button type="submit">Guardar</button>
