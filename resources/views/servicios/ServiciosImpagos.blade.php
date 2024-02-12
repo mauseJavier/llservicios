@@ -3,37 +3,42 @@
 @section('body')
 
 
-<h1>Servicios Impagos</h1>
 
-<a href="{{route('ServiciosImpagos')}}" role="button" class="outline" style="font-size: 20px; padding: 4px 8px; ">Impagos</a>
-<a href="{{route('ServiciosPagos')}}" role="button" class="contrast outline" style="font-size: 20px; padding: 4px 8px; ">Pagos</a>
+<div class="container">
+  <h1>Servicios Impagos</h1>
 
-<nav>
-    <ul>
-
+  <a href="{{route('ServiciosImpagos')}}" role="button" class="outline" style="font-size: 20px; padding: 4px 8px; ">Impagos</a>
+  <a href="{{route('ServiciosPagos')}}" role="button" class="contrast outline" style="font-size: 20px; padding: 4px 8px; ">Pagos</a>
+  <a href="{{route('Grilla')}}" role="button" class="contrast outline" style="font-size: 20px; padding: 4px 8px; ">Grilla</a>
+  
+  <nav>
+      <ul>
+  
+          <li>
+            <form class="form" action="{{route('ServicioPagarBuscarCliente',['estado'=>'impago'])}}" method="GET">
+                
+                <div class="input-group">
+                    <input type="search" class="input" id="buscar" name="buscar" 
+                    @if (isset($buscar))
+                        value="{{$buscar}}"
+                    @endif  placeholder="Buscar...(Nombre,DNI,Correo)">
+   
+                </div>
+            </form>
+          </li>
+      </ul>
+      <ul>
         <li>
-          <form class="form" action="{{route('ServicioPagarBuscarCliente',['estado'=>'impago'])}}" method="GET">
-              
-              <div class="input-group">
-                  <input type="search" class="input" id="buscar" name="buscar" 
-                  @if (isset($buscar))
-                      value="{{$buscar}}"
-                  @endif  placeholder="Buscar...(Nombre,DNI,Correo)">
- 
-              </div>
-          </form>
+          <a href="{{route('NotificacionTodosServiciosImpagos')}}" role="button">Notif. Todos</a>
         </li>
-    </ul>
-    <ul>
-      <li>
-        <a href="{{route('NotificacionTodosServiciosImpagos')}}" role="button">Notif. Todos</a>
-      </li>
-      <li>
-        <a href="{{route('NuevoCobro')}}" role="button">Nuevo Cobro</a>
-      </li>
-    </ul>
+        <li>
+          <a href="{{route('NuevoCobro')}}" role="button">Nuevo Cobro</a>
+        </li>
+      </ul>
+  
+  </nav>
 
-</nav>
+</div>
 <div class="container">
 
   <figure>

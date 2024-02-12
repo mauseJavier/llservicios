@@ -4,7 +4,8 @@
 
 
 
-<h1>Servicios</h1>
+<div class="container">
+  <h1>Servicios</h1>
 
 <nav>
     <ul>
@@ -29,6 +30,8 @@
         </li>
     </ul>
 </nav>
+
+</div>
 <div class="container">
 
   <figure>

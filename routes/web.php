@@ -12,6 +12,7 @@ use App\Http\Controllers\ServicioPagarController;
 use App\Http\Controllers\PagosController;
 use App\Http\Controllers\EnviarCorreoController;
 use App\Http\Controllers\PanelController;
+use App\Http\Controllers\GrillaController;
 
 // JOBS
 use App\Jobs\TutorialJob;
@@ -44,6 +45,10 @@ Route::middleware('auth')->group(function () {
         Route::resource('/empresas', EmpresaController::class);
         Route::get('/UsuariosEmpresasVer/{idEmpresa}', [EmpresaController::class, 'UsuariosEmpresasVer'])->name('UsuariosEmpresasVer');
         Route::get('/BuscarEmpresa', [EmpresaController::class, 'BuscarEmpresa'])->name('BuscarEmpresa');
+
+
+        //RUTAS DE LA GRILLA
+        Route::get('/Grilla', [GrillaController::class, 'index'])->name('Grilla');
         
     });
 

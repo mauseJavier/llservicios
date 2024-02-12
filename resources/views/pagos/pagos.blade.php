@@ -2,9 +2,9 @@
 
 @section('body')
 
-<div class="container">
 
-  <h1>Clientes</h1>
+
+<h1>Pagos</h1>
 
 <nav>
     <ul>
@@ -37,10 +37,6 @@
         </li>
     </ul>
 </nav>
-
-</div>
-
-
 <div class="container">
 
   <figure>
@@ -58,14 +54,31 @@
         </thead>
         <tbody>
      
-          @foreach ($clientes as $e)
+          @foreach ($pagos as $e)
+
+  {{-- {
+    "id": 1,
+    "id_servicio_pagar": 8,
+    "id_usuario": 1,
+    "forma_pago": 3,
+    "importe": 4081.17,
+    "comentario": null,
+    "created_at": "2024-01-21 18:44:17",
+    "updated_at": "2024-01-21 18:44:17",
+    "nombreUsuario": "DESMARET JAVIER NICOLAS",
+    "Servicio": "Vito Daugherty",
+    "Cliente": "Mr. Keenan O'Connell DDS",
+    "idCliente": 1,
+    "formaPago": "MercadoPago"
+  }
+] --}}
             <tr>              
               <td>{{$e->id}}</td>
-              <td>{{$e->nombre}}</td>
-              <td>{{$e->dni}}</td>
-              <td>{{$e->correo}}</td>
-              <td>{{$e->nombreEmpresa}}</td>
-              <td>{{$e->domicilio}}</td>
+              <td>{{$e->Servicio}}</td>
+              <td>{{$e->Cliente}}</td>
+              <td>{{$e->formaPago}}</td>
+              <td>{{$e->nombreUsuario}}</td>
+              <td>{{$e->importe}}</td>
               <th>                  
                   <strong><a href="{{route('Cliente.edit',['Cliente'=>$e->id])}}" data-tooltip="Editar">Editar</a></strong>
               </th>

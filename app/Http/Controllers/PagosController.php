@@ -23,6 +23,7 @@ class PagosController extends Controller
                                     c.name AS nombreUsuario,
                                     d.nombre AS Servicio,
                                     e.nombre AS Cliente,
+                                    e.id as idCliente,
                                     f.nombre AS formaPago
                                 FROM
                                     pagos a,
@@ -34,7 +35,9 @@ class PagosController extends Controller
                                 WHERE
                                     a.id_servicio_pagar = b.id AND a.id_usuario = c.id AND b.servicio_id = d.id AND b.cliente_id = e.id AND a.forma_pago = f.id');
 
-        return $pagos;
+        // return $pagos;
+
+        return view('pagos.pagos', compact('pagos'))->render();
     }
 
     public function PagosVer ($idServicioPagar){

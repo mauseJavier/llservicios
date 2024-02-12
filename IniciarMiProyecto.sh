@@ -1,19 +1,9 @@
 #!/bin/bash
-echo "sudo /opt/lampp/lampp start"
-gnome-terminal --command="sudo /opt/lampp/lampp start"
 
-echo "php artisan serve"
-gnome-terminal --command="php artisan serve"
+gnome-terminal --tab --title="Lampp" -- clear sudo /opt/lampp/lampp start
 
-echo "php artisan schedule:work"
-gnome-terminal --command=" cd llservicios/ && php artisan schedule:work"
+gnome-terminal --tab --title="Artisan Serve" -- clear php artisan serve
 
-echo "php artisan queue:work"
-gnome-terminal --command="cd llservicios/ && php artisan queue:work"
+gnome-terminal --tab --title="Schedule Work" -- clear cd llservicios/ && php artisan schedule:work
 
-
-
-
-
-
-
+gnome-terminal --tab --title="Queue Work" -- clear cd llservicios/ && php artisan queue:work
