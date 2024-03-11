@@ -15,11 +15,14 @@ class EmpresaSeeder extends Seeder
     public function run(): void
     {
         empresa::create([
-            'nombre' => 'ejemplo',
+            'nombre' => 'EmpresaPrueba',
             'cuit' => 20358337164,
         ]);
 
-        empresa::factory()->count(20)->create();
+        if(env('APP_DEBUG')==true){//para cuando estoy en produccion
+            empresa::factory()->count(20)->create();
+        }
+        
 
 
            

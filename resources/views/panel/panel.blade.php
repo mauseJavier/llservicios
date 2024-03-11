@@ -2,7 +2,10 @@
 
 @section('body')
 
-<h1>Servicios</h1>
+
+<div class="container">
+  <h1>Servicios</h1>
+</div>
 
 <div class="container">
 
@@ -20,28 +23,29 @@
         <table>
             <thead>
               <tr>
-                <th scope="col">ID</th>
+                <th scope="col"></th>
                 <th scope="col">Fecha</th>
                 <th scope="col">Servicio</th>
                 <th scope="col">Empresa</th>
                 <th scope="col">Cantidad</th>
                 <th scope="col">Precio</th>
                 <th scope="col">Total</th>
-                <th scope="col">Acciones</th>
+                <th scope="col">Pagar</th>
               </tr>
             </thead>
             <tbody>
 
               @forelse ($serviciosImpagos as $s)
                 <tr>
-                  <th scope="row">{{$s->servicio_id}}</th>
+                  {{-- <th scope="row">{{$s->servicio_id}}</th> --}}
+                  <th scope="row"><img width="30%" src="{{$s->imagenServicio}}" alt=""></th>
                   <td>{{$s->fechaCobro}}</td>
                   <td>{{$s->nombreServicio}}</td>
                   <td>{{$s->nombreEmpresa}}</td>
                   <td>{{$s->cantidadServicio}}</td>
                   <td>{{$s->precioServicio}}</td>
                   <td>{{$s->total}}</td>
-                  <td><a href="http://" target="_blank" rel="noopener noreferrer">Pagar Servicio</a></td>
+                  <td><a href="{{$s->linkPago}}" role="button"><i class="fa-solid fa-dollar-sign"></i></a></td>
                 </tr>
               @empty
                   <p>Sin Servicios Impagos</p>

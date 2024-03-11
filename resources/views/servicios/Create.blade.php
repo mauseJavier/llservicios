@@ -2,21 +2,26 @@
 
 @section('body')
 
-<nav>
-    <ul>
-        <li>
-            <h1>Nuevo Servicio</h1>
-        </li>
-        <li>
-          {{-- <input type="search" id="search" name="search" placeholder="Search"> --}}
-        </li>
-    </ul>
-    <ul>
-        <li>
 
-        </li>
-    </ul>
-</nav>
+
+<div class="container">
+    <nav>
+      <ul>
+          <li>
+              <h1>Nuevo Servicio</h1>
+          </li>
+          <li>
+            {{-- <input type="search" id="search" name="search" placeholder="Search"> --}}
+          </li>
+      </ul>
+      <ul>
+          <li>
+
+          </li>
+      </ul>
+  </nav>
+
+</div>
 <div class="container">
      
 
@@ -33,12 +38,29 @@
 
           <label for="precio">
             Precio
-            <input type="numeric" id="precio" name="precio" placeholder="Precio" value="{{old('precio')}}" required>
+            <input type="number" step="0.01" min="0"  id="precio" name="precio" placeholder="Precio" value="{{old('precio')}}" required>            
           </label>
       
           <label for="descripcion">
             Descripcion
-            <input type="text" id="descripcion" name="descripcion" placeholder="Descripcion" value="{{old('descripcion')}}" required>
+            <textarea name="descripcion" id="descripcion" cols="10" rows="1">{{old('descripcion')}}</textarea>
+            {{-- <input type="textarea" id="descripcion" name="descripcion" placeholder="Descripcion" value="{{old('descripcion')}}" required> --}}
+          </label>
+
+      
+        </div>
+
+        <div class="grid">
+
+
+          <label for="linkPago">
+            Link de Pago
+            <input type="text" id="linkPago" name="linkPago" placeholder="Link de Pago" value="{{old('linkPago')}}">
+          </label>
+
+          <label for="imagen">
+            Link de Imagen
+            <input type="text" id="imagen" name="imagen" placeholder="Link de Imagen" value="{{old('imagen')}}">
           </label>
 
           <!-- Select -->
@@ -50,7 +72,7 @@
             <option value="mes" selected>Mes</option>
           </select>
           </label>
-      
+
         </div>
       
      

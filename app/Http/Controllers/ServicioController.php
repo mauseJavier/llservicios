@@ -94,7 +94,9 @@ class ServicioController extends Controller
             'precio'=> round($request->precio,2),
             'descripcion'=> $request->descripcion,
             'tiempo' => $request->tiempo,
-            'empresa_id'=> $usuario->empresa_id
+            'empresa_id'=> $usuario->empresa_id,
+            'linkPago' => $request->linkPago,
+            'imagen' => $request->imagen
         ]);
 
         return redirect()->route('Servicios.index')
@@ -130,7 +132,11 @@ class ServicioController extends Controller
         $Servicio->update(['nombre'=>$request->nombre,
                             'descripcion'=>$request->descripcion,
                             'precio'=> round($request->precio,2),
-                            'tiempo'=> $request->tiempo]);
+                            'tiempo'=> $request->tiempo,
+                            'linkPago' => $request->linkPago,
+                            'imagen' => $request->imagen
+                        
+                        ]);
         return redirect()->route('Servicios.index')
         ->with('status', 'Actualizado Correcto.');
     }

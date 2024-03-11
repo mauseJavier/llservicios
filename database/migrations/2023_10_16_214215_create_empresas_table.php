@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('nombre');
             $table->bigInteger('cuit')->unique()->nullable();
             $table->string('correo')->unique()->nullable();
+            $table->string('logo')->nullable();
             $table->timestamps();
         });
     }

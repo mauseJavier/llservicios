@@ -61,7 +61,15 @@ class UserController extends Controller
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
  
-            return redirect()->route('panel');
+            $usuario= Auth::user();
+
+            if($usuario->role_id == 3 || $usuario->role_id == 2){
+                return redirect()->route('Grilla');
+            }else{
+                return redirect()->route('panel');
+            }
+
+            
         }
  
         return back()->withErrors([

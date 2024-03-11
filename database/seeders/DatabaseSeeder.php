@@ -22,16 +22,19 @@ class DatabaseSeeder extends Seeder
         // ]);
 
         $this->call(RoleSeeder::class);
+        $this->call(EmpresaSeeder::class);
+        $this->call(UserSeeder::class);
+        $this->call(FormaPagoSeeder::class);
 
         if(env('APP_DEBUG')==true){//para cuando estoy en produccion
-            $this->call(UserSeeder::class);
-            $this->call(EmpresaSeeder::class);
+            
+            
             $this->call(ClienteSeeder::class);
             $this->call(ServicioSeeder::class);
             $this->call(ClienteServicio::class);
             $this->call(ClienteEmpresaSeeder::class);
             $this->call(ServicioPagarSeeder::class);
-            $this->call(FormaPagoSeeder::class);
+            
         }
        
     }

@@ -3,49 +3,55 @@
 @section('body')
 
 
-<h1>Servicios Pagos</h1>
 
-<a href="{{route('ServiciosImpagos')}}" role="button" class="contrast outline" style="font-size: 20px; padding: 4px 8px; ">Impagos</a>
-<a href="{{route('ServiciosPagos')}}" role="button" class="outline" style="font-size: 20px; padding: 4px 8px; ">Pagos</a>
 
-<nav>
-    <ul>
+<div class="container">
+  <h1>Servicios Pagos</h1>
 
-        <li>
-          <form class="form" action="{{route('ServicioPagarBuscarCliente',['estado'=>'pago'])}}" method="GET">
-              
+  <a href="{{route('ServiciosImpagos')}}" role="button" class="contrast outline" style="font-size: 20px; padding: 4px 8px; ">Impagos</a>
+  <a href="{{route('ServiciosPagos')}}" role="button" class="outline" style="font-size: 20px; padding: 4px 8px; ">Pagos</a>
+  <a href="{{route('Grilla')}}" role="button" class="contrast outline" style="font-size: 20px; padding: 4px 8px; ">Grilla</a>
+  
+  <nav>
+      <ul>
+  
+          <li>
+            <form class="form" action="{{route('ServicioPagarBuscarCliente',['estado'=>'pago'])}}" method="GET">
+                
+  
+              <li>
+                <label for="fecha">Desde:</label>
+                <input type="date" id="fechaDesde" name="fechaDesde" value="{{$fechaDesde}}">
+              </li>
+              <li>
+                <label for="fecha">Hasta:</label>
+                <input type="date" id="fechaHasta" name="fechaHasta" value="{{$fechaHasta}}">
+              </li>
+              <table >
+                <tr>
+                  <td>
+                
+                    <div class="input-group">
+                      <input type="search" class="input" id="buscar" name="buscar" 
+                      @if (isset($buscar))
+                          value="{{$buscar}}"
+                      @endif  placeholder="Buscar...(Nombre,DNI,Correo,Serv.)">                    
+                    </div>
+                
+                  </td >
+                  <td >
+                    <button type="submit" style="border-radius: 20px; padding: 10px 20px; font-size: 16px; ">Buscar</button>
+                  </td>
+                </tr>
+              </table>
+            </form>
+          </li>
+          
+      </ul>
+  
+  </nav>
+</div>
 
-            <li>
-              <label for="fecha">Desde:</label>
-              <input type="date" id="fechaDesde" name="fechaDesde" value="{{$fechaDesde}}">
-            </li>
-            <li>
-              <label for="fecha">Hasta:</label>
-              <input type="date" id="fechaHasta" name="fechaHasta" value="{{$fechaHasta}}">
-            </li>
-            <table >
-              <tr>
-                <td>
-              
-                  <div class="input-group">
-                    <input type="search" class="input" id="buscar" name="buscar" 
-                    @if (isset($buscar))
-                        value="{{$buscar}}"
-                    @endif  placeholder="Buscar...(Nombre,DNI,Correo,Serv.)">                    
-                  </div>
-              
-                </td >
-                <td >
-                  <button type="submit" style="border-radius: 20px; padding: 10px 20px; font-size: 16px; ">Buscar</button>
-                </td>
-              </tr>
-            </table>
-          </form>
-        </li>
-        
-    </ul>
-
-</nav>
 <div class="container">
 
   <figure>

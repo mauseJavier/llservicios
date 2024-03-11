@@ -24,6 +24,8 @@ class PanelController extends Controller
             a.id AS servicio_id,
             a.created_at AS fechaCobro,
             b.nombre AS nombreServicio,
+            b.linkPago as linkPago,
+            b.imagen as imagenServicio,
             c.nombre AS nombreEmpresa,
             a.cantidad AS cantidadServicio,
             a.precio AS precioServicio,
@@ -46,9 +48,6 @@ class PanelController extends Controller
         // return $serviciosImpagos;
 
         return view('panel.panel',compact('serviciosImpagos'))->render();
-
-
-
 
 
     }

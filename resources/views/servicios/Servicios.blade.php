@@ -43,8 +43,13 @@
             <th scope="col">Precio</th>  
             <th scope="col">Descripcion</th>        
             <th scope="col">Tiempo</th>  
+            
+            
             <th scope="col">Empresa</th>
-            <th scope="col">Acciones</th>
+            <th scope="col">Imagen</th>    
+            <th scope="col">Link Pago</th>
+            <th scope="col">Editar</th>
+            <th scope="col">Agregar</th>
           </tr>
         </thead>
         <tbody>
@@ -56,11 +61,32 @@
               <td>${{$e->precio}}</td>
               <td>{{$e->descripcion}}</td>
               <td>{{$e->tiempo}}</td>
+
+
+              
               <td>{{$e->empresa->nombre .' '.$e->empresa->id}}</td>
-              <th>                  
-                  <strong><a href="{{route('Servicios.edit',['Servicio'=>$e->id])}}" data-tooltip="Editar">Editar</a></strong> | 
-                  <strong><a href="{{route('ServiciosAgregarCliente',['Servicio'=>$e->id])}}"  data-tooltip="Agregar Cliente">Agregar-Cliente</a></strong>
+              <td><img src="{{$e->imagen}}" alt=""></td>
+              <td>
+                <a href="{{$e->linkPago}}" role="button">
+              
+                  <i class="fa-solid fa-dollar-sign"></i>
+                
+                </a>
+              </td>
+              <th>                
+                    <a  href="{{route('Servicios.edit',['Servicio'=>$e->id])}}" data-tooltip="Editar" role="button">
+                  
+                      <i class="fa-regular fa-pen-to-square"></i>
+                  
+                    </a>
               </th>
+              <td>
+                <a  href="{{route('ServiciosAgregarCliente',['Servicio'=>$e->id])}}"  data-tooltip="Agregar Cliente" role="button">
+                  
+                  <i class="fa-solid fa-user-plus"></i>
+              
+                </a>
+              </td>
             </tr>
           @endforeach
         

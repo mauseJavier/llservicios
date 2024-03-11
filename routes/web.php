@@ -37,6 +37,7 @@ use App\Jobs\TutorialJob;
 Route::middleware('auth')->group(function () {
 
     Route::middleware(['RolSuper'])->group(function () { //ACCESSO SOLO SUPER
+
         Route::get('/usuarios', [UserController::class, 'todosUsuarios'])->name('usuarios');
         Route::get('/BuscarUsuario', [UserController::class, 'BuscarUsuario'])->name('BuscarUsuario');
         Route::get('/EditarUsuario/{id}', [UserController::class, 'EditarUsuario'])->name('EditarUsuario');
@@ -47,14 +48,24 @@ Route::middleware('auth')->group(function () {
         Route::get('/BuscarEmpresa', [EmpresaController::class, 'BuscarEmpresa'])->name('BuscarEmpresa');
 
 
-        //RUTAS DE LA GRILLA
-        Route::get('/Grilla', [GrillaController::class, 'index'])->name('Grilla');
+       
         
     });
 
     Route::middleware(['RolAdmin'])->group(function () {//AK CREAR UN MIDDELWARE PARA ADDMIN
+
+         //RUTAS DE LA GRILLA
+         Route::get('/Grilla', [GrillaController::class, 'index'])->name('Grilla');
+         Route::get('/GrillaBuscarCliente', [GrillaController::class, 'GrillaBuscarCliente'])->name('GrillaBuscarCliente');
+
+
+         
         Route::resource('Cliente',ClienteController::class);
         Route::get('/BuscarCliente', [ClienteController::class, 'BuscarCliente'])->name('BuscarCliente');
+        Route::get('/ImportarClientes', function (){
+                return view('clientes.ImportarClientes');
+            })->name('ImportarClientes');
+        Route::post('/ImportarClientes', [ClienteController::class, 'ImportarClientes'])->name('ImportarClientes');
  
         Route::resource('Servicios', ServicioController::class);
         Route::get('BuscarServicio',  [ServicioController::class, 'BuscarServicio'])->name('BuscarServicio');
@@ -83,6 +94,7 @@ Route::middleware('auth')->group(function () {
         //RUTAS PARA LOS PAGOS 
         Route::get('Pagos', [PagosController::class, 'index'])->name('Pagos');  
         Route::get('PagosVer/{idServicioPagar}', [PagosController::class, 'PagosVer'])->name('PagosVer');  
+        Route::get('PagoPDF/{idServicioPagar}', [PagosController::class, 'pagoPDF'])->name('PagoPDF');
 
 
 

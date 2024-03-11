@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 
 use App\Models\FormaPago;
 use App\Models\Pagos;
+use App\Models\Servicio;
 
 
 use App\Events\PagoServicioEvent;
@@ -18,6 +19,8 @@ use App\Events\NuevoServicioPagarEvent;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
+
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ServicioPagarController extends Controller
 {
@@ -224,6 +227,7 @@ class ServicioPagarController extends Controller
 
 
         $usuario = Auth::user();
+        // return $usuario;
         DB::update('UPDATE servicio_pagar SET estado=?,updated_at=? WHERE  id = ?',
                          ['pago',
                         date('Y-m-d H:i:s'),
@@ -242,18 +246,31 @@ class ServicioPagarController extends Controller
 
 
 
-        return redirect()->route('ServiciosImpagos')
-        ->with('status', 'Pagado correcto.');
+            if (isset( $request->comprobantePDF)){
+                
+
+
+
+                return redirect()->route('PagosVer', ['idServicioPagar' => $request->idServicioPagar]);
+
+                
+            }
+    
+                return redirect()->route('ServiciosImpagos')
+                ->with('status', 'Pagado correcto.');
+            
+
 
     }
 
     public function PagarServicio($idServicioPagar,$importe){
 
         $formaPago = FormaPago::all();
-        // return $formaPago;
+        $servicio = DB::select('SELECT a.*,b.* FROM servicio_pagar a, servicios b WHERE a.servicio_id = b.id AND a.id = ?', [$idServicioPagar]);
+        // return $servicio;
 
 
-      return view('servicios.PagarServicio',['formaPago'=>$formaPago,'idServicioPagar'=>$idServicioPagar,'importe'=>$importe])->render();
+      return view('servicios.PagarServicio',['servicio'=>$servicio[0],'formaPago'=>$formaPago,'idServicioPagar'=>$idServicioPagar,'importe'=>$importe])->render();
 
 
     }
@@ -277,6 +294,7 @@ class ServicioPagarController extends Controller
         $request->validate([
             'precio' => 'required|numeric|min:1',
             'cantidad' => 'required|numeric|min:0.5',
+            'fecha' => 'required'
         ]);
 
         // return $request;
@@ -297,8 +315,8 @@ class ServicioPagarController extends Controller
             'servicio_id' => $request->servicio,
             'precio' => $request->precio,
             'estado' => 'impago',
-            'created_at' => $fechaHoy,
-            'updated_at' => $fechaHoy,
+            'created_at' => $request->fecha,
+            'updated_at' => $request->fecha,
             'cantidad' => $request->cantidad,
         ]);
 

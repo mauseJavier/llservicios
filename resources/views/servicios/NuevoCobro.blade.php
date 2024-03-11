@@ -4,7 +4,12 @@
 
 
 
-<h1>Nuevo Cobro Manual</h1>
+
+<div class="container">
+
+    <h1>Nuevo Cobro Manual</h1>
+
+</div>
 
 
 <div class="container">
@@ -51,6 +56,12 @@
                         </select>
                 </div>
 
+
+
+            </div>
+
+            <div class="grid">
+
                 <!-- Markup example 1: input is inside label -->
                 <label for="precio">
                     Precio
@@ -62,6 +73,12 @@
                     Cantidad
                     <input type="number" id="cantidad" name="cantidad" placeholder="Cantidad" required value="1" min="0.5" step="0.5">
                 </label>
+
+                <label for="fecha">
+                    Fecha de Cobro
+                    <input type="date" id="fecha" name="fecha" placeholder="Fecha de Cobro" required value="{{date('Y-m-d')}}">
+                </label>
+
 
             </div>
 

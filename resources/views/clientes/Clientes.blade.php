@@ -25,6 +25,7 @@
     <ul>
         <li>
           <a href="{{route('Cliente.create')}}" role="button">Nuevo Cliente</a>
+          <a href="{{route('ImportarClientes')}}" role="button">Importar Clientes CSV</a>
             {{-- <details role="list" dir="rtl">
                 <summary aria-haspopup="listbox" role="link" class="contrast">Acciones</summary>
                 <ul role="listbox">

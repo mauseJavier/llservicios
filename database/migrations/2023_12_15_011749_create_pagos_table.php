@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::create('pagos', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('id_servicio_pagar');
+            $table->unsignedBigInteger('id_servicio_pagar')->unique();
+            // $table->string('sku',255)->unique();
             $table->unsignedBigInteger('id_usuario');
             $table->unsignedBigInteger('forma_pago')->default(1);
             $table->double('importe',2);

@@ -48,7 +48,7 @@ class ClienteServicioController extends Controller
         $fechaActual = Carbon::now();
 
         // Formatea la fecha y hora en el formato adecuado para el campo datetime-local
-        $fechaFormateada = $fechaActual->addYears(0)->format('Y-m-d\TH:i');
+        $fechaFormateada = $fechaActual->addYears(1)->format('Y-m-d\TH:i');
      
         // $clientes = Cliente::where('empresa_id','=',$usuario->empresa_id)
         //                     ->where(function($query) use ($datoBuscado){

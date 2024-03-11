@@ -14,6 +14,9 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
 
+use App\Imports\ClienteImport;
+use Maatwebsite\Excel\Facades\Excel;
+
 
 class ClienteController extends Controller
 {
@@ -217,5 +220,84 @@ class ClienteController extends Controller
     public function destroy(Cliente $cliente)
     {
         //
+    }
+
+    public function ImportarClientes(Request $request){
+
+        $request->validate([
+            'archivo_CSV'=>'required'
+        ]);
+
+        $usuario = Auth::user();
+        $totalImportado=0;
+
+        $file = $request->file('archivo_CSV');
+        // Excel::import(new ClienteImport , $file); //PARA UTILIZAR LA CLASE IMPORTADORA
+        $clientes = Excel::toArray(new ClienteImport , $file);
+
+        foreach ($clientes[0] as $value) {
+            // echo $value['nombre'] . '<br>';
+
+
+            $clienteExiste = Cliente::where('dni', $value['dni'])->get();
+
+            if (count($clienteExiste) > 0){
+                // return $clienteExiste;
+                // echo 'EXISTE  - '. $clienteExiste[0]->nombre .'<br>';
+
+               $clienteSiVinculado= DB::select('select * from cliente_empresa where cliente_id = ? and empresa_id = ?', [$clienteExiste[0]->id,$usuario->empresa_id]);
+
+               if (count( $clienteSiVinculado) == 0){
+                    $idVinculado = DB::table('cliente_empresa')->insertGetId([
+                        'cliente_id' => $clienteExiste[0]->id,
+                        'empresa_id' => $usuario->empresa_id,
+                        'created_at' => date('y-m-d H:i:s'),
+                        'updated_at' => date('y-m-d H:i:s'),
+                    ]);
+
+                    $totalImportado ++;
+
+                    // echo 'SE VINCULO <br>';
+               }
+
+
+
+
+            }else{
+
+                $idCliente = Cliente::create([
+                    'nombre'=> $value['nombre'],
+                    'correo'=> $value['correo'],
+                    'dni'=> $value['dni'],
+                    'domicilio'=> $value['domicilio'],
+                ]);
+
+               
+
+                $idVinculado = DB::table('cliente_empresa')->insertGetId([
+                    'cliente_id' => $idCliente->id,
+                    'empresa_id' => $usuario->empresa_id,
+                    'created_at' => date('y-m-d H:i:s'),
+                    'updated_at' => date('y-m-d H:i:s'),
+                ]);
+
+                $totalImportado ++;
+
+                // echo ' id Cliente insertado -'. $idCliente->id . ' id vinculacion en tabla empresa cliente -'. $idVinculado .  '<br>';
+
+            }
+
+
+
+            
+        }
+
+        // Forget multiple keys... ELIMINAR SESSEIONES 
+        // $request->session()->forget(['name', 'status']);
+        // session(['status' => 'Clientes Importados: '. $totalImportado]);
+        $request->session()->flash('status', 'Clientes Importados: '. $totalImportado);
+        return redirect()->route('Cliente.index');
+
+
     }
 }

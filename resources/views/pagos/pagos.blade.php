@@ -2,41 +2,45 @@
 
 @section('body')
 
+<div class="container">
+
+  <h1>Pagos</h1>
+
+  <nav>
+      <ul>
+
+          <li>
+            <form class="form" action="{{route('BuscarCliente')}}" method="GET">
+                
+                <div class="input-group">
+                    <input type="search" class="input" id="buscar" name="buscar" 
+                    @if (isset($buscar))
+                        value="{{$buscar}}"
+                    @endif  placeholder="Buscar...">
+  
+                </div>
+            </form>
+          </li>
+      </ul>
+      <ul>
+          <li>
+            <a href="{{route('Cliente.create')}}" role="button">Nuevo Cliente</a>
+              {{-- <details role="list" dir="rtl">
+                  <summary aria-haspopup="listbox" role="link" class="contrast">Acciones</summary>
+                  <ul role="listbox">
+                    <li><a href="{{route('empresas.create')}}">Nueva Empresa</a></li>
+                    <li><a href="{{route('empresas.edit',['empresa'=>1])}}">editar</a></li>
+                    <li><a href="{{route('empresas.show',['empresa'=>1])}}">borrar</a></li>
+        
+                  </ul>
+                </details>  --}}
+          </li>
+      </ul>
+  </nav>
+
+</div>
 
 
-<h1>Pagos</h1>
-
-<nav>
-    <ul>
-
-        <li>
-          <form class="form" action="{{route('BuscarCliente')}}" method="GET">
-              
-              <div class="input-group">
-                  <input type="search" class="input" id="buscar" name="buscar" 
-                  @if (isset($buscar))
-                      value="{{$buscar}}"
-                  @endif  placeholder="Buscar...">
- 
-              </div>
-          </form>
-        </li>
-    </ul>
-    <ul>
-        <li>
-          <a href="{{route('Cliente.create')}}" role="button">Nuevo Cliente</a>
-            {{-- <details role="list" dir="rtl">
-                <summary aria-haspopup="listbox" role="link" class="contrast">Acciones</summary>
-                <ul role="listbox">
-                  <li><a href="{{route('empresas.create')}}">Nueva Empresa</a></li>
-                  <li><a href="{{route('empresas.edit',['empresa'=>1])}}">editar</a></li>
-                  <li><a href="{{route('empresas.show',['empresa'=>1])}}">borrar</a></li>
-      
-                </ul>
-              </details>  --}}
-        </li>
-    </ul>
-</nav>
 <div class="container">
 
   <figure>
@@ -80,7 +84,7 @@
               <td>{{$e->nombreUsuario}}</td>
               <td>{{$e->importe}}</td>
               <th>                  
-                  <strong><a href="{{route('Cliente.edit',['Cliente'=>$e->id])}}" data-tooltip="Editar">Editar</a></strong>
+                  <strong><a href="{{route('PagosVer',['idServicioPagar'=>$e->idServicioPagar])}}" data-tooltip="Ver Pago">Ver</a></strong>
               </th>
             </tr>
           @endforeach
@@ -93,33 +97,33 @@
 
 
 
-@if (method_exists($clientes, 'currentPage'))   
+@if (method_exists($pagos, 'currentPage'))   
 
   {{-- //PAGINACION --}}
   <nav> 
     <ul>
-      <li><strong>Pag. {{$clientes->currentPage()}} de: {{$clientes->lastPage()}} , Total Res.: {{$clientes->total()}}</strong></li>
+      <li><strong>Pag. {{$pagos->currentPage()}} de: {{$pagos->lastPage()}} , Total Res.: {{$pagos->total()}}</strong></li>
     </ul>
 
     <ul>
-      <li><a href=" {{$clientes->previousPageUrl()}}" role="button">Anterior</a></li>
-          @if ($clientes->currentPage()-1 != 0)
+      <li><a href=" {{$pagos->previousPageUrl()}}" role="button">Anterior</a></li>
+          @if ($pagos->currentPage()-1 != 0)
             <li>
-              <a href="{{$clientes->url($clientes->currentPage()-1)}}">{{$clientes->currentPage()-1}}</a> 
+              <a href="{{$pagos->url($pagos->currentPage()-1)}}">{{$pagos->currentPage()-1}}</a> 
             </li>
           @endif
             <li>
               <strong>
-                <a href="{{$clientes->url($clientes->currentPage())}}">{{$clientes->currentPage()}}</a>
+                <a href="{{$pagos->url($pagos->currentPage())}}">{{$pagos->currentPage()}}</a>
               </strong>            
             </li>
-          @if (($clientes->currentPage() +1 ) < round($clientes->total()/$clientes->perPage())+1)
+          @if (($pagos->currentPage() +1 ) < round($pagos->total()/$pagos->perPage())+1)
             <li>
-              <a href="{{$clientes->url($clientes->currentPage() +1)}}">{{$clientes->currentPage() +1}}</a>
+              <a href="{{$pagos->url($pagos->currentPage() +1)}}">{{$pagos->currentPage() +1}}</a>
             </li>
           @endif
 
-      <li><a href="{{$clientes->nextPageUrl()}}" role="button">Siguiente</a></li>
+      <li><a href="{{$pagos->nextPageUrl()}}" role="button">Siguiente</a></li>
     </ul>
   </nav>
 

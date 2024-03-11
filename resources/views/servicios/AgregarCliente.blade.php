@@ -7,33 +7,35 @@
 "descripcion": "Destany Stoltenberg Una descripcion de prueba",
 "precio": 6686.77, --}}
 
-<h1>Servicio: {{$servicio->nombre}}</h1>
+<div class="container">
+  <h1>Servicio: {{$servicio->nombre}}</h1>
 
-{{-- {{($request->Buscar)}} --}}
+  {{-- {{($request->Buscar)}} --}}
 
-<nav>
-    <ul>
+  <nav>
+      <ul>
 
-        <li>
-          <form class="form" action="{{route('ServiciosAgregarCliente', ['Servicio' => $servicio->id])}}" method="GET">
-              
-              <div class="input-group">
-                  <input type="search" class="input" id="Buscar" name="Buscar" 
-                  @if (isset($buscar))
-                      value="{{$buscar}}"
-                  @endif  placeholder="Buscar...">
- 
-              </div>
-          </form>
-        </li>
-    </ul>
-    <ul>
-        <li>
-         
+          <li>
+            <form class="form" action="{{route('ServiciosAgregarCliente', ['Servicio' => $servicio->id])}}" method="GET">
+                
+                <div class="input-group">
+                    <input type="search" class="input" id="Buscar" name="Buscar" 
+                    @if (isset($buscar))
+                        value="{{$buscar}}"
+                    @endif  placeholder="Buscar...">
+  
+                </div>
+            </form>
+          </li>
+      </ul>
+      <ul>
+          <li>
+          
 
-        </li>
-    </ul>
-</nav>
+          </li>
+      </ul>
+  </nav>
+</div>
 <div class="container">
 
   <figure>
@@ -44,7 +46,7 @@
             <th scope="col">Nombre</th>
             <th scope="col">Correo</th>  
             <th scope="col">Dni</th>   
-            <th scope="col">Vencimiento</th>        
+            <th scope="col" class="">Vencimiento(Importante!)</th>        
             <th scope="col">Cantidad</th>   
             <th scope="col">Acciones</th>
           </tr>
@@ -59,7 +61,7 @@
               <td>{{$e->nombre}}</td>
               <td>{{$e->correo}}</td>
               <td>{{$e->dni}}</td>
-              <td><input type="datetime-local" id="vencimiento" name="vencimiento" required value="{{$vencimiento}}"></td>
+              <td><input class="pico-background-red-500" type="datetime-local" id="vencimiento" name="vencimiento" required value="{{$vencimiento}}"></td>
               <td><input type="number" name="cantidad" id="cantidad" value="1" min="0.5" step="0.5"></td>
               <th>                  
                   {{-- <strong><a href="{{route('agregarClienteAServicio',['Servicio'=>$servicio->id,'Cliente'=>$e->id])}}" 

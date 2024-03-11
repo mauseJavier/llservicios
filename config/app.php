@@ -5,6 +5,9 @@ use Illuminate\Support\ServiceProvider;
 
 return [
 
+
+    'public_path' => public_path(),
+
     /*
     |--------------------------------------------------------------------------
     | Application Name
