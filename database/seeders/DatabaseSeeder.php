@@ -34,6 +34,7 @@ class DatabaseSeeder extends Seeder
             $this->call(ClienteServicio::class);
             $this->call(ClienteEmpresaSeeder::class);
             $this->call(ServicioPagarSeeder::class);
+            $this->call(ReciboSueldoSeeder::class);
             
         }
        

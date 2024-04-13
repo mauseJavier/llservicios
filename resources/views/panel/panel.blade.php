@@ -45,7 +45,7 @@
                   <td>{{$s->cantidadServicio}}</td>
                   <td>{{$s->precioServicio}}</td>
                   <td>{{$s->total}}</td>
-                  <td><a href="{{$s->linkPago}}" role="button"><i class="fa-solid fa-dollar-sign"></i></a></td>
+                  <td><a href="https://{{$s->linkPago}}" role="button"><i class="fa-solid fa-dollar-sign"></i></a></td>
                 </tr>
               @empty
                   <p>Sin Servicios Impagos</p>

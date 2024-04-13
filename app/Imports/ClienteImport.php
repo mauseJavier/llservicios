@@ -21,6 +21,7 @@ class ClienteImport implements ToModel, WithHeadingRow
             'correo'=> $row['correo'],
             'dni'=> $row['dni'],
             'domicilio'=> $row['domicilio'],
+            'telefono'=> $row['telefono'],
         ]);
     }
 }

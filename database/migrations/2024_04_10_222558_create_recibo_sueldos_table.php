@@ -11,12 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('empresas', function (Blueprint $table) {
+        Schema::create('recibo_sueldos', function (Blueprint $table) {
             $table->id();
-            $table->string('nombre');
-            $table->bigInteger('cuit')->unique()->nullable();
-            $table->string('correo')->unique()->nullable();
-            $table->string('logo')->default('https://i.postimg.cc/cH36SBhm/LLServicios010.jpg')->nullable();
+            $table->date('periodo');
+            $table->string('empleador');
+            $table->unsignedBigInteger('cuil');
+            $table->unsignedInteger('legajo');
             $table->timestamps();
         });
     }
@@ -26,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('empresas');
+        Schema::dropIfExists('recibo_sueldos');
     }
 };

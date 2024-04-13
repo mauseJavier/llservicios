@@ -2,22 +2,27 @@
 
 @section('body')
 
-<nav>
-    <ul>
-        <li>
-            <h1>Usuarios Em.</h1>
-        </li>            
-        <li>
-          <h3><strong>{{$empresa->nombre}}</strong></h3>          
-        </li>
-    </ul>
-    <ul>
-        <li>
 
-        </li>
-    </ul>
-</nav>
 <div class="container">
+  <nav>
+      <ul>
+          <li>
+              <h1>Usuarios Em.</h1>
+          </li>            
+          <li>
+            <h3><strong>{{$empresa->nombre}}</strong></h3>          
+          </li>
+      </ul>
+      <ul>
+          <li>
+
+          </li>
+      </ul>
+  </nav>
+
+</div>
+<div class="container">
+
 
   <figure>
     <table>

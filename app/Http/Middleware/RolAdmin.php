@@ -23,7 +23,7 @@ class RolAdmin
         if($usuario->role->id == 2 || $usuario->role->id == 3){
             return $next($request);
         }
-        return redirect()->route('panel')->with('status','No Autorizado');
+        return redirect()->route('servicios')->with('status','No Autorizado');
 
     }
 }

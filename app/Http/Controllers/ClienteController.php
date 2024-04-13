@@ -15,6 +15,7 @@ use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
 
 use App\Imports\ClienteImport;
+use App\Exports\ClientesExports;
 use Maatwebsite\Excel\Facades\Excel;
 
 
@@ -140,6 +141,7 @@ class ClienteController extends Controller
                                 'dni'=>$request->dni,
                                 'correo'=>$request->correo,
                                 'domicilio'=>$request->domicilio,
+                                'telefono'=>$request->telefono,
                                 ]);
             // return $id->id;
 
@@ -209,7 +211,10 @@ class ClienteController extends Controller
         $Cliente->update(['nombre'=>$request->nombre,
                             'dni'=>$request->dni,
                             'correo'=>$request->correo,
-                            'domicilio'=>$request->domicilio,]);
+                            'domicilio'=>$request->domicilio,
+                            'telefono'=>$request->telefono,
+                        ]);
+
         return redirect()->route('Cliente.index')
         ->with('status', 'Guardado correcto.');
     }
@@ -270,6 +275,7 @@ class ClienteController extends Controller
                     'correo'=> $value['correo'],
                     'dni'=> $value['dni'],
                     'domicilio'=> $value['domicilio'],
+                    'telefono'=> $value['telefono']
                 ]);
 
                
@@ -298,6 +304,16 @@ class ClienteController extends Controller
         $request->session()->flash('status', 'Clientes Importados: '. $totalImportado);
         return redirect()->route('Cliente.index');
 
+
+    }
+
+    public function ExportarClientes (){
+
+
+        return Excel::download(new ClientesExports, 'ClientesCSV.csv');
+        
+        
+        // return response()->json('hola', 200);
 
     }
 }

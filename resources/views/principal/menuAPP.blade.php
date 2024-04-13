@@ -1,7 +1,9 @@
 <nav class="container-fluid">
     <ul>
+      <img class="imagenLogo" src="{{session('logoEmpresa')}}" alt=""  >
       <li>
-        <a href="{{route('panel')}}" class="contrast" 
+        
+        <a href="{{route('servicios')}}" class="contrast" 
           ><strong>LL Servicios</strong></a
         >
       </li>
@@ -26,12 +28,13 @@
         <details role="list" dir="rtl">
           <summary aria-haspopup="listbox" role="link" class="contrast">Menu</summary>
           <ul role="listbox">
-            <li><a href="{{route('panel')}}">Panel</a></li>
+            <li><a href="{{route('servicios')}}">Servicios</a></li>
+            <li><a href="{{route('reciboSueldo')}}">Recibos Sueldo</a></li>
 
             @if (Auth::User()->role->nombre == 'Super' || 
                  Auth::User()->role->nombre == 'Admin')
-              <li><a href="{{route('Cliente.index')}}">Clientes</a></li>
-              <li><a href="{{route('Servicios.index')}}">Servicios</a></li>
+              <li><a href="{{route('Cliente.index')}}">Clientes-Empleados</a></li>
+              <li><a href="{{route('Servicios.index')}}">ABM Servicios</a></li>
               <li><a href="{{route('Grilla')}}">Grilla Clientes</a></li>
               <li><a href="{{route('Pagos')}}">Pagos</a></li>
            

@@ -2,21 +2,25 @@
 
 @section('body')
 
-<nav>
-    <ul>
-        <li>
-            <h1>Editar Empresa</h1>
-        </li>
-        <li>
-          {{-- <input type="search" id="search" name="search" placeholder="Search"> --}}
-        </li>
-    </ul>
-    <ul>
-        <li>
 
-        </li>
-    </ul>
-</nav>
+
+<div class="container">
+  <nav>
+      <ul>
+          <li>
+              <h1>Editar Empresa</h1>
+          </li>
+          <li>
+            {{-- <input type="search" id="search" name="search" placeholder="Search"> --}}
+          </li>
+      </ul>
+      <ul>
+          <li>
+
+          </li>
+      </ul>
+  </nav>
+</div>
 <div class="container">
 
     <form method="POST" action="{{route('empresas.update',['empresa'=>$empresa->id])}}">

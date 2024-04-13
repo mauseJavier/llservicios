@@ -13,6 +13,7 @@ use App\Http\Controllers\PagosController;
 use App\Http\Controllers\EnviarCorreoController;
 use App\Http\Controllers\PanelController;
 use App\Http\Controllers\GrillaController;
+use App\Http\Controllers\ReciboSueldoController;
 
 // JOBS
 use App\Jobs\TutorialJob;
@@ -66,6 +67,7 @@ Route::middleware('auth')->group(function () {
                 return view('clientes.ImportarClientes');
             })->name('ImportarClientes');
         Route::post('/ImportarClientes', [ClienteController::class, 'ImportarClientes'])->name('ImportarClientes');
+        Route::get('/ExportarClientes', [ClienteController::class, 'ExportarClientes'])->name('ExportarClientes');
  
         Route::resource('Servicios', ServicioController::class);
         Route::get('BuscarServicio',  [ServicioController::class, 'BuscarServicio'])->name('BuscarServicio');
@@ -96,13 +98,22 @@ Route::middleware('auth')->group(function () {
         Route::get('PagosVer/{idServicioPagar}', [PagosController::class, 'PagosVer'])->name('PagosVer');  
         Route::get('PagoPDF/{idServicioPagar}', [PagosController::class, 'pagoPDF'])->name('PagoPDF');
 
+        //RUTAS PARA LOS ADMIN DE RECIBOS 
+        Route::post('/subirArchivoRecibos',[ReciboSueldoController::class, 'subirArchivoRecibos'])->name('subirArchivoRecibos'); 
+        
+        Route::get('/subirRecibos',function(){
+            return view('reciboSueldo.subirRecibos')->render();
+        })->name('subirRecibos'); 
+
 
 
     });
 
     // Route::get('/usuarios', [UserController::class, 'todosUsuarios'])->name('usuarios');
-    
-    Route::get('/panel', [PanelController::class, 'index'])->name('panel'); 
+    Route::get('/reciboSueldo',[ReciboSueldoController::class, 'todos'])->name('reciboSueldo'); 
+    Route::get('/imprimirRecibo/{idRecibo}',[ReciboSueldoController::class, 'imprimirRecibo'])->name('imprimirRecibo'); 
+
+    Route::get('/servicios', [PanelController::class, 'index'])->name('servicios'); 
     // Route::view('/miPerfil', 'usuarios.miPerfil')->name('panel');
     Route::get('/miPerfil', [UserController::class, 'miPerfil'])->name('miPerfil'); 
 

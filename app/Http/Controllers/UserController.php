@@ -46,7 +46,7 @@ class UserController extends Controller
 
         Auth::login($user);
 
-        return redirect()->route('panel');
+        return redirect()->route('servicios');
 
     }
 
@@ -62,11 +62,17 @@ class UserController extends Controller
             $request->session()->regenerate();
  
             $usuario= Auth::user();
+            $empresa_id = $usuario->empresa_id;
+            // Via the global "session" helper...
+            
+            $empresa = empresa::where('id',$empresa_id)->get();
+
+            session(['logoEmpresa' => $empresa[0]->logo]);    
 
             if($usuario->role_id == 3 || $usuario->role_id == 2){
                 return redirect()->route('Grilla');
             }else{
-                return redirect()->route('panel');
+                return redirect()->route('servicios');
             }
 
             

@@ -52,6 +52,18 @@
         </div>
 
     </form>
+    
+    <h1>Columnas</h1>
+
+    <table>
+        <thead>
+            <td>nombre*</td>
+            <td>correo*</td>
+            <td>dni</td>
+            <td>domicilio</td>
+            <td>telefono</td>
+        </thead>
+    </table>
 
 </div>
 

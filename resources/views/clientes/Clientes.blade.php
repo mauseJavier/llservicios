@@ -24,17 +24,13 @@
     </ul>
     <ul>
         <li>
-          <a href="{{route('Cliente.create')}}" role="button">Nuevo Cliente</a>
-          <a href="{{route('ImportarClientes')}}" role="button">Importar Clientes CSV</a>
-            {{-- <details role="list" dir="rtl">
-                <summary aria-haspopup="listbox" role="link" class="contrast">Acciones</summary>
-                <ul role="listbox">
-                  <li><a href="{{route('empresas.create')}}">Nueva Empresa</a></li>
-                  <li><a href="{{route('empresas.edit',['empresa'=>1])}}">editar</a></li>
-                  <li><a href="{{route('empresas.show',['empresa'=>1])}}">borrar</a></li>
-      
-                </ul>
-              </details>  --}}
+            <a href="{{route('Cliente.create')}}" role="button" data-tooltip="Nuevo Cliente"><i class="fa-regular fa-square-plus"></i></a>
+        </li>
+        <li>
+          <a href="{{route('ImportarClientes')}}" role="button" data-tooltip="Importar CSV"><i class="fas fa-file-excel"></i></a>
+        </li>
+        <li>
+          <a href="{{route('ExportarClientes')}}" role="button" data-tooltip="Exportar CSV"><i class="fas fa-file-excel" style="color: #FFD43B;"></i></a>
         </li>
     </ul>
 </nav>
@@ -52,7 +48,7 @@
             <th scope="col">Nombre</th>
             <th scope="col">Dni</th>
             <th scope="col">Correo</th>
-            <th scope="col">Empresa</th>
+            <th scope="col">Telefono</th>
             <th scope="col">Domicilio</th>
             <th scope="col">Acciones</th>
           </tr>
@@ -65,7 +61,8 @@
               <td>{{$e->nombre}}</td>
               <td>{{$e->dni}}</td>
               <td>{{$e->correo}}</td>
-              <td>{{$e->nombreEmpresa}}</td>
+              
+              <td><a href="https://wa.me/+54{{$e->telefono}}" target="_blank" rel="noopener noreferrer">{{$e->telefono}}</a></td>
               <td>{{$e->domicilio}}</td>
               <th>                  
                   <strong><a href="{{route('Cliente.edit',['Cliente'=>$e->id])}}" data-tooltip="Editar">Editar</a></strong>

@@ -38,22 +38,28 @@ class GrillaController extends Controller
             foreach ($clientes as $clave => $valor)
             {
                 $servicios = DB::select("SELECT
-                                            MONTHNAME(`created_at`) AS `mes_creado`,
-                                            SUM( precio * cantidad) AS `suma_precios`,
-                                            CASE
-                                                WHEN estado = 'pago' THEN 'pago'
-                                                ELSE 'impago'
-                                            END AS estado_pago
-                                        FROM
-                                            `servicio_pagar`
-                                        WHERE
-                                            cliente_id = ?
-                                        GROUP BY
-                                            mes_creado
-                                        ORDER BY
-                                        created_at ASC
+                                MONTHNAME(a.created_at) AS `mes_creado`,
+                                SUM( a.precio * a.cantidad) AS `suma_precios`,
+                                CASE
+                                    WHEN a.estado = 'pago' THEN 'pago'
+                                    ELSE 'impago'
+                                END AS estado_pago
+                                
+                            FROM
+                                servicio_pagar a,
+                                servicios b,
+                                empresas c
+                            WHERE
+                                a.servicio_id = b.id and
+                                b.empresa_id = c.id and 
+                                b.empresa_id = ? and
+                                a.cliente_id = ?
+                            GROUP BY
+                                mes_creado
+                            ORDER BY
+                                a.created_at ASC
 
-                                        ", [$valor->id,]);
+                            ", [$usuario->empresa_id,$valor->id,]);
 
                 $clientes[$clave]->datos =json_decode(json_encode($servicios), true); ; //array("enero"=>"pago");
             
@@ -137,7 +143,31 @@ class GrillaController extends Controller
                 // return response()->json($total, 200);
                 // return $clientes;
 
-                return view('grilla.grilla',['clientes'=>$clientes, 'total'=>$total,'buscar'=>$buscar])->render();
+
+                // Número de elementos por página
+                $perPage = 15;
+
+                // Página actual obtenida de la consulta de la URL (puedes usar Request::input('page') en un controlador real)
+                $paginaActual = (isset($request->page)) ? $request->page : 1;
+
+                // Crear una colección para usar el método slice
+                $colección = new Collection($clientes);
+
+                // Obtener los elementos para la página actual
+                $items = $colección->slice(($paginaActual - 1) * $perPage, $perPage)->all();
+
+                // Crear una instancia de LengthAwarePaginator
+                $datosPaginados = new LengthAwarePaginator($items, count($colección), $perPage, $paginaActual, [
+                    'path' => LengthAwarePaginator::resolveCurrentPath(),
+                ]);
+
+                        //ESTO ES PARA EL PAGINADOR
+                // $usuarios->withPath('/admin/users');
+                // $clientesPaginados->appends(['Buscar' => $datoBuscado]);
+            
+                // return $datosPaginados;
+
+                return view('grilla.grilla',['clientes'=>$datosPaginados, 'total'=>$total,'buscar'=>$buscar])->render();
 
 
         } else{
@@ -161,27 +191,34 @@ class GrillaController extends Controller
         foreach ($clientes as $clave => $valor)
         {
             $servicios = DB::select("SELECT
-                                        MONTHNAME(`created_at`) AS `mes_creado`,
-                                        SUM( precio * cantidad) AS `suma_precios`,
+                                        MONTHNAME(a.created_at) AS `mes_creado`,
+                                        SUM( a.precio * a.cantidad) AS `suma_precios`,
                                         CASE
-                                            WHEN estado = 'pago' THEN 'pago'
+                                            WHEN a.estado = 'pago' THEN 'pago'
                                             ELSE 'impago'
                                         END AS estado_pago
+                                        
                                     FROM
-                                        `servicio_pagar`
+                                        servicio_pagar a,
+                                        servicios b,
+                                        empresas c
                                     WHERE
-                                        cliente_id = ?
+                                        a.servicio_id = b.id and
+                                        b.empresa_id = c.id and 
+                                        b.empresa_id = ? and
+                                        a.cliente_id = ?
                                     GROUP BY
                                         mes_creado
                                     ORDER BY
-                                    created_at ASC
+                                        a.created_at ASC
 
-                                    ", [$valor->id,]);
+                                    ", [$usuario->empresa_id,$valor->id,]);
 
             $clientes[$clave]->datos =json_decode(json_encode($servicios), true); ; //array("enero"=>"pago");
            
         }
 
+        // return $servicios;
         // var_dump ($clientes);
         // die;
 
@@ -291,6 +328,6 @@ class GrillaController extends Controller
         
         
 
-        return view('grilla.grilla',['clientes'=>$clientes, 'total'=>$total])->render();
+        return view('grilla.grilla',['clientes'=>$datosPaginados, 'total'=>$total])->render();
     }
 }

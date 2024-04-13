@@ -32,13 +32,11 @@
           /* Header */
           .hero {
             background-color: #394046;
-            background-image: url("img/img/LLSERVICIO.jpg");
-            background-position:left;
-            background-size:initial;
-            background-repeat: no-repeat;
+            background-image: url("img/llServicios/LLServicios005.jpeg");
+            background-position: center;
             background-size: cover;
           }
-          
+
           header {
             padding: var(--spacing-company) 0;
           }
@@ -87,22 +85,19 @@
   <body>
     <!-- Hero -->
     <div class="hero" data-theme="dark">
+      
+      @include('principal.menu')
 
 
       <header class="container">
         <hgroup>
-          <h1 style="color: rgb(255, 255, 255);">Las Lajas Servicios</h1>
-          <h2 style="color: rgb(250, 247, 247);">Para organizar tu empresa de servicioss.</h2>
+          <h1 style="color: black;">Las Lajas Servicios</h1>
+          <h2 style="color: black;">Para organizar tu empresa de servicioss.</h2>
         </hgroup>
         <p><a href="#" role="button" onclick="event.preventDefault()">Solicite una prueba</a></p>
       </header>
-
-      
     </div>
     <!-- ./ Hero -->
-    <div class="container">
-      @include('principal.menu')
-    </div>
 
     <!-- Main -->
     <main class="container">
@@ -116,7 +111,7 @@
             LLServicios es una aplicación innovadora diseñada para ofrecer una gestión integral de servicios, brindando una solución eficiente tanto para empresas como para usuarios individuales. Con un enfoque centrado en la simplicidad y la eficacia, LLServicios simplifica la administración de servicios, mejorando la productividad y la experiencia del usuario.
           </p>
           <figure>
-            <img src="img/img/LLServicios001.jpg" alt="Architecture" />
+            <img src="/img/llServicios/LLServicios001.jpeg" alt="Architecture" />
             <figcaption>
               Image from
               <a href="llservicios.ar" target="_blank">llservicios.ar</a>
@@ -148,26 +143,27 @@
 
         <aside>
           <a href="#" aria-label="Example" onclick="event.preventDefault()"
-            ><img src="img/img/LLServicios004.jpeg" alt="Architecture"
+            ><img src="/img/llServicios/LLServicios004.jpeg" alt="Architecture"
           /></a>
           <p>
-            <a href="#" onclick="event.preventDefault()">Conectado</a><br />
-            <small>LLeva el control de todos tus servicios desde cualquier lugar.</small>
+            <a href="#" onclick="event.preventDefault()">Donec sit amet</a><br />
+            <small>Class aptent taciti sociosqu ad litora torquent per conubia nostra</small>
           </p>
           <a href="#" aria-label="Example" onclick="event.preventDefault()"
-            ><img src="img/img/LLServicios007.jpg" alt="Architecture"
+            ><img src="/img/llServicios/LLServicios007.jpeg" alt="Architecture"
           /></a>
           <p>
-            <a href="#" onclick="event.preventDefault()">Notificaciones Automaticas</a><br />
-            <small>Olvidate de tener que recordarle a tus clientes sus pagos, Llservicios envia una notificacion de aviso de forma automatica.</small>
+            <a href="#" onclick="event.preventDefault()">Suspendisse potenti</a><br />
+            <small>Proin non condimentum tortor. Donec in feugiat sapien.</small>
           </p>
           <a href="#" aria-label="Example" onclick="event.preventDefault()"
-            ><img src="img/img/LLServicios010.jpg" alt="Architecture"
+            ><img src="img/llServicios/LLServicios010.jpeg" alt="Architecture"
           /></a>
           <p>
-            <a href="#" onclick="event.preventDefault()">Que no se te escape nada!</a><br />
+            <a href="#" onclick="event.preventDefault()">Nullam lobortis placerat aliquam</a><br />
             <small
-              >Podrás realizar recibos para tus clientes de manera simple y rapida, manteniendo la claridad de tu negocio</small
+              >Maecenas vitae nibh blandit dolor commodo egestas vel eget neque. Praesent semper
+              justo orci, vel imperdiet mi auctor in.</small
             >
           </p>
         </aside>

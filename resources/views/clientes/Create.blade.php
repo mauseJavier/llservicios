@@ -49,10 +49,17 @@
         <details>
           <summary>Mas Opciones</summary>
 
-          <label for="domicilio">
-            Domicilio Cliente <small>(Opcional).</small>
-            <input type="text" id="domicilio" name="domicilio" placeholder="Domicilio Cliente" value="{{old('domicilio')}}" >
-          </label>
+          <div class="grid">
+            <label for="domicilio">
+              Domicilio Cliente <small>(Opcional).</small>
+              <input type="text" id="domicilio" name="domicilio" placeholder="Domicilio Cliente" value="{{old('domicilio')}}" >
+            </label>
+            <label for="telefono">
+              Telefono Cliente <small>(Opcional).</small>
+              <input type="text" id="telefono" name="telefono" placeholder="Telefono Cliente" value="{{old('telefono')}}" >
+            </label>
+          </div>
+
           
 
         </details>

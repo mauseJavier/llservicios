@@ -67,7 +67,7 @@
               <td>{{$e->empresa->nombre .' '.$e->empresa->id}}</td>
               <td><img src="{{$e->imagen}}" alt=""></td>
               <td>
-                <a href="{{$e->linkPago}}" role="button">
+                <a href="https://{{$e->linkPago}}" role="button">
               
                   <i class="fa-solid fa-dollar-sign"></i>
                 

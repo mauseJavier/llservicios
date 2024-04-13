@@ -48,6 +48,13 @@
           </li>
           
       </ul>
+
+
+      </ul>
+        <li>
+          <a href="{{route('NuevoCobro')}}" role="button">Nuevo Cobro</a>
+        </li>
+      <ul>
   
   </nav>
 </div>

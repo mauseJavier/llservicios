@@ -20,6 +20,7 @@ class ClienteFactory extends Factory
             'nombre' => fake()->name(),
             'dni' => fake()->unique()->randomNumber(),
             'correo' => fake()->unique()->safeEmail(),
+            'telefono' => fake()->e164PhoneNumber() ,
             
         ];
     }

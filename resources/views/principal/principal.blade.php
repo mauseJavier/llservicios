@@ -47,6 +47,42 @@
         width: 150px; /* Ancho del menú */
       }
 
+
+      /* Mobile Devices */
+        @media (max-width: 480px) {
+          .imagenLogo {
+              width: 20%;
+            }
+        }
+                
+        /* Low resolution Tablets and iPads */
+        @media (min-width: 481px) and (max-width: 767px) {
+          .imagenLogo {
+              width: 20%;
+            }
+        }
+                
+        /* Tablets iPads (Portrait) */
+        @media (min-width: 768px) and (max-width: 1024px){
+          .imagenLogo {
+              width: 10%;
+            }
+        }
+            
+        /* Laptops and Desktops */
+        @media (min-width: 1025px) and (max-width: 1280px){
+          .imagenLogo {
+              width: 8%;
+            }
+        }
+            
+        /* Big boi Monitors */
+        @media (min-width: 1281px) {
+          .imagenLogo {
+              width: 8%;
+            }
+        }
+
     </style>
 
     <title>{{env('APP_NAME')}}</title>

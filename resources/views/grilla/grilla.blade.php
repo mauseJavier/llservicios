@@ -28,8 +28,13 @@
             </div>
         </form>
       </li>
+    </ul>
 
-      </ul>
+    </ul>
+      <li>
+        <a href="{{route('NuevoCobro')}}" role="button">Nuevo Cobro</a>
+      </li>
+    <ul>
    
   </nav>
   
@@ -115,40 +120,40 @@
     </table>
   </figure>
 
-{{--   
-  @if (method_exists($usuarios, 'currentPage'))   
+  
+  @if (method_exists($clientes, 'currentPage'))   
 
-    //PAGINACION 
+    {{-- //PAGINACION  --}}
    <nav> 
     <ul>
-      <li><strong>Pag. {{$usuarios->currentPage()}} de: {{$usuarios->lastPage()}}, Total Res.: {{$usuarios->total()}}</strong></li>
+      <li><strong>Pag. {{$clientes->currentPage()}} de: {{$clientes->lastPage()}}, Total Res.: {{$clientes->total()}}</strong></li>
     </ul>
 
     <ul>
-      <li><a href=" {{$usuarios->previousPageUrl()}}" role="button">Anterior</a></li>
-          @if ($usuarios->currentPage()-1 != 0)
+      <li><a href=" {{$clientes->previousPageUrl()}}" role="button">Anterior</a></li>
+          @if ($clientes->currentPage()-1 != 0)
             <li>
-              <a href="{{$usuarios->url($usuarios->currentPage()-1)}}">{{$usuarios->currentPage()-1}}</a> 
+              <a href="{{$clientes->url($clientes->currentPage()-1)}}">{{$clientes->currentPage()-1}}</a> 
             </li>
           @endif
             <li>
               <strong>
-                <a href="{{$usuarios->url($usuarios->currentPage())}}">{{$usuarios->currentPage()}}</a>
+                <a href="{{$clientes->url($clientes->currentPage())}}">{{$clientes->currentPage()}}</a>
               </strong>            
             </li>
-          @if (($usuarios->currentPage() +1 ) < round($usuarios->total()/$usuarios->perPage())+1)
+          @if (($clientes->currentPage() +1 ) < round($clientes->total()/$clientes->perPage())+1)
             <li>
-              <a href="{{$usuarios->url($usuarios->currentPage() +1)}}">{{$usuarios->currentPage() +1}}</a>
+              <a href="{{$clientes->url($clientes->currentPage() +1)}}">{{$clientes->currentPage() +1}}</a>
             </li>
           @endif
 
-      <li><a href="{{$usuarios->nextPageUrl()}}" role="button">Siguiente</a></li>
+      <li><a href="{{$clientes->nextPageUrl()}}" role="button">Siguiente</a></li>
     </ul>
   </nav> 
 
 
 @endif
-  --}}
+ 
 
  
 {{-- 

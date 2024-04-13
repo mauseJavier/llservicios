@@ -1,6 +1,6 @@
 Los comandos que más utilizo son estos:
 
-
+php artisan serve --host 192.168.1.111
 php artisan serve
 php artisan make:model [nombre_de_Modelo_en_Singular] -a
 php artisan make:controller [nombre_de_Controller] --model=[Modelo_que_se_conectara_con_el_controller]
