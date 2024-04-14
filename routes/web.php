@@ -110,6 +110,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // Route::get('/usuarios', [UserController::class, 'todosUsuarios'])->name('usuarios');
+    Route::post('/reciboSueldo',[ReciboSueldoController::class, 'todos'])->name('reciboSueldo'); 
     Route::get('/reciboSueldo',[ReciboSueldoController::class, 'todos'])->name('reciboSueldo'); 
     Route::get('/imprimirRecibo/{idRecibo}',[ReciboSueldoController::class, 'imprimirRecibo'])->name('imprimirRecibo'); 
 

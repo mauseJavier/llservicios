@@ -86,7 +86,7 @@
               Revista: Permanente
             </li>
             <li>
-              Func: ADMINISTTRATIVA
+              Func: {{$recibo->categoria}}
             </li>
             <li>
               Sector: SEC.DE HACIENDA Y AD
@@ -96,7 +96,7 @@
           <div style="width: 100px;" style="height: 40px; " style="border: 1px solid black;" style="background-color:rgb(191, 182, 182)" >
             <small>Periodo abonado</small>
             <hr>
-            <h3 style="margin: 5px;">02/2024</h3>
+            <h3 style="margin: 5px;">{{$recibo->pediodo}}</h3>
           </div>
       </td>
     </tr>    
@@ -109,8 +109,8 @@
     <tr>
         <td>  
             <ul style="list-style-type: none;">
-                <li><small> <strong>Nombre y Apellido: </strong>{{$recibo->cuil}}</small></li>
-                <li><small>Categoria: <strong>O.F C(14)</strong></small></li>
+                <li><small> <strong>Nombre y Apellido: </strong>{{$recibo->apellidoNombre}}</small></li>
+                <li><small>Categoria: <strong>{{$recibo->categoria}}</strong></small></li>
                 <li><small>Tipo Liquidacion <strong>Liquidacion Mensual</strong></small></li>
 
             </ul>

@@ -2,7 +2,9 @@
 
 @section('body')
 
-<h1>Usuarios</h1>
+<div class="container">
+
+  <h1>Usuarios</h1>
   <nav>
     <ul>
 
@@ -17,6 +19,10 @@
       </li>
     </ul>
   </nav>
+  
+</div>
+
+
 
 <div class="container">
 

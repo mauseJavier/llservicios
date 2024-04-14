@@ -3,38 +3,65 @@
 @section('body')
 
 
-@if (Session::has('mensaje'))
-   <div class="alert alert-info">{{ Session::get('mensaje') }}</div>
-@endif
+
 
 <div class="container">
+
+    @if (Session::has('mensaje'))
+      <article>
+        <div >{{ Session::get('mensaje') }}</div>
+      </article>
+    @endif
+
   <h1>Recibos de Sueldo</h1>
 
 <nav>
     <ul>
 
-        <li>
-          <form class="form" action="" method="GET">
-              
+        {{-- <li>
+          <form class="form" action="{{route('reciboSueldo')}}" method="POST" style="display:inline;">
+              @csrf
+              @method('POST')
+
               <div class="input-group">
-                <input type="month" id="start" name="start" min="2018-03" value="2018-05" />
+                <input type="month" id="start" name="fecha" value="{{date('Y-m')}}" />
  
               </div>
+
+              <button type="submit" style="display:inline;">Buscar</button>
+          </form>
+        </li> --}}
+
+        <li>
+          <form class="form" action="{{route('reciboSueldo')}}" method="POST">
+            @csrf
+            @method('POST')
+            <fieldset class="grid">
+              <input type="month" id="start" name="fecha" value="{{date('Y-m',strtotime( $fechaFiltro))}}" width="200" />
+
+              <input
+                type="submit"
+                value="Buscar"
+              />
+            </fieldset>
           </form>
         </li>
 
+
     </ul>
-    @if (Auth::User()->role_id == 3 || Auth::User()->role_id == 2)
-      <ul>
+     <ul>
         <li>
-          <a role="button" href="{{route('subirRecibos')}}">Subir Recibos</a>
+          @if (Auth::User()->role_id == 3 || Auth::User()->role_id == 2)      
+                <a role="button" href="{{route('subirRecibos')}}">Subir Recibos</a>
+          @else        
+          @endif
         </li>
-      </ul>
-    @else
-
-
+        <li>
+          <a role="button" href="{{route('reciboSueldo')}}">Todo</a>
+        </li>
+     </ul>
         
-    @endif
+
 </nav>
 
 </div>
@@ -57,7 +84,7 @@
           @foreach ($recibos as $e)
             <tr>   
                 <td>{{$e->id}}</td>           
-              <td>{{$e->periodo}}</td>
+              <td>{{date("m-Y", strtotime($e['periodo']))}}</td>
               <td>{{$e->empleador}}</td>
               <td>{{$e->created_at}}</td>
               <td><a href="{{route('imprimirRecibo', ['idRecibo' => $e->id])}}">Imprimir</a></td>

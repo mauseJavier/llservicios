@@ -70,9 +70,9 @@ class UserController extends Controller
             session(['logoEmpresa' => $empresa[0]->logo]);    
 
             if($usuario->role_id == 3 || $usuario->role_id == 2){
-                return redirect()->route('Grilla');
+                return redirect()->intended('Grilla');
             }else{
-                return redirect()->route('servicios');
+                return redirect()->intended('servicios');
             }
 
             

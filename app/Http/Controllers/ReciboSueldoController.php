@@ -19,11 +19,26 @@ class ReciboSueldoController extends Controller
 {
     
 
-    public function todos(){
+    public function todos(Request $request){
 
         // return Auth::user();
+        // return $request;
 
-        $recibos = ReciboSueldo::where('cuil','like','%'.Auth::user()->dni.'%' )->get();
+        if(isset($request->fecha)){
+            $fechaFiltro= date('Y-m',strtotime($request->fecha));
+
+            $recibos = ReciboSueldo::where('cuil','like','%'.Auth::user()->dni.'%' )
+                                    ->where('periodo',$fechaFiltro)->get();
+        }else{
+            $fechaFiltro=date('Y-m');
+            $recibos = ReciboSueldo::where('cuil','like','%'.Auth::user()->dni.'%' )
+            ->get();
+        }
+
+
+
+        // return $recibos[0]->datos;
+
 
         // [
         //     {
@@ -38,7 +53,7 @@ class ReciboSueldoController extends Controller
 
         // return Auth::user();
 
-        return view('reciboSueldo.reciboSueldo',['recibos'=>$recibos]
+        return view('reciboSueldo.reciboSueldo',['recibos'=>$recibos,'fechaFiltro'=>$fechaFiltro]
         )->render();
 
 
@@ -53,65 +68,120 @@ class ReciboSueldoController extends Controller
         $arrayDetalle = Excel::toArray(new ReciboSueldoImport , $file);
         // return $arrayDetalle[0][0]['apellido_nombre'];
 
-        $indice=0;
-        $json=[];
+
+
 
         foreach ($arrayDetalle as $hoja) {
             
             foreach ($hoja as $key => $fila) {
 
-                ReciboSueldo::create([
-                    'periodo'=>$fila['periodo'],
-                    'empleador'=>$fila['empleador'],
-                    'cuil'=>$fila['cuil'],
-                    'legajo'=>$fila['legajo'],
-                ]);
+
                 
                 // echo  $key .': empleado '.$fila['apellido_nombre'] . '<br>';
 
 
-                foreach ($fila as $key => $value) {
-                //    echo $key . ' valor :'. $value .'<br>';
+                $indice=0;
+                $tres=0;
 
-                    
-                   if($indice>7){
+                $key1 =''; $codigo='';
+                $key2 =''; $cantidad='';
+                $key3 =''; $importe='';
 
-                    array_push($json,array(
-                        $key => $value,
-                    ));
+
+
+                // foreach ($fila as $key => $value) {                    
+
+
+                //    if($indice>7){
+                //     // echo 'clave: '.$key . ' valor: '. $value .' valorTres: '.$tres. '<br>';
+
+                //             if($tres<=2){
+
+                //                 switch ($tres) {
+                //                     case 0:
+                //                         $codigo= $value;
+                //                         $key1=$key;
+                //                         break;
+                //                     case 1:
+                //                         $cantidad= $value;
+                //                         $key2=$key;
+                //                         break;
+                //                     case 2:
+                //                         $importe= $value;
+                //                         $key3=$key;
+
+                //                         break;
+                                    
+                //                 }
+                                
+                                
+                //                 $tres++;
+                //             }else{
+
+                //                 $tres = 0;
+                //             }
                                              
-                   }
+                //    }
 
+                //    $json[]= array(
+                //         $key1 => $codigo,
+                //         $key2 => $cantidad,
+                //         $key3 => $importe,
+                //         'tres'=>$tres,
+                //     );
                    
 
-                   $indice++;
-                }
+                //    $indice++;
+                // }
+
+
+                    // dump($fila);
+
+                $nuevoRecibo = ReciboSueldo::create([
+                    'periodo'=>date("Y-m", strtotime($fila['periodo'])),
+                    'empleador'=>$fila['empleador'],
+                    'apellidoNombre'=>$fila['apellido_nombre'],
+                    'cuil'=>$fila['cuil'],
+                    'legajo'=>$fila['legajo'],
+                    'fechaIngreso'=>$fila['fecha_ingreso'],
+                    'categoria'=>$fila['categoria'],
+                    'datos'=>json_encode($fila),
+                ]);
                 
             }
         }
 
-        // return $json;
+        // return $nuevoRecibo;
 
-        return redirect()->route('reciboSueldo')->with('mensaje', 'TODO BIEN');
+        return redirect()->route('reciboSueldo')->with('mensaje', 'Archivo procesaso');
 
     }
 
 
     public function imprimirRecibo(Request $request,$idRecibo){
 
-        $recibo = ReciboSueldo::find($idRecibo);
+        $recibo = ReciboSueldo::where('id',$idRecibo)->get();
 
-        // {
-        //     "id": 5,
-        //     "periodo": "0000-00-00",
-        //     "empleador": "1",
-        //     "cuil": 20350796631,
-        //     "legajo": 30065,
-        //     "created_at": "2024-04-13T14:02:25.000000Z",
-        //     "updated_at": "2024-04-13T14:02:25.000000Z"
-        //   }
+        // return $recibo;
+        // [
+        //     {
+        //       "id": 2,
+        //       "periodo": "0000-00-00",
+        //       "empleador": "MUNICIPALIDAD",
+        //       "apellidoNombre": "DESMARET JAVIER",
+        //       "cuil": 20358337164,
+        //       "legajo": 30065,
+        //       "fechaIngreso": "0000-00-00",
+        //       "categoria": "EMPLEADO",
+        //       "created_at": "2024-04-13T19:45:27.000000Z",
+        //       "updated_at": "2024-04-13T19:45:27.000000Z"
+        //     }
+        //   ]
 
-        $pdf = Pdf::loadView('pdf.municipalidad.reciboSueldo',compact('recibo'));
+        $pdf = Pdf::loadView('pdf.municipalidad.reciboSueldo',[
+                            'recibo'=>$recibo[0],
+
+                        ]);
 
 
         // if($request->tamañoPapel == '80MM'){

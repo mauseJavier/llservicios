@@ -13,10 +13,14 @@ return new class extends Migration
     {
         Schema::create('recibo_sueldos', function (Blueprint $table) {
             $table->id();
-            $table->date('periodo');
+            $table->string('periodo');
             $table->string('empleador');
+            $table->string('apellidoNombre');
             $table->unsignedBigInteger('cuil');
             $table->unsignedInteger('legajo');
+            $table->date('fechaIngreso');
+            $table->string('categoria');
+            $table->longText('datos');
             $table->timestamps();
         });
     }

@@ -8,31 +8,34 @@
   </head>
   <body>
     @include('principal.menu')
-    <main class="container">
 
+    <div class="container">
 
+      @if ($errors->any())
 
-    @if ($errors->any())
-    <ul>
-      @foreach ($errors->all() as $error)
-        <li>{{$error}}</li>  
-      @endforeach
+          <ul>
+            @foreach ($errors->all() as $error)
+              <li>{{$error}}</li>  
+            @endforeach
 
-    </ul>        
-    @endif
+          </ul>     
 
-    @if (session('status'))
+      @endif
 
-    <article>{{session('status')}}</article>
-        
-    @endif
+      @if (session('status'))
 
-
-
+      <article>{{session('status')}}</article>
+          
+      @endif
 
       <h1>Entrar</h1>
 
-      <div class="container">
+    </div>
+
+
+    <main class="">
+
+      <div class="">
 
         <div class="container">
 

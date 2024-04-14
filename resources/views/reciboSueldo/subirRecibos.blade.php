@@ -16,12 +16,7 @@
             @csrf
 
               
-              <div class="input-group">
-                <label for="Periodo">
-                    Periodo
-                    <input type="month" id="start" name="start" min="2018-03" value="2018-05" />
-                </label>
-                
+              <div class="input-group">               
  
               </div>
 
