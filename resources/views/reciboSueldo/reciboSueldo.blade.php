@@ -53,6 +53,8 @@
         <li>
           @if (Auth::User()->role_id == 3 || Auth::User()->role_id == 2)      
                 <a role="button" href="{{route('subirRecibos')}}">Subir Recibos</a>
+                <a role="button" href="{{route('formatoRegistroCreate')}}">Nuevo Registro</a>
+                <a role="button" href="{{route('formatoRegistro')}}">Ver Formato</a>
           @else        
           @endif
         </li>

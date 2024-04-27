@@ -57,6 +57,8 @@ class UserController extends Controller
             'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
+
+        // return Auth::check();
  
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();

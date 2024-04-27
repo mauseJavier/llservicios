@@ -14,6 +14,7 @@ use App\Http\Controllers\EnviarCorreoController;
 use App\Http\Controllers\PanelController;
 use App\Http\Controllers\GrillaController;
 use App\Http\Controllers\ReciboSueldoController;
+use App\Http\Controllers\FormatoRegistroReciboController;
 
 // JOBS
 use App\Jobs\TutorialJob;
@@ -105,6 +106,13 @@ Route::middleware('auth')->group(function () {
             return view('reciboSueldo.subirRecibos')->render();
         })->name('subirRecibos'); 
 
+        //ruta para los formatos de registro de recibos 
+        Route::get('formatoRegistro/Create',function(){
+            return view('reciboSueldo.crearRegistro')->render();
+        })->name('formatoRegistroCreate'); 
+
+        Route::post('formatoRegistro/Store', [FormatoRegistroReciboController::class, 'store'])->name('formatoRegistroStore');
+        Route::get('formatoRegistro', [FormatoRegistroReciboController::class, 'index'])->name('formatoRegistro');
 
 
     });
@@ -115,6 +123,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/imprimirRecibo/{idRecibo}',[ReciboSueldoController::class, 'imprimirRecibo'])->name('imprimirRecibo'); 
 
     Route::get('/servicios', [PanelController::class, 'index'])->name('servicios'); 
+    //ruta que es creada por el error de la ruta PANEL VIEJA
+    Route::get('/panel', [PanelController::class, 'index'])->name('panel'); 
+
+
     // Route::view('/miPerfil', 'usuarios.miPerfil')->name('panel');
     Route::get('/miPerfil', [UserController::class, 'miPerfil'])->name('miPerfil'); 
 
@@ -125,8 +137,16 @@ Route::middleware('auth')->group(function () {
 Route::get('/login', function () {
 
     if (Auth::check()) {
+
+        // return Response::json([
+        //     'id' => Auth::user()->id,
+        //     'name' => Auth::user()->name,
+        //     'role' => 'user',
+        //     'isNew' => \Session::get('isNew', 0)
+        // ]);
+
         // The user is logged in...
-        return redirect('panel');
+        return redirect('servicios');
     }else{
         return view('login');
     }

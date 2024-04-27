@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 
 use App\Models\ReciboSueldo;
+use App\Models\FormatoRegistroRecibo;
 
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -13,6 +14,10 @@ use Illuminate\Support\Facades\DB;
 
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\ReciboSueldoImport;
+
+use Illuminate\Support\Facades\Storage;
+ 
+
 
 
 class ReciboSueldoController extends Controller
@@ -67,6 +72,8 @@ class ReciboSueldoController extends Controller
 
         $arrayDetalle = Excel::toArray(new ReciboSueldoImport , $file);
         // return $arrayDetalle[0][0]['apellido_nombre'];
+
+        // return $arrayDetalle;
 
 
 
@@ -160,26 +167,81 @@ class ReciboSueldoController extends Controller
 
     public function imprimirRecibo(Request $request,$idRecibo){
 
+        $direccionLogo = Storage::path('public/logos/logoMunicipalidad.jpeg');
+
+        
+        $formato = FormatoRegistroRecibo::where('empresa_id',Auth::user()->empresa_id)->get();
         $recibo = ReciboSueldo::where('id',$idRecibo)->get();
 
-        // return $recibo;
-        // [
-        //     {
-        //       "id": 2,
-        //       "periodo": "0000-00-00",
-        //       "empleador": "MUNICIPALIDAD",
-        //       "apellidoNombre": "DESMARET JAVIER",
-        //       "cuil": 20358337164,
-        //       "legajo": 30065,
-        //       "fechaIngreso": "0000-00-00",
-        //       "categoria": "EMPLEADO",
-        //       "created_at": "2024-04-13T19:45:27.000000Z",
-        //       "updated_at": "2024-04-13T19:45:27.000000Z"
-        //     }
-        //   ]
+        $mapeoIngresos=array();
+        $mapeoDeducciones=array();
+        $mapeoTotal=array();
+
+
+
+
+        // return array('todo'=> $recibo,
+        //             'recibo'=>( $recibo[0]['datos']));
+
+        $datos = json_decode( $recibo[0]['datos'],true);
+
+        foreach ($formato as $value) {
+
+            if($value->tipo == 'ingresos'){
+                if($datos[$value->importe] != 0){
+                    $mapeoIngresos[]= array(
+                        'codigo'=> $datos[$value->codigo],
+                        'descripcion'=> $value->descripcion,
+                        'cantidad'=>$datos[$value->cantidad],
+                        'importe'=>$datos[$value->importe],
+                    );
+                    
+                }
+
+            }elseif($value->tipo == 'deducciones'){
+
+                if($datos[$value->importe] != 0){
+                    $mapeoDeducciones[]= array(
+                        'codigo'=> $datos[$value->codigo],
+                        'descripcion'=> $value->descripcion,
+                        'cantidad'=>$datos[$value->cantidad],
+                        'importe'=>$datos[$value->importe],
+                    );
+                  
+                }
+
+
+            }elseif($value->tipo == 'total'){
+
+               
+                    $mapeoTotal[]= array(
+                        
+                        'descripcion'=> $value->descripcion,
+                       
+                        'importe'=>$datos[$value->importe],
+                    );
+                  
+               
+
+
+            }
+
+
+
+            
+        }
+
+
+
 
         $pdf = Pdf::loadView('pdf.municipalidad.reciboSueldo',[
                             'recibo'=>$recibo[0],
+                            'datos'=>json_decode( $recibo[0]['datos']),
+                            'mapeoIngresos'=>$mapeoIngresos,
+                            'mapeoDeducciones'=>$mapeoDeducciones,
+                            'mapeoTotal'=>$mapeoTotal, 
+                            'direccionLogo'=>$direccionLogo,                     
+
 
                         ]);
 
@@ -192,7 +254,7 @@ class ReciboSueldoController extends Controller
         // }
 
 
-        $nombreArchivo= 'recibo.pdf';
+        $nombreArchivo= 'Recibo '.$recibo[0]->apellidoNombre.' '.$recibo[0]->periodo.'.pdf';
         return $pdf->stream($nombreArchivo, [ "Attachment" => true]);
         // return $pdf->download($nombreArchivo, [ "Attachment" => true]);
 
