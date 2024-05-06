@@ -109,7 +109,7 @@
 
                             <li><small>Funcion: <strong>{{$datos->funcion}} </strong></small></li>
 
-                            <li><small>Sector: <strong>{{$datos->sector}} </strong></small></li>
+                            <li><small>Sector: <strong>{{$datos->sector_empleador}} </strong></small></li>
                         </ul>
 
                         <div style="width: 100px;" style="height: 40px; " style="border: 1px solid black;" style="background-color:rgb(191, 182, 182)" >
@@ -137,7 +137,7 @@
                         </td>
                         <td>  
                             <ul style="list-style-type: none;">
-                                <li><strong>Fecha de Pago:</strong>{{$datos->fecha_pago}}</li>
+                                <li><strong>Fecha de Pago:</strong>$datos->fecha_pago</li>
                                 <li><strong>Datos acred: BPN CBU:</strong>{{$datos->cbu}}</li>
                                 <li><strong>Fecha de ingreso:</strong>{{$datos->fecha_ingreso}}</li>
                                 
@@ -240,12 +240,6 @@
 
                     <footer>
                         <div class="row text-left margin-b-10 ">
-
-                            @foreach ($mapeoTotal as $item)
-
-                            <h3 class="gray" align="right" >{{$item['descripcion']}}: ${{$item['importe']}}</h3> 
-                                
-                            @endforeach  
 
 
                         </div>

@@ -21,9 +21,9 @@
         <details role="list" dir="rtl">
           <summary aria-haspopup="listbox" role="link" class="contrast">Acciones</summary>
           <ul role="listbox">
-            <li><a href="{{route('inicio')}}">Inicio</a></li>
-            <li><a href="{{route('registro')}}">Registro</a></li>
+            
             <li><a href="{{route('login')}}">Entrar</a></li>
+            <li><a href="{{route('registro')}}">Registro</a></li>
 
           </ul>
         </details>

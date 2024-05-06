@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use App\Http\Requests\StorePagosRequest;
 use App\Http\Requests\UpdatePagosRequest;
 use App\Models\Pagos;
+use App\Models\empresa;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -125,9 +126,11 @@ class PagosController extends Controller
             // return $datos;
             // return $request;
 
+            // return array('datos'=>$datos,'usuario'=>empresa::find(Auth::user()->empresa_id) );
+
             // return view('pagos.pagosVer',['datos'=>$datos[0]])->render();
 
-        $pdf = Pdf::loadView('pdf.pagoPDF',['datos'=>$datos[0]]);
+        $pdf = Pdf::loadView('pdf.pagoPDF',['datos'=>$datos[0],'empresa'=>empresa::find(Auth::user()->empresa_id)]);
 
 
         if($request->tamañoPapel == '80MM'){

@@ -15,11 +15,6 @@
 
   <h1>Formato Recibos de Sueldo</h1>
 
-
-
-
-
-  
   {{-- {
     "id": 1,
     "tipo": "ingresos",
@@ -29,45 +24,61 @@
     "importe": "monto_basico",
     "empresa_id": 1
   }, --}}
+
+  <form action="{{route('formatoRegistroSerch')}}" method="POST">
+    @method('POST')
+    @csrf
+
+    <div class="grid">
+      <div>    <input
+        type="search"
+        name="busqueda"
+        placeholder="Buscar"
+        aria-label="Buscar"
+      /></div>
+      <div><button type="submit">Buscar</button></div>
+
+    </div>
     
-  <div class="overflow-auto">
-    <table class="striped">
-        <thead>
-          <tr>
-            <th scope="col">Tipo</th>
-            <th scope="col">Codigo</th>
-            <th scope="col">Descripcion</th>
-            <th scope="col">Cantidad</th>
-            <th scope="col">Importe</th>
-          </tr>
-        </thead>
-        <tbody>
+  </form>
+    
+      <figure>
 
-            @foreach ($filas as $item)
-
+        <table>
+          <thead>
             <tr>
-                <th scope="row">{{$item->tipo}}</th>
-                <td>{{$item->codigo}}</td>
-                <td>{{$item->descripcion}}</td>
-                <td>{{$item->cantidad}}</td>
-                <td>{{$item->importe}}</td>
+              <th>Editar</th>
+              <th scope="col">Tipo</th>
+              <th scope="col">Codigo</th>
+              <th scope="col">Descripcion</th>
+              <th scope="col">Cantidad</th>
+              <th scope="col">Importe</th>
+            </tr>
+          </thead>
+          <tbody>
 
-              </tr>
-                
-            @endforeach
+              @foreach ($filas as $item)
 
+              <tr>
+                <td><a href="{{route('formatoRegistroUpdate',['id'=>$item->id])}}" role="button">Editar</a> </td>
+                  <th scope="row">{{$item->tipo}}</th>
+                  <td>{{$item->codigo}}</td>
+                  <td>{{$item->descripcion}}</td>
+                  <td>{{$item->cantidad}}</td>
+                  <td>{{$item->importe}}</td>
+
+                </tr>
+                  
+              @endforeach
+
+            
+          </tbody>
+          <tfoot>
           
-        </tbody>
-        <tfoot>
-         
-        </tfoot>
-      </table>
-  </div>
+          </tfoot>
+        </table>
 
-  
-
-        
-
+      </figure>
 
 
 </div>
