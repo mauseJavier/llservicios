@@ -162,7 +162,7 @@
 
             <div class="item">
                 <span>Forma de pago:</span>
-                <span>{{$datos->formaPago}}</span>
+                <span> {{$datos->formaPago}}</span>
             </div>
             
             <div class="item">
