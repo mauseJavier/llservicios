@@ -162,9 +162,9 @@
 
             <div class="item">
                 <span>Forma de pago:</span>
-                <span>${{$datos->forma_pago}}</span>
+                <span>{{$datos->formaPago}}</span>
             </div>
-
+            
             <div class="item">
               <span>Comentario:</span>
               <span>{{$datos->comentario}}</span>
