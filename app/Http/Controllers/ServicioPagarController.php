@@ -275,8 +275,7 @@ class ServicioPagarController extends Controller
 
     }
 
-    public function NuevoCobro (){
-
+    public function NuevoCobro ($nombreCliente=''){
 
         $usuario = Auth::user();
         // return $usuario->empresa_id;
@@ -284,9 +283,10 @@ class ServicioPagarController extends Controller
         $servicios = DB::select('SELECT * FROM `servicios` WHERE empresa_id = ? ORDER BY nombre ASC', [$usuario->empresa_id]);
         $clientes = DB::select('SELECT b.* FROM cliente_empresa a, clientes b WHERE a.cliente_id = b.id AND a.empresa_id = ? ORDER BY b.nombre ASC;', [$usuario->empresa_id]);
 
+        $nombreCliente=['nombreCliente'=>$nombreCliente];
         // return $servicios;
         
-       return view('servicios.NuevoCobro',compact('servicios','clientes'))->render();
+       return view('servicios.NuevoCobro',compact('servicios','clientes','nombreCliente'))->render();
     }
 
     public function AgregarNuevoCobro (Request $request){

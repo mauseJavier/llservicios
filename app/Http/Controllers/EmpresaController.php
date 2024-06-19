@@ -71,7 +71,7 @@ class EmpresaController extends Controller
     // public function store(Request $request)
     {
         //
-        $id = empresa::create($request->only(['nombre','cuit','correo']));
+        $id = empresa::create($request->only(['nombre','cuit','correo','logo']));
         return redirect()->route('empresas.index')->with('status','Empresa '.$id->nombre.' agregada id:'.$id->id);
 
     }

@@ -43,7 +43,14 @@ class PagosController extends Controller
                                     clientes e,
                                     forma_pagos f
                                 WHERE
-                                    a.id_servicio_pagar = b.id AND a.id_usuario = c.id AND b.servicio_id = d.id AND b.cliente_id = e.id AND a.forma_pago = f.id');
+                                    a.id_servicio_pagar = b.id AND
+                                         a.id_usuario = c.id AND
+                                             b.servicio_id = d.id AND
+                                                 b.cliente_id = e.id AND
+                                                     a.forma_pago = f.id AND 
+                                                     d.empresa_id = ?',[Auth::user()->empresa_id]);
+
+                                    
 
         // return $datos;
 

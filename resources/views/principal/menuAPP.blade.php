@@ -4,7 +4,7 @@
       <li>
         
         <a href="{{route('servicios')}}" class="contrast" 
-          ><strong>LL Servicios</strong></a
+          ><strong>{{session('nombreEmpresa')}}</strong></a
         >
       </li>
 

@@ -70,6 +70,7 @@ class UserController extends Controller
             $empresa = empresa::where('id',$empresa_id)->get();
 
             session(['logoEmpresa' => $empresa[0]->logo]);    
+            session(['nombreEmpresa' => $empresa[0]->nombre]);  
 
             if($usuario->role_id == 3 || $usuario->role_id == 2){
                 return redirect()->intended('Grilla');

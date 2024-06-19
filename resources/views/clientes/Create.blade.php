@@ -43,7 +43,7 @@
       
         <!-- Markup example 2: input is after label -->
         <label for="correo">Correo Electronico</label>
-        <input type="email" id="correo" name="correo" placeholder="Correo Electronico" value="{{old('correo')}}" required>
+        <input type="email" id="correo" name="correo" placeholder="Correo Electronico" value="{{old('correo')}}">
         <small>Opcional.</small>
 
         <details>

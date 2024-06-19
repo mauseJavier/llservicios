@@ -136,7 +136,7 @@
     <div class="recibo" style="">
 
     <img src="{{$empresa->logo}}"  alt="" width="80" style="margin-top: -10px; margin-left: 25%;"/>
-        <div class="titulo">Recibo de Pago</div>
+        <div class="titulo">Recibo</div>
         <div class="titulo">{{$empresa->nombre}}</div>
         <div class="detalle">
 
@@ -151,7 +151,6 @@
             </div>
 
             <div class="item">
-                <span>Concepto:</span>
                 <span>{{$datos->Servicio}}</span>
             </div>
             
@@ -162,7 +161,11 @@
 
             <div class="item">
                 <span>Forma de pago:</span>
+<<<<<<< HEAD
                 <span> {{$datos->formaPago}}</span>
+=======
+                <span>{{$datos->formaPago}}</span>
+>>>>>>> bad2023 (modificaciones recibo y otros)
             </div>
             
             <div class="item">

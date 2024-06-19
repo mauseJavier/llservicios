@@ -3,8 +3,6 @@
 @section('body')
 
 
-
-
 <div class="container">
 
     <h1>Nuevo Cobro Manual</h1>
@@ -51,7 +49,11 @@
                         <select id="cliente" name="cliente" required>
                         
                             @foreach ($clientes as $c)
-                                <option value="{{$c->id}}" selected>{{$c->nombre}}</option>
+                                @if ($c->nombre == $nombreCliente['nombreCliente'])
+                                    <option value="{{$c->id}}" selected>{{$c->nombre}}</option>
+                                @else                                
+                                    <option value="{{$c->id}}" >{{$c->nombre}}</option>
+                                @endif
                             @endforeach
                         </select>
                 </div>

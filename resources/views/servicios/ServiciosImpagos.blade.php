@@ -4,6 +4,7 @@
 
 
 
+
 <div class="container">
   <h1>Servicios Impagos</h1>
 
@@ -32,7 +33,7 @@
           <a href="{{route('NotificacionTodosServiciosImpagos')}}" role="button">Notif. Todos</a>
         </li>
         <li>
-          <a href="{{route('NuevoCobro')}}" role="button">Nuevo Cobro</a>
+          <a href="{{route('NuevoCobro',['nombreCliente'=>$buscar])}}" role="button">Nuevo Cobro</a>
         </li>
       </ul>
   

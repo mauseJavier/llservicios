@@ -48,6 +48,14 @@
         <label for="correo">Correo Electronico</label>
         <input type="email" id="correo" name="correo" placeholder="Correo Electronico" value="{{$empresa->correo}}" required>
         <small>Opcional.</small>
+
+        <div class="col">
+          <!-- Markup example 2: input is after label -->
+          <label for="correo">URL LOGO</label>
+          <input type="text" id="logo" name="logo" placeholder="URL Logo" value="{{$empresa->logo}}" >
+          <small>Opcional.</small>
+
+        </div>
       
         <!-- Button -->
         <button type="submit">Guardar</button>

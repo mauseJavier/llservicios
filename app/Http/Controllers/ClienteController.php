@@ -139,7 +139,7 @@ class ClienteController extends Controller
 
             $id = Cliente::create(['nombre'=>$request->nombre,
                                 'dni'=>$request->dni,
-                                'correo'=>$request->correo,
+                                'correo'=> $request->correo ? $request->correo : '',
                                 'domicilio'=>$request->domicilio,
                                 'telefono'=>$request->telefono,
                                 ]);

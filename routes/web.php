@@ -86,7 +86,7 @@ Route::middleware('auth')->group(function () {
         Route::get('ServicioPagarBuscarCliente/{estado?}', [ServicioPagarController::class, 'ServicioPagarBuscarCliente'])->name('ServicioPagarBuscarCliente');
         Route::get('PagarServicio/{idServicioPagar}/{importe}', [ServicioPagarController::class, 'PagarServicio'])->name('PagarServicio');  
         Route::post('ConfirmarPago', [ServicioPagarController::class, 'ConfirmarPago'])->name('ConfirmarPago');
-        Route::get('NuevoCobro', [ServicioPagarController::class, 'NuevoCobro'])->name('NuevoCobro'); 
+        Route::get('NuevoCobro/{nombreCliente?}', [ServicioPagarController::class, 'NuevoCobro'])->name('NuevoCobro'); 
         Route::post('AgregarNuevoCobro', [ServicioPagarController::class, 'AgregarNuevoCobro'])->name('AgregarNuevoCobro');
 
 
