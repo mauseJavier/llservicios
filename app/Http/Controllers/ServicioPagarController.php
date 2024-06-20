@@ -74,7 +74,9 @@ class ServicioPagarController extends Controller
     
         // return $clientes;
         
-     return view('servicios.ServiciosImpagos',['servicios'=>$datosPaginados,
+     return view('servicios.ServiciosImpagos',[
+                'servicios'=>$datosPaginados,
+                'buscar'=> '',
                ]
             )->render();
     }

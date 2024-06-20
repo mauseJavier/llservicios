@@ -47,38 +47,41 @@ class NuevoServicioPagarListener
 
         // return $datos;
 
+        if($datos[0]->correoCliente != ''){
 
-        try {
-
-            $correo = Mail::to($datos[0]->correoCliente)->send(new NotificacionCuotaMail($datos));
-
+            try {
+    
+                $correo = Mail::to($datos[0]->correoCliente)->send(new NotificacionCuotaMail($datos));
+    
+                
+                $rutaArchivo = 'pruebaMail.txt';
+                        $texto = json_encode($datos);
+    
+                        if (Storage::exists($rutaArchivo)) {
+                            // El archivo existe
+                            // echo "El archivo existe.";
+    
+                                    //EDITANDO EL ARCHIVO
+    
+                        $contenidoActual = Storage::get($rutaArchivo);
+                        $contenidoEditado = $contenidoActual . "\n" . $texto;
+                        Storage::put($rutaArchivo, $contenidoEditado);
+    
+                        } else {
+                            // El archivo no existe
+    
+                            Storage::disk('local')->put($rutaArchivo,$texto);
+    
+                        }
+    
+    
+                        
+    
+            } catch (Exception $e) {
             
-            $rutaArchivo = 'pruebaMail.txt';
-                    $texto = json_encode($datos);
-
-                    if (Storage::exists($rutaArchivo)) {
-                        // El archivo existe
-                        // echo "El archivo existe.";
-
-                                //EDITANDO EL ARCHIVO
-
-                    $contenidoActual = Storage::get($rutaArchivo);
-                    $contenidoEditado = $contenidoActual . "\n" . $texto;
-                    Storage::put($rutaArchivo, $contenidoEditado);
-
-                    } else {
-                        // El archivo no existe
-
-                        Storage::disk('local')->put($rutaArchivo,$texto);
-
-                    }
-
-
-                    
-
-        } catch (Exception $e) {
-        
+            }
         }
+
 
 
     }
