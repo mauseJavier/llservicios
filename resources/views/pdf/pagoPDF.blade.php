@@ -161,11 +161,7 @@
 
             <div class="item">
                 <span>Forma de pago:</span>
-<<<<<<< HEAD
                 <span> {{$datos->formaPago}}</span>
-=======
-                <span>{{$datos->formaPago}}</span>
->>>>>>> bad2023 (modificaciones recibo y otros)
             </div>
             
             <div class="item">
