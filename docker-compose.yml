@@ -1,62 +1,16 @@
-
 services:
-  llfactura:
+  llservicios:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: container-llfactura
+    container_name: llservicios
     volumes:
       - .:/var/www/html
-    # networks:
-    #   - llfactura_network
-  #   depends_on:
-  #     - mariadb
-
-  # nginx:
-  #   image: nginx:latest
-  #   container_name: nginx
-  #   ports:
-  #     - "8081:80"
-  #   volumes:
-  #     - .:/var/www/html
-  #     - ./nginx.conf:/etc/nginx/conf.d/default.conf
-  #   networks:
-  #     - llfactura_network
-  #   depends_on:
-  #     - llfactura
-
-  # mariadb:
-  #   image: mariadb:10.11
-  #   container_name: laravel_mariadb
-  #   ports:
-  #     - "3306:3306"
-  #   environment:
-  #     MYSQL_ROOT_PASSWORD: secret
-  #     MYSQL_DATABASE: llfactura
-  #     MYSQL_USER: root
-  #     MYSQL_PASSWORD: secret
-  #   volumes:
-  #     - mariadb_data:/var/lib/mysql
-  #   networks:
-  #     - llfactura_network
-
-  # phpmyadmin:
-  #   image: phpmyadmin:latest
-  #   container_name: laravel_phpmyadmin
-  #   ports:
-  #     - "8080:80"
-  #   environment:
-  #     PMA_HOST: mariadb
-  #     PMA_USER: root
-  #     PMA_PASSWORD: secret
-  #   depends_on:
-  #     - mariadb
-  #   networks:
-  #     - llfactura_network
-
-# networks:
-#   llfactura_network:
-#     driver: bridge
-
-# volumes:
-#   mariadb_data:
+    environment:
+      DB_HOST: host.docker.internal # Apunta al servicio MySQL en el host
+      DB_PORT: 3306
+      DB_DATABASE: llservicios
+      DB_USERNAME: root
+      DB_PASSWORD: secret
+    ports:
+      - "9000" # PHP-FPM escuchando en este puerto para que Nginx lo use
