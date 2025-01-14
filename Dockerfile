@@ -22,9 +22,9 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 
 # Configurar permisos
-#  RUN chown -R www-data:www-data /var/www/html \
-#      && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+  RUN chown -R www-data:www-data /var/www/html \
+      && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
 # Instala las dependencias del proyecto
-# RUN composer install --no-scripts --no-autoloader
+ RUN composer install --no-scripts --no-autoloader
 
