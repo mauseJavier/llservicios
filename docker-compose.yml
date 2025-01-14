@@ -6,12 +6,6 @@ services:
     container_name: llservicios
     volumes:
       - .:/var/www/html
-    environment:
-      DB_HOST: host.docker.internal # Apunta al servicio MySQL en el host
-      DB_PORT: 3306
-      DB_DATABASE: llservicios
-      DB_USERNAME: root
-      DB_PASSWORD: secret
     ports:
       - "9000" # PHP-FPM escuchando en este puerto para que Nginx lo use
 
