@@ -14,7 +14,4 @@ services:
       DB_PASSWORD: secret
     ports:
       - "9000" # PHP-FPM escuchando en este puerto para que Nginx lo use
-    command: >
-      sh -c "chown -R www-data:www-data /var/www/html &&
-             chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache &&
-             php-fpm"
+
