@@ -7,5 +7,5 @@ services:
     volumes:
       - .:/var/www/html
     ports:
-      - "9000:9000" # PHP-FPM escuchando en este puerto para que Nginx lo use
+      - "8081:8081" # PHP-FPM escuchando en este puerto para que Nginx lo use
 
