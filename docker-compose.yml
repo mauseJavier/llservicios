@@ -1,11 +1,16 @@
 services:
   llservicios:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: shinsenter/laravel:latest
+
     container_name: llservicios
     volumes:
       - .:/var/www/html
     ports:
-      - "8081:8081" # PHP-FPM escuchando en este puerto para que Nginx lo use
+      - "82:80" # PHP-FPM escuchando en este puerto para que Nginx lo use
+    networks:
+      - redPrincipal
+     
+networks:
+  redPrincipal:
+    external: true
 
