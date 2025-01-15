@@ -5,8 +5,8 @@ services:
     container_name: llservicios
     volumes:
       - .:/var/www/html
-    ports:
-      - "82:80" # PHP-FPM escuchando en este puerto para que Nginx lo use
+    #ports:
+    #  - "82:80" # PHP-FPM escuchando en este puerto para que Nginx lo use
     networks:
       - redPrincipal
      
