@@ -14,3 +14,19 @@ networks:
   redPrincipal:
     external: true
 
+
+
+
+#Acceder al contenedor: Una vez iniciado, accede a la línea de comandos del contenedor:
+
+
+#docker exec -it llservicios bash
+#Ajustar permisos: Dentro del contenedor, establece los permisos correctos para la carpeta storage y bootstrap/cache:
+
+
+#chmod -R 775 storage bootstrap/cache
+#chown -R www-data:www-data storage bootstrap/cache
+#Ejecutar php artisan storage:link: Ejecuta el comando para crear el enlace simbólico de la carpeta storage hacia la carpeta pública:
+
+
+#php artisan storage:link
