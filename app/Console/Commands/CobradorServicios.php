@@ -35,7 +35,7 @@ class CobradorServicios extends Command
     {
 
 
-        // Log::info('Nuevo servicio por minuto en Local '); 
+        Log::info('Nuevo servicio por minuto en Local '); 
 
 
         

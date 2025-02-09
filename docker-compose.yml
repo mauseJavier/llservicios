@@ -1,32 +1,27 @@
 services:
   llservicios:
     image: shinsenter/laravel:latest
-
     container_name: llservicios
     volumes:
       - .:/var/www/html
-    #ports:
-    #  - "82:80" # PHP-FPM escuchando en este puerto para que Nginx lo use
     networks:
       - redPrincipal
-     
+
+    # ports:
+    # - "8089:80"  # Expone el puerto 80 del contenedor en el 8080 del host
+
+  llcron:
+    image: shinsenter/laravel:latest
+    container_name: llcron
+    volumes:
+      - .:/var/www/html
+    entrypoint: [ "sh", "-c", "
+        chmod -R 777 storage bootstrap/cache &&
+        while true; do php artisan schedule:run >> /dev/null 2>&1; sleep 60; done"
+    ]
+    networks:
+      - redPrincipal
+
 networks:
   redPrincipal:
     external: true
-
-
-
-
-#Acceder al contenedor: Una vez iniciado, accede a la línea de comandos del contenedor:
-
-
-#docker exec -it llservicios bash
-#Ajustar permisos: Dentro del contenedor, establece los permisos correctos para la carpeta storage y bootstrap/cache:
-
-
-#chmod -R 775 storage bootstrap/cache
-#chown -R www-data:www-data storage bootstrap/cache
-#Ejecutar php artisan storage:link: Ejecuta el comando para crear el enlace simbólico de la carpeta storage hacia la carpeta pública:
-
-
-#php artisan storage:link
