@@ -1,6 +1,9 @@
 services:
   llservicios:
     image: shinsenter/laravel:latest
+    environment:
+      ENABLE_CRONTAB: "1"
+      CRONTAB_SETTINGS: "* * * * * php artisan schedule:run >> /dev/null 2>&1"
 
     container_name: llservicios
     volumes:
