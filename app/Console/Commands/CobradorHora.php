@@ -5,6 +5,9 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Events\NuevoServicioPagarEvent;
 
+use Illuminate\Support\Facades\DB;
+
+
 class CobradorHora extends Command
 {
     /**
