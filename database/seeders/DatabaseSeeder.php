@@ -29,13 +29,13 @@ class DatabaseSeeder extends Seeder
         if(env('APP_DEBUG')==true){//para cuando estoy en produccion
             
             
-            $this->call(ClienteSeeder::class);
-            $this->call(ServicioSeeder::class);
-            $this->call(ClienteServicio::class);
-            $this->call(ClienteEmpresaSeeder::class);
-            $this->call(ServicioPagarSeeder::class);
-            $this->call(ReciboSueldoSeeder::class);
-            $this->call(FormatoRegistroReciboSeeder::class);
+            // $this->call(ClienteSeeder::class);
+            // $this->call(ServicioSeeder::class);
+            // $this->call(ClienteServicio::class);
+            // $this->call(ClienteEmpresaSeeder::class);
+            // $this->call(ServicioPagarSeeder::class);
+            // $this->call(ReciboSueldoSeeder::class);
+            // $this->call(FormatoRegistroReciboSeeder::class);
             
             
         }

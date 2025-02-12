@@ -15,12 +15,12 @@ return new class extends Migration
             $table->id();
             $table->string('periodo');
             $table->string('empleador');
-            $table->string('apellidoNombre');
+            $table->string('apellidoNombre')->default('Ejemplo');
             $table->unsignedBigInteger('cuil');
             $table->unsignedInteger('legajo');
-            $table->date('fechaIngreso');
-            $table->string('categoria');
-            $table->longText('datos');
+            $table->date('fechaIngreso')->nullable();
+            $table->string('categoria')->nullable();
+            $table->longText('datos')->nullable();
             $table->timestamps();
         });
     }

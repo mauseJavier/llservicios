@@ -13,7 +13,14 @@ return new class extends Migration
     {
         //
         Schema::table('clientes', function (Blueprint $table) {
-            $table->string('correo')->default('correo@correo.com')->change(); 
+
+            // POR QUE GENERA ERROR EN LA MODIFICAIOCN EL SQL LITE 
+            if( env('DB_CONNECTION') != 'sqlite' ){
+
+                $table->string('correo')->default('correo@correo.com')->change(); 
+            }
+
+
         });
     }
 

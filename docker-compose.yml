@@ -6,7 +6,6 @@ services:
       - .:/var/www/html
     networks:
       - redPrincipal
-
     # ports:
     # - "8089:80"  # Expone el puerto 80 del contenedor en el 8080 del host
 
@@ -21,6 +20,39 @@ services:
     ]
     networks:
       - redPrincipal
+    depends_on:
+      - llservicios
+
+  # scheduler:
+  #   image: php:8.2-cli
+  #   container_name: llServicios_scheduler
+  #   working_dir: /var/www
+  #   volumes:
+  #     - .:/var/www
+  #   entrypoint: ["sh", "-c", "while true; do php artisan schedule:run >> /var/log/cron.log 2>&1; sleep 60; done"]
+  #   networks:
+  #     - redPrincipal
+  #   depends_on:
+  #     - llservicios
+
+#   mariadb:
+#     image: mariadb:latest
+#     container_name: llfactura_mariadb
+#     # restart: always
+#     expose:
+#       - 3306
+#     environment:
+#       MYSQL_ROOT_PASSWORD: root
+#       # MYSQL_DATABASE: llservicios
+#       # MYSQL_USER: root
+#       # MYSQL_PASSWORD: root
+#     networks:
+#       - redPrincipal
+#     volumes:
+#       - dbdata:/var/lib/mysql
+
+# volumes:
+#   dbdata:
 
 networks:
   redPrincipal:

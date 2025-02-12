@@ -21,10 +21,11 @@ class Kernel extends ConsoleKernel
             $schedule->command('app:cobrador-servicios')->everyMinute();
             // $schedule->command('app:notificacion-mensual')->everyMinute()->appendOutputTo(storage_path('logs/notificacionMensual.log'));
             $schedule->command('app:cobrador-mensual')->everyMinute()->appendOutputTo(storage_path('logs/tareasMensualDesarrollo.log'));
+
         }else{
 
             //¡¡¡¡¡¡¡¡¡¡¡¡¡QUITAR PARA PRUDUCCION¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¿
-            // $schedule->command('app:cobrador-mensual')->everyMinute()->appendOutputTo(storage_path('logs/tareasMensualDesarrollo.log'));
+            $schedule->command('app:cobrador-mensual')->everyMinute()->appendOutputTo(storage_path('logs/tareasMensualDesarrollo.log'));
             //¡¡¡¡¡¡¡¡¡¡¡¡¡QUITAR PARA PRUDUCCION¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¿
 
             $schedule->command('app:cobrador-hora')->hourly()->appendOutputTo(storage_path('logs/tareasHora.log'));
