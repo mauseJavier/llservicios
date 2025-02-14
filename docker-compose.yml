@@ -23,18 +23,6 @@ services:
     depends_on:
       - llservicios
 
-  # scheduler:
-  #   image: php:8.2-cli
-  #   container_name: llServicios_scheduler
-  #   working_dir: /var/www
-  #   volumes:
-  #     - .:/var/www
-  #   entrypoint: ["sh", "-c", "while true; do php artisan schedule:run >> /var/log/cron.log 2>&1; sleep 60; done"]
-  #   networks:
-  #     - redPrincipal
-  #   depends_on:
-  #     - llservicios
-
 #   mariadb:
 #     image: mariadb:latest
 #     container_name: llfactura_mariadb
