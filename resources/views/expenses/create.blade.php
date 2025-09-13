@@ -20,13 +20,13 @@
 <div class="container">
 
     @if ($errors->any())
-        <div class="alert alert-danger">
+        <article style="background-color: #f8d7da; border-color: #f5c6cb; color: #721c24;">
             <ul>
                 @foreach ($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
             </ul>
-        </div>
+        </article>
     @endif
 
     <form method="POST" action="{{route('expenses.store')}}">

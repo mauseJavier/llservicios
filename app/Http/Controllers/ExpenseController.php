@@ -11,9 +11,23 @@ class ExpenseController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $expenses = Expense::paginate(15);
+        $query = Expense::query();
+        
+        if ($request->filled('buscar')) {
+            $buscar = $request->buscar;
+            $query->where(function($q) use ($buscar) {
+                $q->where('detalle', 'like', '%' . $buscar . '%')
+                  ->orWhere('forma_pago', 'like', '%' . $buscar . '%')
+                  ->orWhere('estado', 'like', '%' . $buscar . '%')
+                  ->orWhere('comentario', 'like', '%' . $buscar . '%');
+            });
+        }
+        
+        $expenses = $query->orderBy('id', 'DESC')->paginate(15);
+        $expenses->appends(['buscar' => $request->buscar]);
+        
         return view('expenses.index', compact('expenses'));
     }
 

@@ -12,8 +12,8 @@
           <form class="form" action="{{route('expenses.index')}}" method="GET">
               <div class="input-group">
                   <input type="search" class="input" id="buscar" name="buscar" 
-                  @if (isset($buscar))
-                      value="{{$buscar}}"
+                  @if (isset($buscar) || request('buscar'))
+                      value="{{request('buscar')}}"
                   @endif  placeholder="Buscar...">
               </div>
           </form>
@@ -31,9 +31,9 @@
 <div class="container">
 
   @if(session('success'))
-    <div class="alert alert-success">
+    <article style="background-color: #d1e7dd; border-color: #badbcc; color: #0f5132;">
         {{ session('success') }}
-    </div>
+    </article>
   @endif
 
   <figure>
