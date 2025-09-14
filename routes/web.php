@@ -15,6 +15,7 @@ use App\Http\Controllers\PanelController;
 use App\Http\Controllers\GrillaController;
 use App\Http\Controllers\ReciboSueldoController;
 use App\Http\Controllers\FormatoRegistroReciboController;
+use App\Http\Controllers\ExpenseController;
 
 // JOBS
 use App\Jobs\TutorialJob;
@@ -118,6 +119,8 @@ Route::middleware('auth')->group(function () {
         Route::post('formatoRegistro/Store', [FormatoRegistroReciboController::class, 'store'])->name('formatoRegistroStore');
         Route::get('formatoRegistro', [FormatoRegistroReciboController::class, 'index'])->name('formatoRegistro');
 
+        //RUTAS PARA GASTOS
+        Route::resource('expenses', ExpenseController::class);
 
     });
 

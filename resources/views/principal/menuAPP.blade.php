@@ -37,6 +37,7 @@
               <li><a href="{{route('Servicios.index')}}">ABM Servicios</a></li>
               <li><a href="{{route('Grilla')}}">Grilla Clientes</a></li>
               <li><a href="{{route('Pagos')}}">Pagos</a></li>
+              <li><a href="{{route('expenses.index')}}">Gastos</a></li>
            
             @endif
 
