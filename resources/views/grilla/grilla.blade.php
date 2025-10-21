@@ -15,7 +15,7 @@
     <ul>
 
       <li>
-        <form class="form" action="{{route('GrillaBuscarCliente')}}" method="GET">
+        <form class="form" action="{{route('GrillaBuscarCliente')}}" method="GET" id="bucarCliente">
             {{-- @csrf --}}
             <div class="input-group">
                 <input type="search" class="input" id="buscar" name="buscar"                      

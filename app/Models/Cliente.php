@@ -15,10 +15,13 @@ class Cliente extends Model
 
     protected $guarded = [];
 
-    public function empresa():BelongsTo
-    {
-        return $this->belongsTo(empresa::class,'empresa_id','id');
-    }
+        /**
+         * Las empresas a las que pertenece el cliente
+         */
+        public function empresas(): BelongsToMany
+        {
+            return $this->belongsToMany(Empresa::class, 'cliente_empresa', 'cliente_id', 'empresa_id');
+        }
 
      /**
      * The servicios that belong to the Cliente

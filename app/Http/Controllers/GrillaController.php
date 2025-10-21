@@ -28,9 +28,13 @@ class GrillaController extends Controller
         $buscar = $datos->buscar;
         $usuario = Auth::user();
 
+<<<<<<< HEAD
         $clientes = DB::select('SELECT b.* FROM cliente_empresa a, clientes b  WHERE a.cliente_id = b.id and a.empresa_id = ? and b.nombre like ?', [$usuario->empresa_id,'%' . $buscar . '%']);
         
         if (count($clientes) > 0){
+=======
+        $clientes = DB::select('SELECT b.* FROM cliente_empresa a, clientes b WHERE a.cliente_id = b.id and a.empresa_id = ? and (b.nombre like ? or b.dni like ?)', [$usuario->empresa_id, '%' . $buscar . '%', '%' . $buscar . '%']);
+>>>>>>> 42e7409 (busquedas en vivo)
 
             // return $clientes;
 

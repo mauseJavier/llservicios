@@ -57,13 +57,19 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware(['RolAdmin'])->group(function () {//AK CREAR UN MIDDELWARE PARA ADDMIN
 
-         //RUTAS DE LA GRILLA
-         Route::get('/Grilla', [GrillaController::class, 'index'])->name('Grilla');
-         Route::get('/GrillaBuscarCliente', [GrillaController::class, 'GrillaBuscarCliente'])->name('GrillaBuscarCliente');
+         //RUTAS DE LA GRILLA controlador viejo sin livewire 
+         //Route::get('/Grilla', [GrillaController::class, 'index'])->name('Grilla');
+         //Route::get('/GrillaBuscarCliente', [GrillaController::class, 'GrillaBuscarCliente'])->name('GrillaBuscarCliente');
+
+         // Ruta para el componente Livewire GrillaDos
+        Route::get('/Grilla', \App\Livewire\GrillaDos::class)->name('Grilla');
+
+        //Ver cliente Livewire
+        Route::get('/VerCliente', \App\Livewire\VerCliente\VerCliente::class)->name('VerCliente');
 
 
-         
         Route::resource('Cliente',ClienteController::class);
+
         Route::get('/BuscarCliente', [ClienteController::class, 'BuscarCliente'])->name('BuscarCliente');
         Route::get('/ImportarClientes', function (){
                 return view('clientes.ImportarClientes');

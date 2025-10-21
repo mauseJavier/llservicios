@@ -18,9 +18,17 @@ class Kernel extends ConsoleKernel
 
         if (App::environment('local')) {
             // The environment is local
-            $schedule->command('app:cobrador-servicios')->everyMinute();
+            // $schedule->command('app:cobrador-servicios')->everyMinute();
             // $schedule->command('app:notificacion-mensual')->everyMinute()->appendOutputTo(storage_path('logs/notificacionMensual.log'));
+<<<<<<< HEAD
             $schedule->command('app:cobrador-mensual')->everyMinute()->appendOutputTo(storage_path('logs/tareasMensualDesarrollo.log'));
+=======
+            // $schedule->command('app:cobrador-mensual')->everyMinute()->appendOutputTo(storage_path('logs/tareasMensualDesarrollo.log'));
+
+            // agregar cobrador por minuto
+            // $schedule->command('app:cobrador-minuto')->everyMinute()->appendOutputTo(storage_path('logs/tareasMinuto.log'));
+
+>>>>>>> 42e7409 (busquedas en vivo)
         }else{
 
             //¡¡¡¡¡¡¡¡¡¡¡¡¡QUITAR PARA PRUDUCCION¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¿

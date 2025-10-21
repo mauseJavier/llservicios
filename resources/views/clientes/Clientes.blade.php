@@ -2,115 +2,41 @@
 
 @section('body')
 
+
 <div class="container">
-
+  
   <h1>Clientes</h1>
+    
+    <nav>
+    <div style="display: flex; align-items: stretch; flex-wrap: wrap;">
 
-<nav>
-    <ul>
+    <a href="{{route('Cliente.create')}}" role="button" data-tooltip="Nuevo Cliente" style="display: flex; align-items: center; justify-content: center; background: #28a745; color: #fff; border-radius:  8px ; width: 48px; height: 48px; font-size: 2em; text-decoration: none; border: 1px solid #28a745; cursor: pointer; margin-top: 0;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#fff" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+    </a>
 
-        <li>
-          <form class="form" action="{{route('BuscarCliente')}}" method="GET">
-              
-              <div class="input-group">
-                  <input type="search" class="input" id="buscar" name="buscar" 
-                  @if (isset($buscar))
-                      value="{{$buscar}}"
-                  @endif  placeholder="Buscar...">
- 
-              </div>
-          </form>
-        </li>
-    </ul>
-    <ul>
-        <li>
-            <a href="{{route('Cliente.create')}}" role="button" data-tooltip="Nuevo Cliente"><i class="fa-regular fa-square-plus"></i></a>
-        </li>
-        <li>
-          <a href="{{route('ImportarClientes')}}" role="button" data-tooltip="Importar CSV"><i class="fas fa-file-excel"></i></a>
-        </li>
-        <li>
-          <a href="{{route('ExportarClientes')}}" role="button" data-tooltip="Exportar CSV"><i class="fas fa-file-excel" style="color: #FFD43B;"></i></a>
-        </li>
-    </ul>
-</nav>
+    <a href="{{route('ImportarClientes')}}" role="button" data-tooltip="Importar CSV" style="display: flex; align-items: center; justify-content: center; background: #198754; color: #fff; border-radius: 8px; width: 48px; height: 48px; font-size: 1.5em; text-decoration: none; border: 1px solid #198754; margin-left: 8px; margin-top: 1px; cursor: pointer;">
+        <i class="fas fa-file-excel"></i>
+      </a>
+    <a href="{{route('ExportarClientes')}}" role="button" data-tooltip="Exportar CSV" style="display: flex; align-items: center; justify-content: center; background: #FFD43B; color: #333; border-radius: 8px; width: 48px; height: 48px; font-size: 1.5em; text-decoration: none; border: 1px solid #FFD43B; margin-left: 8px; margin-top: 1px; cursor: pointer;">
+        <i class="fas fa-file-excel"></i>
+      </a>
+    </div>
+  </nav>
+
+  <br>
+
+  <livewire:ver-cliente.ver-cliente />
 
 </div>
 
 
-<div class="container">
-
-  <figure>
-    <table>
-        <thead>
-          <tr>
-            <th scope="col">#</th>
-            <th scope="col">Nombre</th>
-            <th scope="col">Dni</th>
-            <th scope="col">Correo</th>
-            <th scope="col">Telefono</th>
-            <th scope="col">Domicilio</th>
-            <th scope="col">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-     
-          @foreach ($clientes as $e)
-            <tr>              
-              <td>{{$e->id}}</td>
-              <td>{{$e->nombre}}</td>
-              <td>{{$e->dni}}</td>
-              <td>{{$e->correo}}</td>
-              
-              <td><a href="https://wa.me/+54{{$e->telefono}}" target="_blank" rel="noopener noreferrer">{{$e->telefono}}</a></td>
-              <td>{{$e->domicilio}}</td>
-              <th>                  
-                  <strong><a href="{{route('Cliente.edit',['Cliente'=>$e->id])}}" data-tooltip="Editar">Editar</a></strong>
-              </th>
-            </tr>
-          @endforeach
-        
-        </tfoot>
-    </table>
-</figure>
 
 
 
 
 
-@if (method_exists($clientes, 'currentPage'))   
-
-  {{-- //PAGINACION --}}
-  <nav> 
-    <ul>
-      <li><strong>Pag. {{$clientes->currentPage()}} de: {{$clientes->lastPage()}} , Total Res.: {{$clientes->total()}}</strong></li>
-    </ul>
-
-    <ul>
-      <li><a href=" {{$clientes->previousPageUrl()}}" role="button">Anterior</a></li>
-          @if ($clientes->currentPage()-1 != 0)
-            <li>
-              <a href="{{$clientes->url($clientes->currentPage()-1)}}">{{$clientes->currentPage()-1}}</a> 
-            </li>
-          @endif
-            <li>
-              <strong>
-                <a href="{{$clientes->url($clientes->currentPage())}}">{{$clientes->currentPage()}}</a>
-              </strong>            
-            </li>
-          @if (($clientes->currentPage() +1 ) < round($clientes->total()/$clientes->perPage())+1)
-            <li>
-              <a href="{{$clientes->url($clientes->currentPage() +1)}}">{{$clientes->currentPage() +1}}</a>
-            </li>
-          @endif
-
-      <li><a href="{{$clientes->nextPageUrl()}}" role="button">Siguiente</a></li>
-    </ul>
-  </nav>
-
-
-@endif
 </div>
 
 
 @endsection 
+
