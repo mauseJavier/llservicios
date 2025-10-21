@@ -4,9 +4,6 @@
 
 
 <div class="container">
-<<<<<<< HEAD
-  <h1>Servicios</h1>
-=======
   <h1>Servicios a pagar</h1>
   <details viejo="margin-bottom: 24px;">
     <summary viejo="cursor: pointer; padding: 12px 16px; background: #8a929b; color: white; border-radius: 8px; margin-bottom: 16px; font-weight: 500; list-style: none;">
@@ -44,7 +41,6 @@
       </form>
     </div>
   </details>
->>>>>>> 42e7409 (busquedas en vivo)
 </div>
 
 <div class="container">
