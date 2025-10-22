@@ -55,8 +55,12 @@
             <tr>              
               <td>{{$expense->id}}</td>
               <td>{{$expense->detalle}}</td>
-              <td>{{$expense->forma_pago}}</td>
-              <td>{{$expense->estado}}</td>
+              <td>{{$expense->formaPago ? $expense->formaPago->nombre : 'Sin asignar'}}</td>
+              <td>
+                <span class="badge @if($expense->estado == 'pago') badge-success @else badge-warning @endif">
+                  {{ucfirst($expense->estado)}}
+                </span>
+              </td>
               <td>${{number_format($expense->importe, 2)}}</td>
               <td>{{Str::limit($expense->comentario, 50)}}</td>
               <th>                  

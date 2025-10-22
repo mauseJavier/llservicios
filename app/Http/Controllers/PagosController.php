@@ -27,6 +27,24 @@ class PagosController extends Controller
      */
     public function index(Request $request)
     {
+        // Obtener filtros de fecha
+        $fechaInicio = $request->get('fecha_inicio');
+        $fechaFin = $request->get('fecha_fin');
+        
+        // Construir condiciones de fecha solo si se proporcionan
+        $condicionFecha = '';
+        $parametros = [];
+        
+        if ($fechaInicio) {
+            $condicionFecha .= ' AND DATE(a.created_at) >= ?';
+            $parametros[] = $fechaInicio;
+        }
+        
+        if ($fechaFin) {
+            $condicionFecha .= ' AND DATE(a.created_at) <= ?';
+            $parametros[] = $fechaFin;
+        }
+
         $datos = DB::select('SELECT
                                     a.*,
                                     b.id as idServicioPagar,
@@ -43,7 +61,21 @@ class PagosController extends Controller
                                     clientes e,
                                     forma_pagos f
                                 WHERE
-                                    a.id_servicio_pagar = b.id AND a.id_usuario = c.id AND b.servicio_id = d.id AND b.cliente_id = e.id AND a.forma_pago = f.id');
+                                    a.id_servicio_pagar = b.id AND a.id_usuario = c.id AND b.servicio_id = d.id AND b.cliente_id = e.id AND a.forma_pago = f.id' . $condicionFecha, $parametros);
+
+        // Obtener resumen de pagos por forma de pago con filtros de fecha
+        $resumenPagos = DB::select('SELECT
+                                        f.nombre AS formaPago,
+                                        COUNT(a.id) AS cantidadPagos,
+                                        SUM(a.importe) AS totalImporte
+                                    FROM
+                                        pagos a
+                                        INNER JOIN forma_pagos f ON a.forma_pago = f.id
+                                    WHERE 1=1' . $condicionFecha . '
+                                    GROUP BY
+                                        f.id, f.nombre
+                                    ORDER BY
+                                        totalImporte DESC', $parametros);
 
         // return $datos;
 
@@ -72,7 +104,7 @@ class PagosController extends Controller
                 // return $pagos;
 
 
-                return view('pagos.pagos', compact('pagos'))->render();
+                return view('pagos.pagos', compact('pagos', 'resumenPagos'))->render();
     }
 
     public function PagosVer ($idServicioPagar){

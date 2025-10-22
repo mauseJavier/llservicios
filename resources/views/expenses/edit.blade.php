@@ -49,14 +49,25 @@
         </div>
 
         <div class="grid">
-          <label for="forma_pago">
+          <label for="forma_pago_id">
             Forma de Pago
-            <input type="text" id="forma_pago" name="forma_pago" placeholder="Efectivo, Tarjeta, etc." value="{{old('forma_pago', $expense->forma_pago)}}" required>
+            <select id="forma_pago_id" name="forma_pago_id" required>
+              <option value="">Seleccionar forma de pago</option>
+              @foreach($formasPago as $formaPago)
+                <option value="{{ $formaPago->id }}" {{ old('forma_pago_id', $expense->forma_pago_id) == $formaPago->id ? 'selected' : '' }}>
+                  {{ $formaPago->nombre }}
+                </option>
+              @endforeach
+            </select>
           </label>
       
           <label for="estado">
             Estado
-            <input type="text" id="estado" name="estado" placeholder="Pendiente, Pagado, etc." value="{{old('estado', $expense->estado)}}" required>
+            <select id="estado" name="estado" required>
+              <option value="">Seleccionar estado</option>
+              <option value="impago" {{ old('estado', $expense->estado) == 'impago' ? 'selected' : '' }}>Impago</option>
+              <option value="pago" {{ old('estado', $expense->estado) == 'pago' ? 'selected' : '' }}>Pago</option>
+            </select>
           </label>
         </div>
       
