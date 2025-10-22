@@ -128,6 +128,9 @@ Route::middleware('auth')->group(function () {
         //RUTAS PARA GASTOS
         Route::resource('expenses', ExpenseController::class);
 
+        //RUTA PARA CIERRE DE CAJA
+        Route::get('/cierre-caja', \App\Livewire\CierreCaja::class)->name('cierre-caja');
+
     });
 
     // Route::get('/usuarios', [UserController::class, 'todosUsuarios'])->name('usuarios');

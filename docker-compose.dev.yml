@@ -1,0 +1,96 @@
+
+# services:
+#   localllservicios:
+#     #build:
+#     #  context: .
+#     #  dockerfile: Dockerfile
+#     image: shinsenter/laravel:latest
+#     container_name: localllservicios
+#     volumes:
+#       - .:/var/www/html
+#     networks:
+#       - redPrincipal
+     
+# networks:
+#   redPrincipal:
+#     external: true
+
+
+services:
+  localllservicios:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: localllservicios
+    volumes:
+      - .:/var/www/html
+    networks:
+      - redPrincipal
+    restart: always
+    #QUITAR LOS PUERTOS Y LA DEPENDENCIA DE MARIADB
+    ports:
+      - "1234:80"
+    depends_on:
+      - mariadb
+
+  localllservicios-scheduler:
+    image: shinsenter/laravel:latest
+    container_name: localllservicios-scheduler
+    volumes:
+      - .:/var/www/html
+    entrypoint: ["/bin/sh", "-c", "chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache && while true; do php /var/www/html/artisan schedule:run --no-interaction & sleep 60; done"]
+    networks:
+      - redPrincipal
+    restart: always
+    #QUITAR EL SERVICIO DE MARIA DB 
+    depends_on:
+      - mariadb
+
+  localllservicios-queue-worker:
+    image: shinsenter/laravel:latest
+    container_name: localllservicios-queue-worker
+    volumes:
+      - .:/var/www/html
+    entrypoint: ["/bin/sh", "-c", "chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache && php /var/www/html/artisan queue:work"]
+    networks:
+      - redPrincipal
+    restart: always
+    #QUITAR EL SERVICIO DE MARIA DB 
+    depends_on:
+      - mariadb
+  #QUITAR EL SERVICIO DE MARIA DB 
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    environment:
+      MYSQL_ROOT_PASSWORD: root  # Cambia esto a una contraseña segura
+      MYSQL_DATABASE: localllservicios  # Nombre de la base de datos
+      MYSQL_USER: root  # Usuario de la base de datos
+      MYSQL_PASSWORD: root  # Contraseña del usuario
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - redPrincipal
+    restart: always
+
+# QUITAR EL SERVICIO DE PHPMYADMIN
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: phpmyadmin
+    environment:
+      PMA_HOST: mariadb  # Nombre del servicio de MariaDB
+      PMA_USER: root  # Usuario de la base de datos
+      PMA_PASSWORD: root  # Contraseña del usuario
+    ports:
+      - "8080:80"  # Puerto para acceder a phpMyAdmin
+    networks:
+      - redPrincipal
+    restart: always
+
+volumes:
+  mariadb_data:
+
+networks:
+  redPrincipal:
+    external: true
+

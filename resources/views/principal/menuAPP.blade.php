@@ -33,11 +33,12 @@
 
             @if (Auth::User()->role->nombre == 'Super' || 
                  Auth::User()->role->nombre == 'Admin')
-              <li><a href="{{route('Cliente.index')}}">Clientes-Empleados</a></li>
+              <li><a href="{{route('Cliente.index')}}">Clientes</a></li>
               <li><a href="{{route('Servicios.index')}}">ABM Servicios</a></li>
               <li><a href="{{route('Grilla')}}">Grilla Clientes</a></li>
               <li><a href="{{route('Pagos')}}">Pagos</a></li>
               <li><a href="{{route('expenses.index')}}">Gastos</a></li>
+              <li><a href="{{route('cierre-caja')}}">Cierre de Caja</a></li>
            
             @endif
 
