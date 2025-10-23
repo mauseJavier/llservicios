@@ -59,6 +59,6 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function empresa():BelongsTo
     {
-        return $this->belongsTo(empresa::class,'empresa_id','id');
+        return $this->belongsTo(Empresa::class,'empresa_id','id');
     }
 }

@@ -31,4 +31,12 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'mercadopago' => [
+        'public_key' => env('MERCADOPAGO_PUBLIC_KEY'),
+        'access_token' => env('MERCADOPAGO_ACCESS_TOKEN'),
+        'app_id' => env('MERCADOPAGO_APP_ID'),
+        'client_secret' => env('MERCADOPAGO_CLIENT_SECRET'),
+        'sandbox' => env('MERCADOPAGO_SANDBOX', true),
+    ],
+
 ];

@@ -1,7 +1,7 @@
 <nav class="container-fluid">
     <ul>
       <li>
-        <a href="{{route('servicios')}}" class="contrast" 
+        <a href="{{route('panelServicios')}}" class="contrast" 
           ><strong>LL Servicios</strong></a
         >
       </li>

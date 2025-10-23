@@ -4,7 +4,7 @@
 
 
 <div class="container">
-  <h1>Servicios a pagar</h1>
+  <h1>Panel de Servicios</h1>
   <details viejo="margin-bottom: 24px;">
     <summary viejo="cursor: pointer; padding: 12px 16px; background: #8a929b; color: white; border-radius: 8px; margin-bottom: 16px; font-weight: 500; list-style: none;">
       Filtros
@@ -81,7 +81,7 @@
                   <td>{{$s->cantidadServicio}}</td>
                   <td>{{$s->precioServicio}}</td>
                   <td>{{$s->total}}</td>
-                  <td><a href="https://{{$s->linkPago}}" role="button"><i class="fa-solid fa-dollar-sign"></i></a></td>
+                  <td><a href="{{route('pago.generar', $s->servicio_id)}}" role="button"><i class="fa-solid fa-dollar-sign"></i></a></td>
                 </tr>
               @empty
                   <p>Sin Servicios Impagos</p>

@@ -47,6 +47,39 @@
         <label for="correo">Correo Electronico</label>
         <input type="email" id="correo" name="correo" placeholder="Correo Electronico" value="{{old('correo')}}" required>
         <small>Opcional.</small>
+
+        <!-- Sección MercadoPago -->
+        <h3>Configuración MercadoPago</h3>
+        <small>Configura las credenciales de MercadoPago para esta empresa (opcional).</small>
+        
+        <div class="grid">
+          <label for="MP_ACCESS_TOKEN">
+            Access Token MercadoPago
+            <input type="text" id="MP_ACCESS_TOKEN" name="MP_ACCESS_TOKEN" placeholder="APP_USR-..." value="{{old('MP_ACCESS_TOKEN')}}">
+          </label>
+      
+          <label for="MP_PUBLIC_KEY">
+            Public Key MercadoPago  
+            <input type="text" id="MP_PUBLIC_KEY" name="MP_PUBLIC_KEY" placeholder="APP_USR-..." value="{{old('MP_PUBLIC_KEY')}}">
+          </label>
+        </div>
+
+        <div class="grid">
+          <label for="client_secret">
+            Client Secret
+            <input type="text" id="client_secret" name="client_secret" placeholder="Client Secret" value="{{old('client_secret')}}">
+          </label>
+      
+          <label for="client_id">
+            Client ID
+            <input type="text" id="client_id" name="client_id" placeholder="Client ID" value="{{old('client_id')}}">
+          </label>
+        </div>
+
+        <!-- Logo de la empresa -->
+        <label for="logo">URL del Logo de la Empresa</label>
+        <input type="url" id="logo" name="logo" placeholder="https://ejemplo.com/logo.jpg" value="{{old('logo')}}">
+        <small>URL del logo de la empresa (opcional).</small>
       
         <!-- Button -->
         <button type="submit">Guardar</button>

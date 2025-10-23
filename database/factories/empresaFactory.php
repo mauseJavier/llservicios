@@ -5,7 +5,7 @@ namespace Database\Factories;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\empresa>
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Empresa>
  */
 class EmpresaFactory extends Factory
 {
@@ -18,7 +18,7 @@ class EmpresaFactory extends Factory
     {
         return [
             'nombre' => fake()->company(),
-            'cuit' => fake()->unique()->randomNumber(),
+            'cuit' => fake()->unique()->numberBetween(20000000000, 30999999999), // CUIT válido para empresas
             'correo' => fake()->unique()->safeEmail(),
         ];
     }

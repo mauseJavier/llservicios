@@ -22,8 +22,14 @@ class UpdateempresaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
-            'nombre' => 'required',
+            'nombre' => 'required|string|max:255',
+            'cuit' => 'nullable|numeric|unique:empresas,cuit,' . $this->route('empresa')->id,
+            'correo' => 'nullable|email|unique:empresas,correo,' . $this->route('empresa')->id,
+            'logo' => 'nullable|url|max:255',
+            'MP_ACCESS_TOKEN' => 'nullable|string|max:255',
+            'MP_PUBLIC_KEY' => 'nullable|string|max:255',
+            'client_secret' => 'nullable|string|max:255',
+            'client_id' => 'nullable|string|max:255',
         ];
     }
 }

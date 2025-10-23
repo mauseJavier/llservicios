@@ -3,7 +3,7 @@
       <img class="imagenLogo" src="{{session('logoEmpresa')}}" alt=""  >
       <li>
         
-        <a href="{{route('servicios')}}" class="contrast" 
+        <a href="{{route('panelServicios')}}" class="contrast" 
           ><strong>LL Servicios</strong></a
         >
       </li>
@@ -28,7 +28,7 @@
         <details role="list" dir="rtl">
           <summary aria-haspopup="listbox" role="link" class="contrast">Menu</summary>
           <ul role="listbox">
-            <li><a href="{{route('servicios')}}">Servicios</a></li>
+            <li><a href="{{route('panelServicios')}}">Panel</a></li>
             <li><a href="{{route('reciboSueldo')}}">Recibos Sueldo</a></li>
 
             @if (Auth::User()->role->nombre == 'Super' || 
