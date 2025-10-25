@@ -19,17 +19,23 @@ class MercadoPagoService
         $this->accessToken = config('services.mercadopago.access_token');
         $this->sandbox = config('services.mercadopago.sandbox', true);
 
-/*         dd('MercadoPagoService __construct', [
-            'access_token' => $this->accessToken,
-            'sandbox' => $this->sandbox
-        ]); */
+        // dd('MercadoPagoService __construct', [
+        //     'access_token' => $this->accessToken,
+        //     'sandbox' => $this->sandbox
+        // ]); 
         
         // Configurar MercadoPago
         MercadoPagoConfig::setAccessToken($this->accessToken);
         
-        if ($this->sandbox) {
-            MercadoPagoConfig::setRuntimeEnviroment(MercadoPagoConfig::LOCAL);
-        }
+
+            // if ($this->sandbox) {
+            //     // Para SDK v2.x usar setEnvironment
+            //     MercadoPagoConfig::setEnvironment(\MercadoPago\MercadoPagoConfig::LOCAL);
+            // } else {
+            //     MercadoPagoConfig::setEnvironment(\MercadoPago\MercadoPagoConfig::PRODUCTION);
+            // }
+
+
     }
 
     /**

@@ -64,8 +64,7 @@
                 <th scope="col">Servicio</th>
                 <th scope="col">Empresa</th>
                 <th scope="col">Cantidad</th>
-                <th scope="col">Precio</th>
-                <th scope="col">Total</th>
+                <th scope="col">Precio U</th>
                 <th scope="col">Pagar</th>
               </tr>
             </thead>
@@ -74,14 +73,17 @@
               @forelse ($serviciosImpagos as $s)
                 <tr>
                   {{-- <th scope="row">{{$s->servicio_id}}</th> --}}
-                  <th scope="row"><img width="30%" src="{{$s->imagenServicio}}" alt=""></th>
+                  <th><img width="30%" src="{{$s->imagenServicio}}" alt=""></th>
                   <td>{{$s->fechaCobro}}</td>
                   <td>{{$s->nombreServicio}}</td>
                   <td>{{$s->nombreEmpresa}}</td>
                   <td>{{$s->cantidadServicio}}</td>
-                  <td>{{$s->precioServicio}}</td>
-                  <td>{{$s->total}}</td>
-                  <td><a href="{{route('pago.generar', $s->servicio_id)}}" role="button"><i class="fa-solid fa-dollar-sign"></i></a></td>
+                  <td>${{ number_format($s->precioServicio, 2) }}</td>
+                  <td>
+                      <a href="{{route('pago.generar', $s->servicio_id)}}" role="button">
+                        ${{ number_format($s->total, 2) }}
+                      </a>
+                  </td>
                 </tr>
               @empty
                   <p>Sin Servicios Impagos</p>

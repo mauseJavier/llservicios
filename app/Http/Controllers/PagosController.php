@@ -14,10 +14,20 @@ use App\Http\Requests\UpdatePagosRequest;
 use App\Models\Pagos;
 use App\Models\Empresa;
 use App\Models\ServicioPagar;
-use App\Services\MercadoPagoService;
+
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+
+// Importar SDK oficial de MercadoPago
+use MercadoPago\MercadoPagoConfig;
+use MercadoPago\Client\Preference\PreferenceClient;
+use MercadoPago\Client\Payment\PaymentClient;
+use MercadoPago\Client\Common\RequestOptions;
+use MercadoPago\Exceptions\MPApiException;
+
+// use App\Services\MercadoPagoService;
+// use App\Services\MercadoPagoApiService;
 
 
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -287,101 +297,171 @@ class PagosController extends Controller
     }
 
     /**
-     * Generar preferencia de pago para un servicio específico
+     * Generar preferencia de pago para un servicio específico usando el SDK oficial de MercadoPago
      */
     public function generarPago(ServicioPagar $servicioPagar)
     {
         try {
-            // Verificar que el servicio pertenece al usuario autenticado
             $usuario = Auth::user();
             if ($servicioPagar->cliente->dni !== $usuario->dni) {
                 return redirect()->back()->with('error', 'No tienes permiso para pagar este servicio.');
             }
 
-            // Verificar que el servicio está impago
             if ($servicioPagar->estado !== 'impago') {
                 return redirect()->back()->with('error', 'Este servicio ya ha sido pagado.');
             }
 
-            // Cargar las relaciones necesarias
             $servicioPagar->load(['servicio.empresa', 'cliente']);
-
-            // Obtener credenciales de MercadoPago de la empresa
             $empresa = $servicioPagar->servicio->empresa;
-            
-            // Verificar que la empresa tiene credenciales de MercadoPago configuradas
+
             if (empty($empresa->MP_ACCESS_TOKEN)) {
+                \Log::error('Empresa sin credenciales MercadoPago', [
+                    'empresa_id' => $empresa->id,
+                    'servicio_pagar_id' => $servicioPagar->id
+                ]);
                 return redirect()->back()->with('error', 'La empresa no tiene configuradas las credenciales de MercadoPago.');
             }
 
-            // Preparar datos para la preferencia de pago
-            $items = [[
-                'id' => 'servicio_' . $servicioPagar->id,
-                'title' => $servicioPagar->servicio->nombre,
-                'description' => 'Pago de ' . $servicioPagar->servicio->nombre . ' - ' . $empresa->nombre,
-                'picture_url' => $servicioPagar->servicio->imagen,
-                'category_id' => 'services',
-                'quantity' => (int) $servicioPagar->cantidad,
-                'currency_id' => 'ARS',
-                'unit_price' => (float) $servicioPagar->precio
-            ]];
+            // Configurar el SDK oficial
+            \MercadoPago\MercadoPagoConfig::setAccessToken($empresa->MP_ACCESS_TOKEN);
 
-            $preference_data = [
-                'items' => $items,
-                'payer' => [
-                    'name' => $servicioPagar->cliente->nombre,
-                    'email' => $servicioPagar->cliente->correo ?: $usuario->email,
-                    'identification' => [
-                        'type' => 'DNI',
-                        'number' => (string) $servicioPagar->cliente->dni
-                    ]
-                ],
-                'back_urls' => [
-                    // 'success' => route('pago.success', $servicioPagar->id),
-                    // 'failure' => route('pago.failure', $servicioPagar->id),
-                    // 'pending' => route('pago.pending', $servicioPagar->id)
+            $isSandbox = config('services.mercadopago.sandbox', true);
+            $baseUrl = config('app.env') === 'local' ? 'https://prepositionally-vacciniaceous-irving.ngrok-free.dev' : config('app.url');
+            $successUrl = $baseUrl . "/pago/success/" . $servicioPagar->id;
+            $failureUrl = $baseUrl . "/pago/failure/" . $servicioPagar->id;
+            $pendingUrl = $baseUrl . "/pago/pending/" . $servicioPagar->id;
+            $webhookUrl = $baseUrl . "/mercadopago/webhook";
 
-                    'success' => 'https://localhost:1234/pago/success/' . $servicioPagar->id,
-                    'failure' => 'https://localhost:1234/pago/failure/' . $servicioPagar->id,
-                    'pending' => 'https://localhost:1234/pago/pending/' . $servicioPagar->id
-                ],
-                'auto_return' => 'approved',
-                'external_reference' => 'servicio_pagar_' . $servicioPagar->id,
-                'statement_descriptor' => $empresa->nombre,
-                'expires' => true,
-                'expiration_date_from' => now()->toISOString(),
-                'expiration_date_to' => now()->addDays(30)->toISOString()
+            $items = [
+                [
+                    "title" => $servicioPagar->servicio->nombre,
+                    "quantity" => (int) $servicioPagar->cantidad,
+                    "unit_price" => (float) $servicioPagar->precio
+                ]
             ];
 
-            // Crear instancia del servicio con las credenciales de la empresa
-            // Temporalmente, configurar las credenciales de la empresa
-            config(['services.mercadopago.access_token' => $empresa->MP_ACCESS_TOKEN]);
-            
-            $mercadoPagoService = new MercadoPagoService();
-            
-            // Crear la preferencia de pago
-            $preference = $mercadoPagoService->createPreference($preference_data);
+            $preferenceData = [
+                "items" => $items,
+                "external_reference" => 'servicio_pagar_' . $servicioPagar->id,
+                "back_urls" => [
+                    "success" => $successUrl,
+                    "failure" => $failureUrl,
+                    "pending" => $pendingUrl
+                ],
+                "auto_return" => "approved",
+                "notification_url" => $webhookUrl,
+            ];
 
-            if ($preference && isset($preference['init_point'])) {
-                // Guardar el payment_id en la base de datos para tracking
+            $client = new \MercadoPago\Client\Preference\PreferenceClient();
+            $preference = $client->create($preferenceData);
+
+            if ($preference->id) {
                 $servicioPagar->update([
-                    'mp_preference_id' => $preference['id'] ?? null
+                    'mp_preference_id' => $preference->id
                 ]);
 
-                // Redirigir al checkout de MercadoPago
-                return redirect($preference['init_point']);
+                $checkoutUrl = $isSandbox
+                    ? ($preference->sandbox_init_point ?? $preference->init_point)
+                    : $preference->init_point;
+
+                if (!$checkoutUrl) {
+                    \Log::error('No se pudo obtener URL de checkout', [
+                        'preference_id' => $preference->id,
+                        'init_point' => $preference->init_point ?? null,
+                        'sandbox_init_point' => $preference->sandbox_init_point ?? null
+                    ]);
+                    return redirect()->back()->with('error', 'Error al obtener la URL de pago.');
+                }
+
+                return redirect($checkoutUrl);
             } else {
+                \Log::error('Error al crear preferencia: Sin ID de preferencia');
                 return redirect()->back()->with('error', 'Error al crear la preferencia de pago. Intenta nuevamente.');
             }
 
+        } catch (\MercadoPago\Exceptions\MPApiException $e) {
+            \Log::error('Error de API MercadoPago: ' . $e->getMessage(), [
+                'servicio_pagar_id' => $servicioPagar->id,
+                'status_code' => $e->getApiResponse()->getStatusCode(),
+                'api_response' => $e->getApiResponse()->getContent(),
+                'error_trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()->with('error', 'Error de la API de MercadoPago: ' . $e->getMessage());
         } catch (\Exception $e) {
-            \Log::error('Error al generar pago MercadoPago: ' . $e->getMessage(), [
+            \Log::error('Error al generar pago con SDK MercadoPago: ' . $e->getMessage(), [
                 'servicio_pagar_id' => $servicioPagar->id,
                 'usuario_id' => Auth::id(),
                 'error' => $e->getTraceAsString()
             ]);
-
             return redirect()->back()->with('error', 'Error interno al procesar el pago. Intenta nuevamente.');
+        }
+    }
+
+    /**
+     * Obtener información detallada de un pago usando el SDK oficial de MercadoPago
+     */
+    public function obtenerInfoPago(string $paymentId)
+    {
+        try {
+            // Configurar el SDK (puedes usar las credenciales por defecto o configurarlas dinámicamente)
+            $accessToken = config('services.mercadopago.access_token');
+            if (!$accessToken) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Credenciales de MercadoPago no configuradas'
+                ], 500);
+            }
+
+            MercadoPagoConfig::setAccessToken($accessToken);
+            MercadoPagoConfig::setRuntimeEnviroment(
+                config('services.mercadopago.sandbox', true) 
+                    ? MercadoPagoConfig::LOCAL 
+                    : MercadoPagoConfig::SERVER
+            );
+
+            // Usar el cliente de pagos del SDK moderno
+            $paymentClient = new \MercadoPago\Client\Payment\PaymentClient();
+            $payment = $paymentClient->get($paymentId);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $payment->id,
+                    'status' => $payment->status,
+                    'status_detail' => $payment->status_detail,
+                    'transaction_amount' => $payment->transaction_amount,
+                    'currency_id' => $payment->currency_id,
+                    'external_reference' => $payment->external_reference,
+                    'date_created' => $payment->date_created,
+                    'date_approved' => $payment->date_approved,
+                    'payer' => $payment->payer,
+                    'payment_method_id' => $payment->payment_method_id,
+                    'payment_type_id' => $payment->payment_type_id
+                ]
+            ]);
+
+        } catch (MPApiException $e) {
+            \Log::error('Error de API MercadoPago obteniendo pago', [
+                'payment_id' => $paymentId,
+                'status_code' => $e->getApiResponse()->getStatusCode(),
+                'api_response' => $e->getApiResponse()->getContent()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error de la API de MercadoPago: ' . $e->getMessage()
+            ], $e->getApiResponse()->getStatusCode());
+
+        } catch (\Exception $e) {
+            \Log::error('Error obteniendo información de pago', [
+                'payment_id' => $paymentId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error interno del servidor'
+            ], 500);
         }
     }
 
@@ -391,7 +471,7 @@ class PagosController extends Controller
     public function pagoSuccess(ServicioPagar $servicioPagar, Request $request)
     {
         try {
-            // Obtener información del pago desde MercadoPago
+            // Obtener información del pago desde la URL
             $payment_id = $request->get('payment_id');
             $status = $request->get('status');
             $external_reference = $request->get('external_reference');
@@ -403,7 +483,58 @@ class PagosController extends Controller
                 'external_reference' => $external_reference
             ]);
 
-            // Actualizar estado del servicio a pagado
+            $status_detail = null;
+
+            // Si tenemos payment_id, obtener información detallada usando el SDK moderno
+            if ($payment_id) {
+                try {
+                    // Configurar SDK
+                    $empresa = $servicioPagar->servicio->empresa;
+                    MercadoPagoConfig::setAccessToken($empresa->MP_ACCESS_TOKEN);
+                    MercadoPagoConfig::setRuntimeEnviroment(
+                        config('services.mercadopago.sandbox', true) 
+                            ? MercadoPagoConfig::LOCAL 
+                            : MercadoPagoConfig::SERVER
+                    );
+
+                    $paymentClient = new PaymentClient();
+                    $payment = $paymentClient->get($payment_id);
+                    $status = $payment->status;
+                    $status_detail = $payment->status_detail ?? null;
+
+                    \Log::info('Información detallada del pago obtenida', [
+                        'payment_id' => $payment_id,
+                        'status' => $status,
+                        'status_detail' => $status_detail,
+                        'transaction_amount' => $payment->transaction_amount ?? null
+                    ]);
+
+                } catch (MPApiException $e) {
+                    \Log::warning('No se pudo obtener información detallada del pago', [
+                        'payment_id' => $payment_id,
+                        'error' => $e->getMessage(),
+                        'status_code' => $e->getApiResponse()->getStatusCode()
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::warning('Error al obtener información del pago', [
+                        'payment_id' => $payment_id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Log automático si el pago fue rechazado
+            if ($status === 'rejected') {
+                \Log::error('Pago rechazado por MercadoPago', [
+                    'servicio_pagar_id' => $servicioPagar->id,
+                    'payment_id' => $payment_id,
+                    'status_detail' => $status_detail,
+                    'external_reference' => $external_reference
+                ]);
+                return redirect()->route('panel')->with('error', 'El pago fue rechazado. Motivo: ' . ($status_detail ?: 'desconocido'));
+            }
+
+            // Actualizar estado del servicio según el status
             if ($status === 'approved') {
                 $servicioPagar->update([
                     'estado' => 'pago',
@@ -411,21 +542,33 @@ class PagosController extends Controller
                 ]);
 
                 // Crear registro en la tabla pagos
+                // Buscar el id de forma de pago correspondiente a MercadoPago
+                $formaPagoId = \App\Models\FormaPago::where('nombre', 'like', '%mercadopago%')->value('id') ?? 1;
                 Pagos::create([
                     'id_servicio_pagar' => $servicioPagar->id,
                     'id_usuario' => Auth::id(),
-                    'forma_pago' => 1, // MercadoPago
+                    'forma_pago' => $formaPagoId,
                     'importe' => $servicioPagar->total,
                     'comentario' => 'Pago procesado por MercadoPago. Payment ID: ' . $payment_id
                 ]);
 
                 return redirect()->route('panel')->with('success', 'Pago procesado exitosamente!');
+            } elseif ($status === 'pending') {
+                // Actualizar con estado pendiente
+                $servicioPagar->update([
+                    'mp_payment_id' => $payment_id
+                ]);
+
+                return redirect()->route('panel')->with('info', 'Tu pago está siendo procesado. Te notificaremos cuando esté confirmado.');
             }
 
             return redirect()->route('panel')->with('warning', 'El pago está siendo procesado.');
 
         } catch (\Exception $e) {
-            \Log::error('Error en callback success: ' . $e->getMessage());
+            \Log::error('Error en callback success: ' . $e->getMessage(), [
+                'servicio_pagar_id' => $servicioPagar->id,
+                'request_params' => $request->all()
+            ]);
             return redirect()->route('panel')->with('error', 'Error al procesar el callback del pago.');
         }
     }

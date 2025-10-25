@@ -27,6 +27,7 @@ use App\Jobs\TutorialJob;
 // Rutas para MercadoPago
 use App\Http\Controllers\MercadoPagoController;
 use App\Http\Controllers\PaymentFormController;
+use App\Http\Controllers\MercadoPagoWebhookController;
 
 
 
@@ -173,13 +174,18 @@ Route::middleware('auth')->group(function () {
         Route::get('/pending', [MercadoPagoController::class, 'pending'])->name('mercadopago.pending');
         Route::get('/failure', [MercadoPagoController::class, 'failure'])->name('mercadopago.failure');
         
-        // Webhook para notificaciones (sin middleware auth)
-        Route::post('/webhook', [MercadoPagoController::class, 'webhook'])->name('mercadopago.webhook');
+        // Ruta para obtener información de pago usando el nuevo servicio API
+        Route::get('/payment-info/{paymentId}', [PagosController::class, 'obtenerInfoPago'])->name('mercadopago.payment-info');
+        
+
     });
 
    
 });
 
+// Webhook para notificaciones de MercadoPago (sin middleware auth)
+Route::post('/mercadopago/webhook', [MercadoPagoWebhookController::class, 'handleNotification'])
+    ->name('mercadopago.webhook');
 
 Route::get('/login', function () {
 

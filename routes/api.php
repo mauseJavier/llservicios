@@ -17,3 +17,12 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+// Rutas para MercadoPago API Service
+Route::prefix('mercadopago-api')->group(function () {
+    Route::post('/preference', [App\Http\Controllers\MercadoPagoApiController::class, 'createPreference']);
+    Route::get('/payment/{paymentId}', [App\Http\Controllers\MercadoPagoApiController::class, 'getPayment']);
+    Route::post('/payment', [App\Http\Controllers\MercadoPagoApiController::class, 'createDirectPayment']);
+    Route::get('/payment-methods', [App\Http\Controllers\MercadoPagoApiController::class, 'getPaymentMethods']);
+    Route::get('/validate-credentials', [App\Http\Controllers\MercadoPagoApiController::class, 'validateCredentials']);
+});
