@@ -20,28 +20,28 @@
         <form id="filtroRapidoForm" method="GET" action="{{route('Pagos')}}">
           <label>
             <input type="radio" name="filtro_rapido" value="todos" 
-                   {{ !request('fecha_inicio') && !request('fecha_fin') ? 'checked' : '' }}
+                   {{ (!request('fecha_inicio') && !request('fecha_fin')) ? 'checked' : '' }}
                    onchange="aplicarFiltroRapido(this)" />
             📊 Todos los pagos
           </label>
           
           <label>
             <input type="radio" name="filtro_rapido" value="hoy" 
-                   {{ request('fecha_inicio') == date('Y-m-d') && request('fecha_fin') == date('Y-m-d') ? 'checked' : '' }}
+                   {{ (request('fecha_inicio') == date('Y-m-d') && request('fecha_fin') == date('Y-m-d')) ? 'checked' : '' }}
                    onchange="aplicarFiltroRapido(this)" />
             📅 Hoy
           </label>
           
           <label>
             <input type="radio" name="filtro_rapido" value="mes" 
-                   {{ request('fecha_inicio') == date('Y-m-01') && request('fecha_fin') == date('Y-m-t') ? 'checked' : '' }}
+                   {{ (request('fecha_inicio') == date('Y-m-01') && request('fecha_fin') == date('Y-m-t')) ? 'checked' : '' }}
                    onchange="aplicarFiltroRapido(this)" />
             📆 Este Mes
           </label>
           
           <label>
             <input type="radio" name="filtro_rapido" value="año" 
-                   {{ request('fecha_inicio') == date('Y-01-01') && request('fecha_fin') == date('Y-12-31') ? 'checked' : '' }}
+                   {{ (request('fecha_inicio') == date('Y-01-01') && request('fecha_fin') == date('Y-12-31')) ? 'checked' : '' }}
                    onchange="aplicarFiltroRapido(this)" />
             📈 Este Año
           </label>
@@ -60,18 +60,22 @@
 
 
             <!-- Estado del Filtro -->
-    @if(request('fecha_inicio') || request('fecha_fin'))
+    @if($fechaInicio || $fechaFin)
         <div class="estado-filtro activo">
           <div class="estado-content">
             <span class="estado-icon">✅</span>
             <div class="estado-text">
               <strong>Filtro Activo:</strong>
-              @if(request('fecha_inicio') && request('fecha_fin'))
-                Del {{ \Carbon\Carbon::parse(request('fecha_inicio'))->format('d/m/Y') }} al {{ \Carbon\Carbon::parse(request('fecha_fin'))->format('d/m/Y') }}
-              @elseif(request('fecha_inicio'))
-                Desde {{ \Carbon\Carbon::parse(request('fecha_inicio'))->format('d/m/Y') }}
-              @elseif(request('fecha_fin'))
-                Hasta {{ \Carbon\Carbon::parse(request('fecha_fin'))->format('d/m/Y') }}
+              @if($fechaInicio && $fechaFin)
+                @if($fechaInicio == $fechaFin)
+                  {{ \Carbon\Carbon::parse($fechaInicio)->format('d/m/Y') }}
+                @else
+                  Del {{ \Carbon\Carbon::parse($fechaInicio)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($fechaFin)->format('d/m/Y') }}
+                @endif
+              @elseif($fechaInicio)
+                Desde {{ \Carbon\Carbon::parse($fechaInicio)->format('d/m/Y') }}
+              @elseif($fechaFin)
+                Hasta {{ \Carbon\Carbon::parse($fechaFin)->format('d/m/Y') }}
               @endif
             </div>
           </div>
@@ -96,21 +100,21 @@
           <div class="input-group">
             <label for="fecha_inicio">Desde:</label>
             <input type="date" id="fecha_inicio" name="fecha_inicio" 
-                   value="{{ request('fecha_inicio') }}" 
+                   value="{{ $fechaInicio }}" 
                    class="input-fecha">
           </div>
           
           <div class="input-group">
             <label for="fecha_fin">Hasta:</label>
             <input type="date" id="fecha_fin" name="fecha_fin" 
-                   value="{{ request('fecha_fin') }}" 
+                   value="{{ $fechaFin }}" 
                    class="input-fecha">
           </div>
           
         </div>
         <div class="acciones">
           <button type="submit" class="btn-aplicar">
-            <span>�</span>
+            <span>🔍</span>
             Aplicar Filtro
           </button>
         </div>
@@ -189,23 +193,43 @@
 
   <h2>Detalle de Pagos</h2>
 
+  @if(isset($buscar) && $buscar)
+    <article style="margin-bottom: 1rem; background: #4543d1ff; border-left: 4px solid #2196f3;">
+      <p style="margin: 0;">
+        🔍 <strong>Búsqueda activa:</strong> Filtrando por cliente que coincida con "{{ $buscar }}"
+        <a href="{{route('Pagos', ['fecha_inicio' => $fechaInicio, 'fecha_fin' => $fechaFin])}}" style="margin-left: 1rem;">
+          ✖ Limpiar
+        </a>
+      </p>
+    </article>
+  @endif
+
     <nav>
         <ul>
             <li>
-              <form class="form" action="{{route('BuscarCliente')}}" method="GET">
+              <form class="form" action="{{route('Pagos')}}" method="GET">
                   
                   <div class="input-group">
                       <input type="search" class="input" id="buscar" name="buscar" 
                       @if (isset($buscar))
                           value="{{$buscar}}"
-                      @endif  placeholder="Buscar...">
-    
+                      @endif  placeholder="Buscar por cliente (nombre, correo, DNI)...">
+                      
+                      {{-- Mantener los filtros de fecha al buscar --}}
+                      <input type="hidden" name="fecha_inicio" value="{{ $fechaInicio }}">
+                      <input type="hidden" name="fecha_fin" value="{{ $fechaFin }}">
                   </div>
               </form>
             </li>
         </ul>
         <ul>
-
+            @if(isset($buscar) && $buscar)
+                <li>
+                    <a href="{{route('Pagos', ['fecha_inicio' => $fechaInicio, 'fecha_fin' => $fechaFin])}}" role="button" class="secondary">
+                        Limpiar búsqueda
+                    </a>
+                </li>
+            @endif
         </ul>
     </nav>
 
@@ -214,8 +238,8 @@
         <thead>
           <tr>
             <th scope="col">#</th>
-            <th scope="col">Servicio</th>
             <th scope="col">Cliente</th>
+            <th scope="col">Servicio</th>
             <th scope="col">Forma de Pago</th>
             <th scope="col">Usuario</th>
             <th scope="col">Importe</th>
@@ -244,8 +268,8 @@
 ] --}}
             <tr>              
               <td>{{$e->id}}</td>
-              <td>{{$e->Servicio}}</td>
               <td>{{$e->Cliente}}</td>
+              <td>{{$e->Servicio}}</td>
               <td>{{$e->formaPago}}</td>
               <td>{{$e->nombreUsuario}}</td>
               <td>${{number_format($e->importe, 2)}}</td>

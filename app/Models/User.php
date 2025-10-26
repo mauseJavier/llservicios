@@ -11,7 +11,7 @@ use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 use App\Models\role;
-use App\Models\empresa;
+use App\Models\Empresa;
 
 
 class User extends Authenticatable implements MustVerifyEmail

@@ -133,7 +133,7 @@ class MercadoPagoWebhookController extends Controller
                             'forma_pago' => $formaPagoId
                         ],
                         [
-                            'id_usuario' => $servicioPagar->cliente->user_id ?? 1, // Ajustar según tu lógica
+                            'id_usuario' => \App\Models\User::where('email','like', '%pago%')->value('id') ?? 1, // Ajustar según tu lógica
                             'importe' => $payment->transaction_amount,
                             'comentario' => 'Pago confirmado via webhook. Payment ID: ' . $paymentId
                         ]

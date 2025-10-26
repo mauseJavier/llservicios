@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\FormaPago;
 use App\Models\Pagos;
 use App\Models\Servicio;
+use App\Models\ServicioPagar;
 
 
 use App\Events\PagoServicioEvent;
@@ -241,6 +242,8 @@ class ServicioPagarController extends Controller
                         'importe'=>$request->importe,
                         'forma_pago'=>$request->formaPago,
                         'comentario'=>$request->comentario];
+
+            // dd($pago);
                      
             PagoServicioEvent::dispatch($pago);
 
@@ -266,13 +269,42 @@ class ServicioPagarController extends Controller
     public function PagarServicio($idServicioPagar,$importe){
 
         $formaPago = FormaPago::all();
-        $servicio = DB::select('SELECT a.*,b.* FROM servicio_pagar a, servicios b WHERE a.servicio_id = b.id AND a.id = ?', [$idServicioPagar]);
-        // return $servicio;
+        
+        // Utilizar el modelo ServicioPagar con sus relaciones
+        $servicioPagar = ServicioPagar::with(['servicio', 'cliente'])
+            ->findOrFail($idServicioPagar);
+        
+        // Preparar datos para la vista con información del cliente y servicio
+        $datosServicio = (object) [
+            'id' => $servicioPagar->id,
+            'cantidad' => $servicioPagar->cantidad,
+            'precio' => $servicioPagar->precio,
+            'total' => $servicioPagar->total,
+            'estado' => $servicioPagar->estado,
+            'created_at' => $servicioPagar->created_at,
+            'updated_at' => $servicioPagar->updated_at,
+            // Datos del servicio
+            'servicio_id' => $servicioPagar->servicio->id,
+            'nombre' => $servicioPagar->servicio->nombre,
+            'descripcion' => $servicioPagar->servicio->descripcion,
+            'tiempo' => $servicioPagar->servicio->tiempo,
+            'linkPago' => $servicioPagar->servicio->linkPago,
+            'imagen' => $servicioPagar->servicio->imagen,
+            // Datos del cliente
+            'cliente_id' => $servicioPagar->cliente->id,
+            'nombreCliente' => $servicioPagar->cliente->nombre,
+            'correoCliente' => $servicioPagar->cliente->correo,
+            'telefonoCliente' => $servicioPagar->cliente->telefono,
+            'dniCliente' => $servicioPagar->cliente->dni,
+            'domicilioCliente' => $servicioPagar->cliente->domicilio,
+        ];
 
-
-      return view('servicios.PagarServicio',['servicio'=>$servicio[0],'formaPago'=>$formaPago,'idServicioPagar'=>$idServicioPagar,'importe'=>$importe])->render();
-
-
+        return view('servicios.PagarServicio', [
+            'servicio' => $datosServicio,
+            'formaPago' => $formaPago,
+            'idServicioPagar' => $idServicioPagar,
+            'importe' => $importe
+        ])->render();
     }
 
     public function NuevoCobro (){

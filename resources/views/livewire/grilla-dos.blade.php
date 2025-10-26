@@ -3,10 +3,10 @@
 <div>
     <div class="container">
         <h1>Grilla Clientes</h1>
-        <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+        {{-- <div style="display: flex; gap: 10px; margin-bottom: 16px;">
             <a href="{{route('ServiciosImpagos')}}" role="button" style="font-size: 20px; padding: 8px 24px; min-width: 120px; text-align: center;">Impagos</a>
             <a href="{{route('ServiciosPagos')}}" role="button" style="font-size: 20px; padding: 8px 24px; min-width: 120px; text-align: center;">Pagos</a>
-        </div>
+        </div> --}}
         <nav>
             <ul>
                 <li>
@@ -54,10 +54,10 @@
                                         @foreach ($c->datos as $item)
                                             <td style="text-align: right;">
                                                 @if($item['importe_impago'] > 0)
-                                                    <div class="pico-color-red-450">${{$item['importe_impago']}}</div>
+                                                    <div style="color: #e3342f;">${{$item['importe_impago']}}</div>
                                                 @endif
                                                 @if($item['importe_pagado'] > 0)
-                                                    <div class="pico-color-jade-500">${{$item['importe_pagado']}}</div>
+                                                    <div style="color: #38c172;">${{$item['importe_pagado']}}</div>
                                                 @endif
                                             </td>
                                         @endforeach
@@ -69,7 +69,7 @@
                             <td><h5 class="pico-color-red-450">Impago</h5></td>
                             @if (!empty($total))
                                 @foreach ($total as $item)
-                                    <td style="text-align: right;"><h5 class="pico-color-red-450">${{$item['impago']}}</h5></td>
+                                    <td style="text-align: right;"><h5 style="color: #e3342f;">${{$item['impago']}}</h5></td>
                                 @endforeach
                             @endif
                         </tr>
@@ -77,7 +77,7 @@
                             <td><h5 class="pico-color-jade-500">Pago</h5></td>
                             @if (!empty($total))
                                 @foreach ($total as $item)
-                                    <td style="text-align: right;"><h5 class="pico-color-jade-500">${{$item['pago']}}</h5></td>
+                                    <td style="text-align: right;"><h5 style="color: #38c172;">${{$item['pago']}}</h5></td>
                                 @endforeach
                             @endif
                         </tr>

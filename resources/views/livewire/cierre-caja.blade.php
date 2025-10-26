@@ -15,7 +15,7 @@
     @endif
 
     {{-- Estado actual de la caja --}}
-    <div class="card" style="padding: 20px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; background: #f8f9fa;">
+    <div class="card" style="padding: 20px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; background: #32408dff;">
         <h3>Estado Actual de la Caja</h3>
         
         @if($cajaActiva)
@@ -47,14 +47,14 @@
 
     {{-- Resumen de movimientos del día --}}
     @if(!empty($calculoCaja))
-        <div class="card" style="padding: 20px; margin-bottom: 20px; border: 1px solid #007BFF; border-radius: 8px; background: #f8f9ff;">
+        <div class="card" style="padding: 20px; margin-bottom: 20px; border: 1px solid #007BFF; border-radius: 8px; background: #32408dff;">
             <h3 style="color: #007BFF; margin-bottom: 20px;">
                 <i class="fas fa-calculator"></i> Resumen del Día - {{ $resumenDia['fecha'] ?? '' }}
             </h3>
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
                 {{-- Columna de Movimientos --}}
-                <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef;">
+                <div style="background: #000000ff; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef;">
                     <h4 style="color: #495057; margin-bottom: 15px; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">
                         📊 Movimientos del Día
                     </h4>
@@ -93,8 +93,8 @@
                 </div>
                 
                 {{-- Columna de Resultados --}}
-                <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef;">
-                    <h4 style="color: #495057; margin-bottom: 15px; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">
+                <div style="background: black; padding: 15px; border-radius: 8px; border: 1px solid #345c83ff;">
+                    <h4 style="color: #495057; margin-bottom: 15px; border-bottom: 2px solid #345c83ff; padding-bottom: 10px;">
                         💰 Resultado Final
                     </h4>
                     

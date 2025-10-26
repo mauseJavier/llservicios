@@ -24,7 +24,7 @@ class StoreClienteRequest extends FormRequest
         return [
             'nombre' => 'required',
             'dni' => 'required',// 'numeric|unique:App\Models\Cliente,dni',
-            'correo' =>'required', // 'unique:App\Models\Cliente,correo'
+            // 'correo' =>'required', // 'unique:App\Models\Cliente,correo'
         ];
     }
 }

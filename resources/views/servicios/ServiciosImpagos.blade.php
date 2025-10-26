@@ -7,9 +7,9 @@
 <div class="container">
   <h1>Servicios Impagos</h1>
 
-  <a href="{{route('ServiciosImpagos')}}" role="button" class="outline" style="font-size: 20px; padding: 4px 8px; ">Impagos</a>
+  {{-- <a href="{{route('ServiciosImpagos')}}" role="button" class="outline" style="font-size: 20px; padding: 4px 8px; ">Impagos</a>
   <a href="{{route('ServiciosPagos')}}" role="button" class="contrast outline" style="font-size: 20px; padding: 4px 8px; ">Pagos</a>
-  <a href="{{route('Grilla')}}" role="button" class="contrast outline" style="font-size: 20px; padding: 4px 8px; ">Grilla</a>
+  <a href="{{route('Grilla')}}" role="button" class="contrast outline" style="font-size: 20px; padding: 4px 8px; ">Grilla</a> --}}
   
   <nav>
       <ul>
@@ -31,9 +31,7 @@
         <li>
           <a href="{{route('NotificacionTodosServiciosImpagos')}}" role="button">Notif. Todos</a>
         </li>
-        <li>
-          <a href="{{route('NuevoCobro')}}" role="button">Nuevo Cobro</a>
-        </li>
+
       </ul>
   
   </nav>

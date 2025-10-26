@@ -7,7 +7,7 @@
   
   <h1>Clientes</h1>
     
-    <nav>
+    {{-- <nav>
     <div style="display: flex; align-items: stretch; flex-wrap: wrap;">
 
     <a href="{{route('Cliente.create')}}" role="button" data-tooltip="Nuevo Cliente" style="display: flex; align-items: center; justify-content: center; background: #28a745; color: #fff; border-radius:  8px ; width: 48px; height: 48px; font-size: 2em; text-decoration: none; border: 1px solid #28a745; cursor: pointer; margin-top: 0;">
@@ -21,7 +21,7 @@
         <i class="fas fa-file-excel"></i>
       </a>
     </div>
-  </nav>
+  </nav> --}}
 
   <br>
 

@@ -82,7 +82,7 @@
 
             </div>
 
-            <button type="submit" onclick="return confirm('Esta Seguro de Agrear?')">Agrear</button>
+            <button type="submit" onclick="return confirm('Esta Seguro de Agregar?')">Agregar</button>
         </form>
 
         <script>

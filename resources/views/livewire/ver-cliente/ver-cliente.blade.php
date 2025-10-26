@@ -2,11 +2,22 @@
 
 
     <div class="container">
+
+
+
         
     <div class="grid">
-            <h2>Lista de Clientes</h2>
     
-            <input type="text" placeholder="Buscar cliente..." wire:model.live="buscarCliente" />
+            <fieldset role="group">
+                
+                <a href="{{route('Cliente.create')}}" role="button" data-tooltip="Nuevo Cliente">
+                    Nuevo
+                </a>
+                <input type="text" placeholder="Buscar cliente..." wire:model.live="buscarCliente" />
+
+
+            </fieldset>
+
             
     </div>
 

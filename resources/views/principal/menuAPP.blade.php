@@ -1,4 +1,4 @@
-<nav class="container-fluid">
+<nav class="container">
     <ul>
       <img class="imagenLogo" src="{{session('logoEmpresa')}}" alt=""  >
       <li>
@@ -15,9 +15,9 @@
           {{Auth::User()->name}}</a>
       </li>
       {{-- <li>
-        <details role="list" dir="rtl">
-          <summary aria-haspopup="listbox" role="link" class="contrast">Tema</summary>
-          <ul role="listbox">
+        <details class="dropdown">
+          <summary class="contrast">Tema</summary>
+          <ul>
             <li><a href="#" data-theme-switcher="auto">Auto</a></li>
             <li><a href="#" data-theme-switcher="light">Luz</a></li>
             <li><a href="#" data-theme-switcher="dark">Oscuro</a></li>
@@ -25,18 +25,20 @@
         </details>
       </li> --}}
       <li>
-        <details role="list" dir="rtl">
-          <summary aria-haspopup="listbox" role="link" class="contrast">Menu</summary>
-          <ul role="listbox">
+        <details class="dropdown">
+          <summary class="contrast">Menu</summary>
+          <ul>
             <li><a href="{{route('panelServicios')}}">Panel</a></li>
-            <li><a href="{{route('reciboSueldo')}}">Recibos Sueldo</a></li>
+            {{-- <li><a href="{{route('reciboSueldo')}}">Recibos Sueldo</a></li> --}}
 
             @if (Auth::User()->role->nombre == 'Super' || 
                  Auth::User()->role->nombre == 'Admin')
               <li><a href="{{route('Cliente.index')}}">Clientes</a></li>
-              <li><a href="{{route('Servicios.index')}}">ABM Servicios</a></li>
+              <li><a href="{{route('Servicios.index')}}">Servicios</a></li>
               <li><a href="{{route('Grilla')}}">Grilla Clientes</a></li>
-              <li><a href="{{route('Pagos')}}">Pagos</a></li>
+              <li><a href="{{route('Pagos', ['fecha_inicio' => date('Y-m-d'), 'fecha_fin' => date('Y-m-d')])}}">Pagos</a></li>
+              <li><a href="{{route('ServiciosImpagos')}}">Impagos</a></li>
+
               <li><a href="{{route('expenses.index')}}">Gastos</a></li>
               <li><a href="{{route('cierre-caja')}}">Cierre de Caja</a></li>
            

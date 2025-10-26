@@ -39,11 +39,16 @@ class PagosController extends Controller
      */
     public function index(Request $request)
     {
-        // Obtener filtros de fecha
+        // Obtener filtros de fecha, si no se proporcionan, usar la fecha actual
+        // $fechaInicio = $request->get('fecha_inicio', date('Y-m-d'));
+        // $fechaFin = $request->get('fecha_fin', date('Y-m-d'));
+
         $fechaInicio = $request->get('fecha_inicio');
         $fechaFin = $request->get('fecha_fin');
+
+        $buscar = $request->get('buscar');
         
-        // Construir condiciones de fecha solo si se proporcionan
+        // Construir condiciones de fecha
         $condicionFecha = '';
         $parametros = [];
         
@@ -61,6 +66,15 @@ class PagosController extends Controller
         $empresaId = auth()->user()->empresa_id;
         $condicionFecha .= ' AND g.empresa_id = ?';
         $parametros[] = $empresaId;
+
+        // Añadir condición de búsqueda por cliente si existe
+        $condicionBusqueda = '';
+        if ($buscar) {
+            $condicionBusqueda = ' AND (e.nombre LIKE ? OR e.correo LIKE ? OR e.dni LIKE ?)';
+            $parametros[] = '%' . $buscar . '%';
+            $parametros[] = '%' . $buscar . '%';
+            $parametros[] = '%' . $buscar . '%';
+        }
 
         $datos = DB::select('SELECT
                                     a.*,
@@ -84,7 +98,7 @@ class PagosController extends Controller
                                     AND b.servicio_id = d.id 
                                     AND b.cliente_id = e.id 
                                     AND a.forma_pago = f.id
-                                    AND e.id = g.cliente_id' . $condicionFecha, $parametros);
+                                    AND e.id = g.cliente_id' . $condicionFecha . $condicionBusqueda, $parametros);
 
         // Obtener resumen de pagos por forma de pago con filtros de fecha y empresa
         // Necesitamos filtros separados para el resumen ya que la estructura de la consulta es diferente
@@ -104,6 +118,15 @@ class PagosController extends Controller
         $condicionFechaResumen .= ' AND g.empresa_id = ?';
         $parametrosResumen[] = $empresaId;
 
+        // Añadir condición de búsqueda al resumen también
+        $condicionBusquedaResumen = '';
+        if ($buscar) {
+            $condicionBusquedaResumen = ' AND (e.nombre LIKE ? OR e.correo LIKE ? OR e.dni LIKE ?)';
+            $parametrosResumen[] = '%' . $buscar . '%';
+            $parametrosResumen[] = '%' . $buscar . '%';
+            $parametrosResumen[] = '%' . $buscar . '%';
+        }
+
         $resumenPagos = DB::select('SELECT
                                         f.nombre AS formaPago,
                                         COUNT(a.id) AS cantidadPagos,
@@ -114,7 +137,7 @@ class PagosController extends Controller
                                         INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
                                         INNER JOIN clientes e ON b.cliente_id = e.id
                                         INNER JOIN cliente_empresa g ON e.id = g.cliente_id
-                                    WHERE 1=1' . $condicionFechaResumen . '
+                                    WHERE 1=1' . $condicionFechaResumen . $condicionBusquedaResumen . '
                                     GROUP BY
                                         f.id, f.nombre
                                     ORDER BY
@@ -147,7 +170,7 @@ class PagosController extends Controller
                 // return $pagos;
 
 
-                return view('pagos.pagos', compact('pagos', 'resumenPagos'))->render();
+                return view('pagos.pagos', compact('pagos', 'resumenPagos', 'fechaInicio', 'fechaFin', 'buscar'))->render();
     }
 
     public function PagosVer ($idServicioPagar){
