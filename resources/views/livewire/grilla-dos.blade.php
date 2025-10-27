@@ -7,21 +7,16 @@
             <a href="{{route('ServiciosImpagos')}}" role="button" style="font-size: 20px; padding: 8px 24px; min-width: 120px; text-align: center;">Impagos</a>
             <a href="{{route('ServiciosPagos')}}" role="button" style="font-size: 20px; padding: 8px 24px; min-width: 120px; text-align: center;">Pagos</a>
         </div> --}}
-        <nav>
-            <ul>
-                <li>
-                            <div class="input-group">
-                                    <input type="search" class="input" id="buscar" name="buscar" wire:model.live="buscar" placeholder="Buscar...">
-                            </div>
-                </li>
+    
 
-            </ul>
-            <ul>
-                <li>
-                    <a href="{{route('NuevoCobro')}}" role="button">Agregar Servicio</a>
-                </li>
-            </ul>
-        </nav>
+        <fieldset role="group">
+
+            <a href="{{route('NuevoCobro')}}" role="button" style="white-space: nowrap;">Agregar Servicio</a>
+            <input type="search" class="input" id="buscar" name="buscar" wire:model.live="buscar" placeholder="Buscar...">
+
+        </fieldset>
+
+
     </div>
 
     <div class="container-fluid">

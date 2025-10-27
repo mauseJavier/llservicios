@@ -7,7 +7,7 @@
 
 <div class="container">
 
-    <h1>Nuevo Cobro Manual</h1>
+    <h1>Agregar Servicio a Cliente</h1>
 
 </div>
 

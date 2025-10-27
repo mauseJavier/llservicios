@@ -52,16 +52,6 @@
         <input type="email" id="correo" name="correo" placeholder="Correo Electronico" value="{{old('correo')}}">
         
 
-        <details>
-          <summary>Mas Opciones</summary>
-
-          <div class="grid">
-            <label for="domicilio">
-              Domicilio Cliente <small>(Opcional).</small>
-              <input type="text" id="domicilio" name="domicilio" placeholder="Domicilio Cliente" value="{{old('domicilio')}}" >
-            </label>
-
-          </div>
 
           <div class="grid">
             <label for="servicio_id">
@@ -84,12 +74,27 @@
             </label>
           </div>
 
-          <div class="grid" id="cantidad_container" style="display: none;">
-            <label for="cantidad">
-              Cantidad
-              <input type="number" id="cantidad" name="cantidad" value="{{old('cantidad', 1)}}" min="0.5" step="0.5">
-            </label>
+          <div class="driv">
+            <div class="grid" id="cantidad_container" style="display: none;">
+              <label for="cantidad">
+                Cantidad
+                <input type="number" id="cantidad" name="cantidad" value="{{old('cantidad', 1)}}" min="0.5" step="0.5">
+              </label>
+            </div>
           </div>
+
+        <details>
+          <summary>Mas Opciones</summary>
+
+          <div class="grid">
+            <label for="domicilio">
+              Domicilio Cliente <small>(Opcional).</small>
+              <input type="text" id="domicilio" name="domicilio" placeholder="Domicilio Cliente" value="{{old('domicilio')}}" >
+            </label>
+
+          </div>
+
+
 
         </details>
 

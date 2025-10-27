@@ -7,31 +7,28 @@
 <div class="container">
   <h1>Servicios</h1>
 
-<nav>
-    <ul>
 
-        <li>
-          <form class="form" action="{{route('BuscarServicio')}}" method="GET">
+          <form action="{{route('BuscarServicio')}}" method="GET">
               
-              <div class="input-group">
-                  <input type="search" class="input" id="buscar" name="buscar" 
+            <fieldset role="group">
+
+                <a href="{{route('Servicios.create')}}" role="button">Nuevo</a>
+
+                <input id="buscar" name="buscar"  
                   @if (isset($buscar))
                       value="{{$buscar}}"
-                  @endif  placeholder="Buscar...">
- 
-              </div>
+                  @endif  placeholder="Buscar..." />
+                
+
+              
+            </fieldset>
+
           </form>
-        </li>
-    </ul>
-    <ul>
-        <li>
-          <a href="{{route('Servicios.create')}}" role="button">Nuevo Servicio</a>
 
-        </li>
-    </ul>
-</nav>
 
-</div>
+
+
+
 <div class="container">
 
   <figure>

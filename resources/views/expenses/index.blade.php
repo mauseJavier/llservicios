@@ -6,27 +6,25 @@
 
   <h1>Gastos</h1>
 
-<nav>
-    <ul>
-        <li>
+
           <form class="form" action="{{route('expenses.index')}}" method="GET">
-              <div class="input-group">
-                  <input type="search" class="input" id="buscar" name="buscar" 
+
+            <fieldset role="group">
+
+                  <a href="{{route('expenses.create')}}" role="button" data-tooltip="Nuevo Gasto"><i class="fa-regular fa-square-plus"></i></a>
+
+                  <input type="text" class="input" id="buscar" name="buscar" 
                   @if (isset($buscar) || request('buscar'))
                       value="{{request('buscar')}}"
-                  @endif  placeholder="Buscar...">
-              </div>
-          </form>
-        </li>
-    </ul>
-    <ul>
-        <li>
-            <a href="{{route('expenses.create')}}" role="button" data-tooltip="Nuevo Gasto"><i class="fa-regular fa-square-plus"></i></a>
-        </li>
-    </ul>
-</nav>
+                  @endif  placeholder="Buscar..."/>
 
-</div>
+
+            </fieldset>
+
+
+          </form>
+
+
 
 <div class="container">
 
