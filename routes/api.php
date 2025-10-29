@@ -26,3 +26,6 @@ Route::prefix('mercadopago-api')->group(function () {
     Route::get('/payment-methods', [App\Http\Controllers\MercadoPagoApiController::class, 'getPaymentMethods']);
     Route::get('/validate-credentials', [App\Http\Controllers\MercadoPagoApiController::class, 'validateCredentials']);
 });
+
+// Ruta pública para buscar cliente (sin middleware)
+Route::get('/cliente/buscar', [App\Http\Controllers\Api\ClienteApiController::class, 'buscarCliente']);
