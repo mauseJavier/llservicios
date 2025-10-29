@@ -25,6 +25,9 @@ class UpdateServicioRequest extends FormRequest
             //
             'nombre' => 'required',
             'precio' => 'required|numeric',
+            'precio2' => 'nullable|numeric',
+            'precio3' => 'nullable|numeric',
+            'diasVencimiento' => 'required|integer|min:1',
             'tiempo' => 'required',
         ];
     }

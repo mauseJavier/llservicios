@@ -31,7 +31,7 @@ class Cliente extends Model
      */
     public function servicios(): BelongsToMany
     {
-        return $this->belongsToMany(Servicio::class, 'cliente_servicio', 'cliente_id', 'servicio_id')->withPivot('precio','vencimiento');
+        return $this->belongsToMany(Servicio::class, 'cliente_servicio', 'cliente_id', 'servicio_id')->withPivot('cantidad','vencimiento');
     }
 
     /**

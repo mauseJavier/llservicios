@@ -326,12 +326,20 @@ class ServicioPagarController extends Controller
         $request->validate([
             'precio' => 'required|numeric|min:1',
             'cantidad' => 'required|numeric|min:0.5',
-            'fecha' => 'required'
+            'fecha_vencimiento' => 'nullable|date',
+            'comentario' => 'nullable|string|max:1000',
+            'periodo_servicio' => 'nullable|string|max:255'
         ]);
 
         // return $request;
 
-        $fechaHoy = date('y-m-d H:i:s');
+        $fechaHoy = date('Y-m-d H:i:s');
+
+        // Convertir periodo_servicio (YYYY-MM) al primer día del mes (YYYY-MM-01)
+        $periodoServicio = null;
+        if ($request->periodo_servicio) {
+            $periodoServicio = $request->periodo_servicio . '-01';
+        }
 
         // {
         //     "_method": "POST",
@@ -347,9 +355,12 @@ class ServicioPagarController extends Controller
             'servicio_id' => $request->servicio,
             'precio' => $request->precio,
             'estado' => 'impago',
-            'created_at' => $request->fecha,
-            'updated_at' => $request->fecha,
+            'created_at' => $fechaHoy,
+            'updated_at' => $fechaHoy,
             'cantidad' => $request->cantidad,
+            'fecha_vencimiento' => $request->fecha_vencimiento,
+            'comentario' => $request->comentario,
+            'periodo_servicio' => $periodoServicio,
         ]);
 
         // use App\Events\NuevoServicioPagarEvent;

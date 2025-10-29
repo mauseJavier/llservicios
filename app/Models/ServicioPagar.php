@@ -25,7 +25,10 @@ class ServicioPagar extends Model
         'precio',
         'estado',
         'mp_preference_id',
-        'mp_payment_id'
+        'mp_payment_id',
+        'fecha_vencimiento',
+        'comentario',
+        'periodo_servicio'
     ];
 
     /**
@@ -36,6 +39,7 @@ class ServicioPagar extends Model
         'precio' => 'decimal:2',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'fecha_vencimiento' => 'date',
     ];
 
     /**

@@ -3,11 +3,10 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-
 use App\Events\NuevoServicioPagarEvent;
+use App\Models\Servicio;
+use App\Models\ServicioPagar;
+use Carbon\Carbon;
 
 class CobradorMensual extends Command
 {
@@ -23,45 +22,73 @@ class CobradorMensual extends Command
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Genera cobros mensuales para servicios con frecuencia mensual vigentes';
 
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        //
-        $fechaHoy = date('y-m-d H:i:s');
-        $datos = DB::select("SELECT a.id as idServicio , DATEDIFF(a.vencimiento, '$fechaHoy') AS diasRestantes, DATEDIFF(a.vencimiento, a.created_at) AS diasCreadoVencimiento, SEC_TO_TIME(TIME_TO_SEC(a.vencimiento) - TIME_TO_SEC(a.created_at)) AS diferencia_tiempo ,
-                                a.cliente_id as clienteId, a.servicio_id as servicioId, b.precio as precio, a.cantidad as cantidad
-                                FROM cliente_servicio a , servicios b WHERE a.servicio_id = b.id and b.tiempo='mes' and a.vencimiento >= '$fechaHoy'");
-
-        foreach ($datos as $key => $value) {
-
-            // DB::insert('INSERT INTO `servicio_pagar`(`cliente_id`, `servicio_id`, `precio`, `estado`, `created_at`, `updated_at`, `cantidad`) 
-            //             VALUES (?,?,?,?,?,?,?)', 
-            //                     [$value->clienteId,
-            //                     $value->servicioId,
-            //                     round($value->precio * $value->cantidad, 2),
-            //                     'impago',
-            //                     $fechaHoy,
-            //                     $fechaHoy,
-            //                     $value->cantidad]);
-
-            $id = DB::table('servicio_pagar')->insertGetId([
-                'cliente_id' => $value->clienteId,
-                'servicio_id' => $value->servicioId,
-                'precio' => $value->precio,
-                'estado' => 'impago',
-                'created_at' => $fechaHoy,
-                'updated_at' => $fechaHoy,
-                'cantidad' => $value->cantidad,
-            ]);
-
-            // NuevoServicioPagarEvent::dispatch($id);
-                            
-        }
-
+        $this->info('🔄 Iniciando generación de cobros mensuales...');
         
+        $fechaHoy = Carbon::now();
+        $cobrosGenerados = 0;
+        
+        // Obtener servicios mensuales con sus clientes vigentes
+        Servicio::where('tiempo', 'mes')
+            ->with(['Clientes' => function($query) use ($fechaHoy) {
+                $query->wherePivot('vencimiento', '>=', $fechaHoy);
+            }])
+            ->get()
+            ->each(function($servicio) use ($fechaHoy, &$cobrosGenerados) {
+                
+                // Iterar sobre cada cliente del servicio
+                $servicio->Clientes->each(function($cliente) use ($servicio, $fechaHoy, &$cobrosGenerados) {
+                    
+                    // Verificar si ya existe un cobro para este mes
+                    // $yaExiste = ServicioPagar::where('cliente_id', $cliente->id)
+                    //     ->where('servicio_id', $servicio->id)
+                    //     ->whereMonth('created_at', $fechaHoy->month)
+                    //     ->whereYear('created_at', $fechaHoy->year)
+                    //     ->exists();
+
+                    $yaExiste = false; // --- IGNORE ---
+                    
+                    if (!$yaExiste) {
+                        // Calcular fecha de vencimiento
+                        $diasVencimiento = $servicio->diasVencimiento ?? 10;
+                        $fechaVencimiento = $fechaHoy->copy()->addDays($diasVencimiento);
+                        
+                        // Obtener precio del servicio y cantidad del pivot
+                        $precio = $servicio->precio; // El precio siempre viene del servicio
+                        $cantidad = $cliente->pivot->cantidad ?? 1;
+                        
+                        // Crear el cobro con todos los campos
+                        $servicioPagar = ServicioPagar::create([
+                            'cliente_id' => $cliente->id,
+                            'servicio_id' => $servicio->id,
+                            'precio' => $precio,
+                            'cantidad' => $cantidad,
+                            'estado' => 'impago',
+                            'fecha_vencimiento' => $fechaVencimiento,
+                            'periodo_servicio' => $fechaHoy->format('Y-m-01'), // Primer día del mes actual
+                            'comentario' => "Cobro automático generado - Servicio mensual",
+                            'mp_preference_id' => null,
+                            'mp_payment_id' => null,
+                        ]);
+                        
+                        // Disparar evento de nuevo servicio a pagar
+                        // NuevoServicioPagarEvent::dispatch($servicioPagar->id);
+                        
+                        $cobrosGenerados++;
+                        
+                        $this->line("✅ Cobro creado: Cliente #{$cliente->id} - Servicio '{$servicio->nombre}' - Período: {$servicioPagar->periodo_servicio}");
+                    }
+                });
+            });
+        
+        $this->info("✨ Proceso completado. Cobros generados: {$cobrosGenerados}");
+        
+        return Command::SUCCESS;
     }
 }

@@ -19,66 +19,72 @@
 
     </div>
 
-    <div class="container-fluid">
-        <figure>
-            <table id="grilla" >
-                    <thead>
-                        <tr>
-                            <th scope="col">Cliente</th>
-                            <th scope="col" style="text-align: right;">Enero</th>
-                            <th scope="col" style="text-align: right;">Febrero</th>
-                            <th scope="col" style="text-align: right;">Marzo</th>
-                            <th scope="col" style="text-align: right;">Abril</th>
-                            <th scope="col" style="text-align: right;">Mayo</th>
-                            <th scope="col" style="text-align: right;">Junio</th>
-                            <th scope="col" style="text-align: right;">Julio</th>
-                            <th scope="col" style="text-align: right;">Agosto</th>
-                            <th scope="col" style="text-align: right;">Septiembre</th>
-                            <th scope="col" style="text-align: right;">Octubre</th>
-                            <th scope="col" style="text-align: right;">Noviembre</th>
-                            <th scope="col" style="text-align: right;">Diciembre</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                            @foreach ($clientes as $c)
-                                <tr>
-                                    <td>
-                                        <a href="{{route('ServicioPagarBuscarCliente',['estado'=>'impago','buscar'=>$c->nombre])}}" data-tooltip="Ver Impagos">{{$c->nombre}}</a>
-                                    </td>
-                                    @if (!empty($c->datos))
-                                        @foreach ($c->datos as $item)
-                                            <td style="text-align: right;">
-                                                @if($item['importe_impago'] > 0)
-                                                    <div style="color: #e3342f;">${{$item['importe_impago']}}</div>
-                                                @endif
-                                                @if($item['importe_pagado'] > 0)
-                                                    <div style="color: #38c172;">${{$item['importe_pagado']}}</div>
-                                                @endif
-                                            </td>
-                                        @endforeach
-                                    @endif
-                                </tr>
-                            @endforeach
+    <div class="container">
+        <div class="overflow-auto">
 
-                        <tr>
-                            <td><h5 class="pico-color-red-450">Impago</h5></td>
-                            @if (!empty($total))
-                                @foreach ($total as $item)
-                                    <td style="text-align: right;"><h5 style="color: #e3342f;">${{$item['impago']}}</h5></td>
+            <figure>
+                <table id="grilla" >
+                        <thead>
+                            <tr>
+                                <th scope="col">Cliente</th>
+                                <th scope="col" style="text-align: right;">Enero</th>
+                                <th scope="col" style="text-align: right;">Febrero</th>
+                                <th scope="col" style="text-align: right;">Marzo</th>
+                                <th scope="col" style="text-align: right;">Abril</th>
+                                <th scope="col" style="text-align: right;">Mayo</th>
+                                <th scope="col" style="text-align: right;">Junio</th>
+                                <th scope="col" style="text-align: right;">Julio</th>
+                                <th scope="col" style="text-align: right;">Agosto</th>
+                                <th scope="col" style="text-align: right;">Septiembre</th>
+                                <th scope="col" style="text-align: right;">Octubre</th>
+                                <th scope="col" style="text-align: right;">Noviembre</th>
+                                <th scope="col" style="text-align: right;">Diciembre</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                                @foreach ($clientes as $c)
+                                    <tr>
+                                        <td>
+                                            <a href="{{route('ServicioPagarBuscarCliente',['estado'=>'impago','buscar'=>$c->nombre])}}" data-tooltip="Ver Impagos">{{$c->nombre}}</a>
+                                        </td>
+                                        @if (!empty($c->datos))
+                                            @foreach ($c->datos as $item)
+                                                <td style="text-align: right;">
+                                                    @if($item['importe_impago'] > 0)
+                                                        <div style="color: #e3342f;">${{$item['importe_impago']}}</div>
+                                                    @endif
+                                                    @if($item['importe_pagado'] > 0)
+                                                        <div style="color: #38c172;">${{$item['importe_pagado']}}</div>
+                                                    @endif
+                                                </td>
+                                            @endforeach
+                                        @endif
+                                    </tr>
                                 @endforeach
-                            @endif
-                        </tr>
-                        <tr>
-                            <td><h5 class="pico-color-jade-500">Pago</h5></td>
-                            @if (!empty($total))
-                                @foreach ($total as $item)
-                                    <td style="text-align: right;"><h5 style="color: #38c172;">${{$item['pago']}}</h5></td>
-                                @endforeach
-                            @endif
-                        </tr>
-                    </tbody>
-            </table>
-        </figure>
+
+                            <tr>
+                                <td><h5 class="pico-color-red-450">Impago</h5></td>
+                                @if (!empty($total))
+                                    @foreach ($total as $item)
+                                        <td style="text-align: right;"><h5 style="color: #e3342f;">${{$item['impago']}}</h5></td>
+                                    @endforeach
+                                @endif
+                            </tr>
+                            <tr>
+                                <td><h5 class="pico-color-jade-500">Pago</h5></td>
+                                @if (!empty($total))
+                                    @foreach ($total as $item)
+                                        <td style="text-align: right;"><h5 style="color: #38c172;">${{$item['pago']}}</h5></td>
+                                    @endforeach
+                                @endif
+                            </tr>
+                        </tbody>
+                </table>
+            </figure>
+
+
+        </div>
+
 
         {{-- Paginación eliminada --}}
     </div>

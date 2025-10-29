@@ -34,6 +34,9 @@ class PanelController extends Controller
                 ->impagos()
                 ->with(['servicio.empresa']);
 
+            // Debug: Ver la SQL generada
+            // dd($queryImpagos->toSql(), $queryImpagos->getBindings());
+
             // Query base para servicios pagos
             $queryPagos = $cliente->serviciosPagar()
                 ->pagos()
@@ -82,7 +85,9 @@ class PanelController extends Controller
                         'cantidadServicio' => $servicioPagar->cantidad,
                         'precioServicio' => $servicioPagar->precio,
                         'total' => $servicioPagar->total,
-                        'estado' => $servicioPagar->estado
+                        'estado' => $servicioPagar->estado,
+                        'fecha_vencimiento' => $servicioPagar->fecha_vencimiento,
+                        'periodo_servicio' => $servicioPagar->periodo_servicio
                     ];
                 });
 

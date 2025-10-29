@@ -91,6 +91,8 @@
                 <th scope="col">Fecha</th>
                 <th scope="col">Servicio</th>
                 <th scope="col">Empresa</th>
+                <th scope="col">Período</th>
+                <th scope="col">Fecha Vencimiento</th>
                 <th scope="col" style="text-align: center;">Cantidad</th>
                 <th scope="col" style="text-align: right;">Precio U.</th>
                 <th scope="col" style="text-align: right;">Total</th>
@@ -104,6 +106,14 @@
                   <td>{{ \Carbon\Carbon::parse($s->fechaCobro)->format('d/m/Y') }}</td>
                   <td><strong>{{$s->nombreServicio}}</strong></td>
                   <td>{{$s->nombreEmpresa}}</td>
+                  <td>{{$s->periodo_servicio}}</td>
+                  <td>
+                    @if($s->fecha_vencimiento)
+                      {{ \Carbon\Carbon::parse($s->fecha_vencimiento)->format('d/m/Y') }}
+                    @else
+                      <span style="color: #6c757d; font-style: italic;">No especificada</span>
+                    @endif
+                  </td>
                   <td style="text-align: center;">{{$s->cantidadServicio}}</td>
                   <td style="text-align: right;">${{ number_format($s->precioServicio, 2) }}</td>
                   <td style="text-align: right;"><strong>${{ number_format($s->total, 2) }}</strong></td>

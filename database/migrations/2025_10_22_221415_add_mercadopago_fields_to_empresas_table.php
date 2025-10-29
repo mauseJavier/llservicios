@@ -12,10 +12,25 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('empresas', function (Blueprint $table) {
-            $table->string('MP_ACCESS_TOKEN')->nullable()->after('updated_at');
-            $table->string('MP_PUBLIC_KEY')->nullable()->after('MP_ACCESS_TOKEN');
-            $table->string('client_secret')->nullable()->after('MP_PUBLIC_KEY');
-            $table->string('client_id')->nullable()->after('client_secret');
+            // Verificar si la columna MP_ACCESS_TOKEN no existe antes de agregarla
+            if (!Schema::hasColumn('empresas', 'MP_ACCESS_TOKEN')) {
+                $table->string('MP_ACCESS_TOKEN')->nullable()->after('updated_at');
+            }
+            
+            // Verificar si la columna MP_PUBLIC_KEY no existe antes de agregarla
+            if (!Schema::hasColumn('empresas', 'MP_PUBLIC_KEY')) {
+                $table->string('MP_PUBLIC_KEY')->nullable()->after('MP_ACCESS_TOKEN');
+            }
+            
+            // Verificar si la columna client_secret no existe antes de agregarla
+            if (!Schema::hasColumn('empresas', 'client_secret')) {
+                $table->string('client_secret')->nullable()->after('MP_PUBLIC_KEY');
+            }
+            
+            // Verificar si la columna client_id no existe antes de agregarla
+            if (!Schema::hasColumn('empresas', 'client_id')) {
+                $table->string('client_id')->nullable()->after('client_secret');
+            }
         });
     }
 
@@ -25,7 +40,22 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('empresas', function (Blueprint $table) {
-            $table->dropColumn(['MP_ACCESS_TOKEN', 'MP_PUBLIC_KEY', 'client_secret', 'client_id']);
+            // Verificar si las columnas existen antes de eliminarlas
+            if (Schema::hasColumn('empresas', 'MP_ACCESS_TOKEN')) {
+                $table->dropColumn('MP_ACCESS_TOKEN');
+            }
+            
+            if (Schema::hasColumn('empresas', 'MP_PUBLIC_KEY')) {
+                $table->dropColumn('MP_PUBLIC_KEY');
+            }
+            
+            if (Schema::hasColumn('empresas', 'client_secret')) {
+                $table->dropColumn('client_secret');
+            }
+            
+            if (Schema::hasColumn('empresas', 'client_id')) {
+                $table->dropColumn('client_id');
+            }
         });
     }
 };

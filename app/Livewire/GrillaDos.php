@@ -39,13 +39,13 @@ class GrillaDos extends Component
             $servicios = Servicio::where('empresa_id', $usuario->empresa_id)
                 ->join('servicio_pagar', 'servicios.id', '=', 'servicio_pagar.servicio_id')
                 ->select(
-                    DB::raw("MONTHNAME(servicio_pagar.created_at) AS mes_creado"),
+                    DB::raw("MONTHNAME(COALESCE(servicio_pagar.periodo_servicio, servicio_pagar.created_at)) AS mes_creado"),
                     'servicio_pagar.estado as estado_pago',
                     DB::raw("SUM(servicio_pagar.precio * servicio_pagar.cantidad) as suma_precios")
                 )
                 ->where('servicio_pagar.cliente_id', $valor->id)
                 ->groupBy('mes_creado', 'estado_pago')
-                ->orderBy('servicio_pagar.created_at', 'ASC')
+                ->orderBy(DB::raw('COALESCE(servicio_pagar.periodo_servicio, servicio_pagar.created_at)'), 'ASC')
                 ->get();
 
             $datos_completos = [];

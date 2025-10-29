@@ -92,8 +92,11 @@ class ServicioController extends Controller
         $id = Servicio::create([
             'nombre'=> $request->nombre,
             'precio'=> round($request->precio,2),
+            'precio2'=> $request->precio2 ? round($request->precio2,2) : null,
+            'precio3'=> $request->precio3 ? round($request->precio3,2) : null,
             'descripcion'=> $request->descripcion,
             'tiempo' => $request->tiempo,
+            'diasVencimiento' => $request->diasVencimiento ?? 10,
             'empresa_id'=> $usuario->empresa_id,
             'linkPago' => $request->linkPago,
             'imagen' => $request->imagen
@@ -132,7 +135,10 @@ class ServicioController extends Controller
         $Servicio->update(['nombre'=>$request->nombre,
                             'descripcion'=>$request->descripcion,
                             'precio'=> round($request->precio,2),
+                            'precio2'=> $request->precio2 ? round($request->precio2,2) : null,
+                            'precio3'=> $request->precio3 ? round($request->precio3,2) : null,
                             'tiempo'=> $request->tiempo,
+                            'diasVencimiento' => $request->diasVencimiento ?? 10,
                             'linkPago' => $request->linkPago,
                             'imagen' => $request->imagen
                         
