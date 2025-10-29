@@ -240,9 +240,12 @@
             <th scope="col">#</th>
             <th scope="col">Cliente</th>
             <th scope="col">Servicio</th>
-            <th scope="col">Forma de Pago</th>
+            <th scope="col">Forma de Pago 1</th>
+            <th scope="col">Importe 1</th>
+            <th scope="col">Forma de Pago 2</th>
+            <th scope="col">Importe 2</th>
+            <th scope="col">Total</th>
             <th scope="col">Usuario</th>
-            <th scope="col">Importe</th>
             <th scope="col">Acciones</th>
           </tr>
         </thead>
@@ -271,8 +274,25 @@
               <td>{{$e->Cliente}}</td>
               <td>{{$e->Servicio}}</td>
               <td>{{$e->formaPago}}</td>
-              <td>{{$e->nombreUsuario}}</td>
               <td>${{number_format($e->importe, 2)}}</td>
+              <td>
+                @if($e->formaPago2)
+                  {{$e->formaPago2}}
+                @else
+                  <small style="color: #999;">-</small>
+                @endif
+              </td>
+              <td>
+                @if($e->importe2 && $e->importe2 > 0)
+                  ${{number_format($e->importe2, 2)}}
+                @else
+                  <small style="color: #999;">-</small>
+                @endif
+              </td>
+              <td>
+                <strong>${{number_format($e->importe + ($e->importe2 ?? 0), 2)}}</strong>
+              </td>
+              <td>{{$e->nombreUsuario}}</td>
               <th>                  
                   <strong><a href="{{route('PagosVer',['idServicioPagar'=>$e->idServicioPagar])}}" data-tooltip="Ver Pago">Ver</a></strong>
               </th>

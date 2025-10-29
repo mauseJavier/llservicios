@@ -52,6 +52,10 @@ class PagosController extends Controller
         $condicionFecha = '';
         $parametros = [];
         
+        // Añadir filtro por empresa del usuario autenticado
+        $empresaId = auth()->user()->empresa_id;
+        $parametros[] = $empresaId;
+        
         if ($fechaInicio) {
             $condicionFecha .= ' AND DATE(a.created_at) >= ?';
             $parametros[] = $fechaInicio;
@@ -61,11 +65,6 @@ class PagosController extends Controller
             $condicionFecha .= ' AND DATE(a.created_at) <= ?';
             $parametros[] = $fechaFin;
         }
-
-        // Añadir filtro por empresa del usuario autenticado
-        $empresaId = auth()->user()->empresa_id;
-        $condicionFecha .= ' AND g.empresa_id = ?';
-        $parametros[] = $empresaId;
 
         // Añadir condición de búsqueda por cliente si existe
         $condicionBusqueda = '';
@@ -83,22 +82,19 @@ class PagosController extends Controller
                                     d.nombre AS Servicio,
                                     e.nombre AS Cliente,
                                     e.id as idCliente,
-                                    f.nombre AS formaPago
+                                    f.nombre AS formaPago,
+                                    f2.nombre AS formaPago2
                                 FROM
-                                    pagos a,
-                                    servicio_pagar b,
-                                    users c,
-                                    servicios d,
-                                    clientes e,
-                                    forma_pagos f,
-                                    cliente_empresa g
+                                    pagos a
+                                    INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
+                                    INNER JOIN users c ON a.id_usuario = c.id
+                                    INNER JOIN servicios d ON b.servicio_id = d.id
+                                    INNER JOIN clientes e ON b.cliente_id = e.id
+                                    INNER JOIN forma_pagos f ON a.forma_pago = f.id
+                                    LEFT JOIN forma_pagos f2 ON a.forma_pago2 = f2.id
+                                    INNER JOIN cliente_empresa g ON e.id = g.cliente_id
                                 WHERE
-                                    a.id_servicio_pagar = b.id 
-                                    AND a.id_usuario = c.id 
-                                    AND b.servicio_id = d.id 
-                                    AND b.cliente_id = e.id 
-                                    AND a.forma_pago = f.id
-                                    AND e.id = g.cliente_id' . $condicionFecha . $condicionBusqueda, $parametros);
+                                    g.empresa_id = ?' . $condicionFecha . $condicionBusqueda, $parametros);
 
         // Obtener resumen de pagos por forma de pago con filtros de fecha y empresa
         // Necesitamos filtros separados para el resumen ya que la estructura de la consulta es diferente
@@ -127,7 +123,10 @@ class PagosController extends Controller
             $parametrosResumen[] = '%' . $buscar . '%';
         }
 
-        $resumenPagos = DB::select('SELECT
+        // Duplicar parámetros para el UNION ALL (segunda consulta usa los mismos filtros)
+        $parametrosResumenCompletos = array_merge($parametrosResumen, $parametrosResumen);
+
+        $resumenPagosRaw = DB::select('SELECT
                                         f.nombre AS formaPago,
                                         COUNT(a.id) AS cantidadPagos,
                                         SUM(a.importe) AS totalImporte
@@ -140,8 +139,43 @@ class PagosController extends Controller
                                     WHERE 1=1' . $condicionFechaResumen . $condicionBusquedaResumen . '
                                     GROUP BY
                                         f.id, f.nombre
-                                    ORDER BY
-                                        totalImporte DESC', $parametrosResumen);
+                                    
+                                    UNION ALL
+                                    
+                                    SELECT
+                                        f2.nombre AS formaPago,
+                                        COUNT(a.id) AS cantidadPagos,
+                                        SUM(a.importe2) AS totalImporte
+                                    FROM
+                                        pagos a
+                                        INNER JOIN forma_pagos f2 ON a.forma_pago2 = f2.id
+                                        INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
+                                        INNER JOIN clientes e ON b.cliente_id = e.id
+                                        INNER JOIN cliente_empresa g ON e.id = g.cliente_id
+                                    WHERE a.forma_pago2 IS NOT NULL' . $condicionFechaResumen . $condicionBusquedaResumen . '
+                                    GROUP BY
+                                        f2.id, f2.nombre', $parametrosResumenCompletos);
+
+        // Agrupar y sumar los resultados por forma de pago
+        $resumenAgrupado = [];
+        foreach ($resumenPagosRaw as $resumen) {
+            $formaPago = $resumen->formaPago;
+            if (!isset($resumenAgrupado[$formaPago])) {
+                $resumenAgrupado[$formaPago] = (object)[
+                    'formaPago' => $formaPago,
+                    'cantidadPagos' => 0,
+                    'totalImporte' => 0
+                ];
+            }
+            $resumenAgrupado[$formaPago]->cantidadPagos += $resumen->cantidadPagos;
+            $resumenAgrupado[$formaPago]->totalImporte += $resumen->totalImporte;
+        }
+
+        // Convertir a array y ordenar por totalImporte descendente
+        $resumenPagos = array_values($resumenAgrupado);
+        usort($resumenPagos, function($a, $b) {
+            return $b->totalImporte <=> $a->totalImporte;
+        });
 
         // return $datos;
 
@@ -186,23 +220,19 @@ class PagosController extends Controller
                             d.nombre AS Servicio,
                             e.nombre AS Cliente,
                             e.id as idCliente,
-                            f.nombre AS formaPago
+                            f.nombre AS formaPago,
+                            f2.nombre AS formaPago2
                         FROM
-                            pagos a,
-                            servicio_pagar b,
-                            users c,
-                            servicios d,
-                            clientes e,
-                            forma_pagos f,
-                            cliente_empresa g
+                            pagos a
+                            INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
+                            INNER JOIN users c ON a.id_usuario = c.id
+                            INNER JOIN servicios d ON b.servicio_id = d.id
+                            INNER JOIN clientes e ON b.cliente_id = e.id
+                            INNER JOIN forma_pagos f ON a.forma_pago = f.id
+                            LEFT JOIN forma_pagos f2 ON a.forma_pago2 = f2.id
+                            INNER JOIN cliente_empresa g ON e.id = g.cliente_id
                         WHERE
-                            a.id_servicio_pagar = b.id 
-                            AND a.id_usuario = c.id 
-                            AND b.servicio_id = d.id 
-                            AND b.cliente_id = e.id 
-                            AND a.forma_pago = f.id 
-                            AND e.id = g.cliente_id 
-                            AND g.empresa_id = ? 
+                            g.empresa_id = ? 
                             AND b.id = ?',[$empresaId, $idServicioPagar] );
         
         // return $datos;
@@ -222,23 +252,19 @@ class PagosController extends Controller
                     d.nombre AS Servicio,
                     e.nombre AS Cliente,
                     e.id as idCliente,
-                    f.nombre AS formaPago
+                    f.nombre AS formaPago,
+                    f2.nombre AS formaPago2
                 FROM
-                    pagos a,
-                    servicio_pagar b,
-                    users c,
-                    servicios d,
-                    clientes e,
-                    forma_pagos f,
-                    cliente_empresa g
+                    pagos a
+                    INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
+                    INNER JOIN users c ON a.id_usuario = c.id
+                    INNER JOIN servicios d ON b.servicio_id = d.id
+                    INNER JOIN clientes e ON b.cliente_id = e.id
+                    INNER JOIN forma_pagos f ON a.forma_pago = f.id
+                    LEFT JOIN forma_pagos f2 ON a.forma_pago2 = f2.id
+                    INNER JOIN cliente_empresa g ON e.id = g.cliente_id
                 WHERE
-                    a.id_servicio_pagar = b.id 
-                    AND a.id_usuario = c.id 
-                    AND b.servicio_id = d.id 
-                    AND b.cliente_id = e.id 
-                    AND a.forma_pago = f.id 
-                    AND e.id = g.cliente_id 
-                    AND g.empresa_id = ? 
+                    g.empresa_id = ? 
                     AND b.id = ?',[$empresaId, $idServicioPagar] );
 
             // return $datos;
@@ -255,7 +281,7 @@ class PagosController extends Controller
             //tamaño tiket 
             //tamaño A4 en vertical
             // $pdf->setPaper('A7', 'portrait');
-            $pdf->set_paper(array(0, 0, 226.772, 500), 'portrait');
+            $pdf->set_paper(array(0, 0, 226.772, 800), 'portrait');
         }
 
 

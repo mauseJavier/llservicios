@@ -221,27 +221,72 @@ class ServicioPagarController extends Controller
         $request->validate([
             'comentario' => 'max:200',
             'idServicioPagar' => 'required',
-            'importe' => 'required',
+            'importe' => 'required|numeric|min:0',
+            'importeOriginal' => 'required|numeric|min:0',
+            'formaPago' => 'required',
+            'importe1' => 'required|numeric|min:0',
+            'formaPago2' => 'nullable',
+            'importe2' => 'nullable|numeric|min:0',
+            'aplicarAjuste' => 'nullable',
+            'tipoAjuste' => 'nullable|in:descuento,incremento',
+            'ajusteTipo' => 'nullable|in:porcentaje,monto',
+            'valorAjuste' => 'nullable|numeric|min:0',
         ]);
 
         // return $request;
 
-
         $usuario = Auth::user();
-        // return $usuario;
+        
+        // Obtener el servicio_pagar para actualizar el precio si hubo ajuste
+        $servicioPagar = ServicioPagar::findOrFail($request->idServicioPagar);
+        
+        // Si se aplicó un ajuste, actualizar el precio en servicio_pagar
+        if ($request->filled('aplicarAjuste') && $request->aplicarAjuste) {
+            $importeFinal = floatval($request->importe);
+            $importeOriginal = floatval($request->importeOriginal);
+            
+            // Calcular el nuevo precio unitario basado en el importe final
+            if ($servicioPagar->cantidad > 0) {
+                $nuevoPrecio = $importeFinal / $servicioPagar->cantidad;
+                
+                // Actualizar el precio en servicio_pagar
+                $servicioPagar->update([
+                    'precio' => $nuevoPrecio,
+                ]);
+                
+                // Agregar información del ajuste al comentario
+                $tipoAjusteTexto = $request->tipoAjuste === 'descuento' ? 'Descuento' : 'Incremento';
+                $ajusteTexto = $request->ajusteTipo === 'porcentaje' 
+                    ? $request->valorAjuste . '%' 
+                    : '$' . $request->valorAjuste;
+                
+                $comentarioAjuste = "{$tipoAjusteTexto} aplicado: {$ajusteTexto} (Importe original: \${$importeOriginal}, Importe final: \${$importeFinal})";
+                
+                // Combinar con el comentario del usuario si existe
+                $comentarioFinal = $request->comentario 
+                    ? $request->comentario . ' | ' . $comentarioAjuste 
+                    : $comentarioAjuste;
+            } else {
+                $comentarioFinal = $request->comentario;
+            }
+        } else {
+            $comentarioFinal = $request->comentario;
+        }
+        
+        // Actualizar el estado del servicio a pagado
         DB::update('UPDATE servicio_pagar SET estado=?,updated_at=? WHERE  id = ?',
                          ['pago',
                         date('Y-m-d H:i:s'),
                         $request->idServicioPagar]);
 
-            // 'id_servicio_pagar'=> $event->pago->idServicioPagar,
-            // 'id_usuario'=> $event->pago->idUsuario,
-            // 'importe'=> $event->pago->importe,
+            // Preparar datos del pago
             $pago = ['idServicioPagar'=>$request->idServicioPagar,
                         'idUsuario'=>$usuario->id,
-                        'importe'=>$request->importe,
+                        'importe'=>$request->importe1,
                         'forma_pago'=>$request->formaPago,
-                        'comentario'=>$request->comentario];
+                        'forma_pago2'=>$request->formaPago2,
+                        'importe2'=>$request->importe2,
+                        'comentario'=>$comentarioFinal];
 
             // dd($pago);
                      

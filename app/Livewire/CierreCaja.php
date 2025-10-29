@@ -264,6 +264,7 @@ class CierreCaja extends Component
     {
         $usuario = Auth::user();
         return CierreCajaModel::where('empresa_id', $usuario->empresa_id)
+                            ->where('usuario_id', $usuario->id)
                             ->orderBy('created_at', 'desc')
                             ->take(10)
                             ->get();
