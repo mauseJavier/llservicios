@@ -106,6 +106,9 @@ Route::middleware('auth')->group(function () {
             //CORREOS 
             Route::get('NotificacionNuevoServicio/{idServicioPagar}', [EnviarCorreoController::class, 'NotificacionNuevoServicio'])->name('NotificacionNuevoServicio');
             Route::get('NotificacionTodosServiciosImpagos', [EnviarCorreoController::class, 'NotificacionTodosServiciosImpagos'])->name('NotificacionTodosServiciosImpagos');
+            
+            //WHATSAPP
+            Route::get('NotificacionWhatsAppTodosServiciosImpagos', [EnviarCorreoController::class, 'NotificacionWhatsAppTodosServiciosImpagos'])->name('NotificacionWhatsAppServiciosImpagos');
 
             //RUTAS PARA LOS PAGOS 
             Route::get('Pagos', [PagosController::class, 'index'])->name('Pagos');  
@@ -186,6 +189,13 @@ Route::middleware('auth')->group(function () {
 // Webhook para notificaciones de MercadoPago (sin middleware auth)
 Route::post('/mercadopago/webhook', [MercadoPagoWebhookController::class, 'handleNotification'])
     ->name('mercadopago.webhook');
+
+// ============================================================
+// DOCUMENTACIÓN DE LA API (Vista HTML)
+// ============================================================
+Route::get('/api-docs', function () {
+    return view('api-docs');
+})->name('api.docs.view');
 
 Route::get('/login', function () {
 

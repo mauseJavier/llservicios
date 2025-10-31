@@ -39,4 +39,10 @@ return [
         'sandbox' => env('MERCADOPAGO_SANDBOX', true),
     ],
 
+    'whatsapp' => [
+        'api_url' => env('WHATSAPP_API_URL'),
+        'api_key' => env('WHATSAPP_API_KEY'),
+        'instance_id' => env('WHATSAPP_INSTANCE_ID'),
+    ],
+
 ];

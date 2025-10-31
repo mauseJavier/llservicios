@@ -67,8 +67,9 @@ class EnviarEmailNuvoServicioJob implements ShouldQueue
             // return (new NotificacionCuotaMail($datos))->render();
             // use App\Mail\NotificacionCuotaMail;
             // use Illuminate\Support\Facades\Mail;
-            $correo = Mail::to($datos[0]->correoCliente)->send(new NotificacionCuotaMail($datos));
-
+            if (isset($datos[0]->correoCliente)) {
+                Mail::to($datos[0]->correoCliente)->send(new NotificacionCuotaMail($datos));
+            }
 
             } catch (Exception $e) {
             

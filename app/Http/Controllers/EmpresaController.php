@@ -79,7 +79,9 @@ class EmpresaController extends Controller
             'MP_ACCESS_TOKEN',
             'MP_PUBLIC_KEY',
             'client_secret',
-            'client_id'
+            'client_id',
+            'instanciaWS',
+            'tokenWS'
         ]));
         return redirect()->route('empresas.index')->with('status','Empresa '.$id->nombre.' agregada id:'.$id->id);
 
@@ -122,7 +124,9 @@ class EmpresaController extends Controller
             'MP_ACCESS_TOKEN',
             'MP_PUBLIC_KEY',
             'client_secret',
-            'client_id'
+            'client_id',
+            'instanciaWS',
+            'tokenWS'
         ]));
         return redirect()->route('empresas.index')
         ->with('status', 'Guardado correcto.');

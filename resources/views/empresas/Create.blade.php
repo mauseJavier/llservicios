@@ -80,6 +80,22 @@
         <label for="logo">URL del Logo de la Empresa</label>
         <input type="url" id="logo" name="logo" placeholder="https://ejemplo.com/logo.jpg" value="{{old('logo')}}">
         <small>URL del logo de la empresa (opcional).</small>
+
+        <!-- Sección WhatsApp -->
+        <h3>Configuración WhatsApp</h3>
+        <small>Configura las credenciales de WhatsApp para esta empresa (opcional).</small>
+        
+        <div class="grid">
+          <label for="instanciaWS">
+            Instancia WhatsApp
+            <input type="text" id="instanciaWS" name="instanciaWS" placeholder="Instancia WhatsApp" value="{{old('instanciaWS')}}">
+          </label>
+      
+          <label for="tokenWS">
+            Token WhatsApp
+            <input type="text" id="tokenWS" name="tokenWS" placeholder="Token WhatsApp" value="{{old('tokenWS')}}">
+          </label>
+        </div>
       
         <!-- Button -->
         <button type="submit">Guardar</button>

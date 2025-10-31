@@ -18,6 +18,22 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
+// ============================================================
+// DOCUMENTACIÓN DE LA API
+// ============================================================
+Route::prefix('docs')->group(function () {
+    Route::get('/', [App\Http\Controllers\Api\ApiDocumentationController::class, 'index'])
+        ->name('api.docs.index');
+    Route::get('/groups', [App\Http\Controllers\Api\ApiDocumentationController::class, 'groups'])
+        ->name('api.docs.groups');
+    Route::get('/{group}', [App\Http\Controllers\Api\ApiDocumentationController::class, 'show'])
+        ->name('api.docs.show');
+});
+
+// ============================================================
+// RUTAS DE LA API
+// ============================================================
+
 // Rutas para MercadoPago API Service
 Route::prefix('mercadopago-api')->group(function () {
     Route::post('/preference', [App\Http\Controllers\MercadoPagoApiController::class, 'createPreference']);
@@ -28,4 +44,23 @@ Route::prefix('mercadopago-api')->group(function () {
 });
 
 // Ruta pública para buscar cliente (sin middleware)
+            // Ejemplo de uso del endpoint /cliente/buscar
+            // GET /api/cliente/buscar?dni=12345678&correo=cliente@email.com&nombre=Juan&empresa_id=1&nombre_empresa=MiEmpresa
+
+            // Respuesta esperada:
+            // {
+            //   "success": true,
+            //   "data": {
+            //     "id": 1,
+            //     "dni": "12345678",
+            //     "nombre": "Juan Pérez",
+            //     "correo": "cliente@email.com",
+            //     "empresa_id": 1,
+            //     "empresa": {
+            //       "id": 1,
+            //       "nombre": "MiEmpresa"
+            //     }
+            //   }
+            // }
+
 Route::get('/cliente/buscar', [App\Http\Controllers\Api\ClienteApiController::class, 'buscarCliente']);

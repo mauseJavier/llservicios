@@ -408,6 +408,14 @@ class ServicioPagarController extends Controller
             'periodo_servicio' => $periodoServicio,
         ]);
 
+
+        $empresa = \App\Models\Empresa::find(Auth::user()->empresa_id);
+
+                // Enviar WhatsApp
+        // EnviarWhatsAppNuevoServicioJob::dispatch($id, $instanciaWS, $tokenWS);
+        \App\Jobs\EnviarWhatsAppNuevoServicioJob::dispatch($id, $empresa->instanciaWS, $empresa->tokenWS);
+
+
         // use App\Events\NuevoServicioPagarEvent;
         NuevoServicioPagarEvent::dispatch($id);
 
