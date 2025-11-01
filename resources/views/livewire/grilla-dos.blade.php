@@ -19,7 +19,7 @@
 
     </div>
 
-    <div class="container">
+    <div class="container-fluid">
         <div class="overflow-auto">
 
             <figure>

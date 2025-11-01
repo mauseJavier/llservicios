@@ -76,6 +76,9 @@ Route::middleware('auth')->group(function () {
             //Detalle de cliente con servicios vinculados
             Route::get('/DetalleCliente/{clienteId}', \App\Livewire\DetalleCliente::class)->name('DetalleCliente');
 
+            // Importar clientes desde CSV (Livewire)
+            Route::get('/ImportarClientesCSV', \App\Livewire\ImportarCliente::class)->name('ImportarClientesCSV');
+
             Route::resource('Cliente',ClienteController::class);
 
             Route::get('/BuscarCliente', [ClienteController::class, 'BuscarCliente'])->name('BuscarCliente');
