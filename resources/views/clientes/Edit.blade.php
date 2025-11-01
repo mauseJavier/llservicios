@@ -2,22 +2,22 @@
 
 @section('body')
 
-<nav>
-    <ul>
-        <li>
-            <h1>Editar: {{$Cliente->nombre}}</h1>
-        </li>
-        <li>
-          {{-- <input type="search" id="search" name="search" placeholder="Search"> --}}
-        </li>
-    </ul>
-    <ul>
-        <li>
-
-        </li>
-    </ul>
-</nav>
 <div class="container">
+    <nav>
+        <ul>
+            <li>
+                <h1>Editar: {{$Cliente->nombre}}</h1>
+            </li>
+            <li>
+              {{-- <input type="search" id="search" name="search" placeholder="Search"> --}}
+            </li>
+        </ul>
+        <ul>
+            <li>
+    
+            </li>
+        </ul>
+    </nav>
               {{-- nombre
               correo
               dni

@@ -423,4 +423,78 @@ class ServicioPagarController extends Controller
         
     }
 
+    /**
+     * Eliminar un servicio impago
+     * Solo puede ser eliminado por usuarios Admin (role_id = 2) o Super (role_id = 3)
+     * Y el servicio debe estar en estado 'impago'
+     */
+    public function EliminarServicioImpago($idServicioPagar)
+    {
+        try {
+            $usuario = Auth::user();
+
+            // Validación 1: Verificar que el usuario sea Admin (2) o Super (3)
+            if (!in_array($usuario->role_id, [2, 3])) {
+                return redirect()->back()
+                    ->withErrors(['No tienes permisos para eliminar servicios. Solo usuarios Admin o Super pueden hacerlo.']);
+            }
+
+            // Obtener el servicio a eliminar
+            $servicioPagar = ServicioPagar::find($idServicioPagar);
+
+            // Validación 2: Verificar que el servicio existe
+            if (!$servicioPagar) {
+                return redirect()->back()
+                    ->withErrors(['El servicio no existe.']);
+            }
+
+            // Validación 3: Verificar que el servicio pertenece a la empresa del usuario
+            $servicio = Servicio::find($servicioPagar->servicio_id);
+            if ($servicio->empresa_id != $usuario->empresa_id) {
+                return redirect()->back()
+                    ->withErrors(['No puedes eliminar servicios de otra empresa.']);
+            }
+
+            // Validación 4: Verificar que el servicio está en estado 'impago'
+            if ($servicioPagar->estado !== 'impago') {
+                return redirect()->back()
+                    ->withErrors(['Solo se pueden eliminar servicios en estado IMPAGO. Este servicio está: ' . strtoupper($servicioPagar->estado)]);
+            }
+
+            // Obtener información para el log antes de eliminar
+            $cliente = $servicioPagar->cliente;
+            $servicioNombre = $servicio->nombre;
+            $total = $servicioPagar->total;
+
+            // Eliminar el servicio
+            $servicioPagar->delete();
+
+            // Log de la eliminación
+            \Log::info('Servicio impago eliminado', [
+                'usuario_id' => $usuario->id,
+                'usuario_nombre' => $usuario->name,
+                'role_id' => $usuario->role_id,
+                'servicio_pagar_id' => $idServicioPagar,
+                'cliente' => $cliente->nombre ?? 'N/A',
+                'servicio' => $servicioNombre,
+                'total' => $total,
+                'fecha_eliminacion' => now()
+            ]);
+
+            return redirect()->route('ServiciosImpagos')
+                ->with('status', 'Servicio eliminado correctamente.');
+
+        } catch (\Exception $e) {
+            \Log::error('Error al eliminar servicio impago', [
+                'usuario_id' => Auth::id(),
+                'servicio_pagar_id' => $idServicioPagar,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()
+                ->withErrors(['Error al eliminar el servicio: ' . $e->getMessage()]);
+        }
+    }
+
 }

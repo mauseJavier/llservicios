@@ -26,7 +26,7 @@
 
 <div class="container">
 
-  <figure>
+  <figure class="overflow-auto">
     <table>
         <thead>
           <tr>

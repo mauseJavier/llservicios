@@ -234,73 +234,76 @@
     </nav>
 
   <figure>
-    <table>
-        <thead>
-          <tr>
-            <th scope="col">#</th>
-            <th scope="col">Cliente</th>
-            <th scope="col">Servicio</th>
-            <th scope="col">Forma de Pago 1</th>
-            <th scope="col">Importe 1</th>
-            <th scope="col">Forma de Pago 2</th>
-            <th scope="col">Importe 2</th>
-            <th scope="col">Total</th>
-            <th scope="col">Usuario</th>
-            <th scope="col">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-     
-          @foreach ($pagos as $e)
-
-  {{-- {
-    "id": 1,
-    "id_servicio_pagar": 8,
-    "id_usuario": 1,
-    "forma_pago": 3,
-    "importe": 4081.17,
-    "comentario": null,
-    "created_at": "2024-01-21 18:44:17",
-    "updated_at": "2024-01-21 18:44:17",
-    "nombreUsuario": "DESMARET JAVIER NICOLAS",
-    "Servicio": "Vito Daugherty",
-    "Cliente": "Mr. Keenan O'Connell DDS",
-    "idCliente": 1,
-    "formaPago": "MercadoPago"
-  }
-] --}}
-            <tr>              
-              <td>{{$e->id}}</td>
-              <td>{{$e->Cliente}}</td>
-              <td>{{$e->Servicio}}</td>
-              <td>{{$e->formaPago}}</td>
-              <td>${{number_format($e->importe, 2)}}</td>
-              <td>
-                @if($e->formaPago2)
-                  {{$e->formaPago2}}
-                @else
-                  <small style="color: #999;">-</small>
-                @endif
-              </td>
-              <td>
-                @if($e->importe2 && $e->importe2 > 0)
-                  ${{number_format($e->importe2, 2)}}
-                @else
-                  <small style="color: #999;">-</small>
-                @endif
-              </td>
-              <td>
-                <strong>${{number_format($e->importe + ($e->importe2 ?? 0), 2)}}</strong>
-              </td>
-              <td>{{$e->nombreUsuario}}</td>
-              <th>                  
-                  <strong><a href="{{route('PagosVer',['idServicioPagar'=>$e->idServicioPagar])}}" data-tooltip="Ver Pago">Ver</a></strong>
-              </th>
+    <div class="overflow-auto">
+      <table>
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Cliente</th>
+              <th scope="col">Servicio</th>
+              <th scope="col">Forma de Pago 1</th>
+              <th scope="col">Importe 1</th>
+              <th scope="col">Forma de Pago 2</th>
+              <th scope="col">Importe 2</th>
+              <th scope="col">Total</th>
+              <th scope="col">Usuario</th>
+              <th scope="col">Acciones</th>
             </tr>
-          @endforeach
-        
-        </tfoot>
-    </table>
+          </thead>
+          <tbody>
+      
+            @foreach ($pagos as $e)
+
+            {{-- {
+              "id": 1,
+              "id_servicio_pagar": 8,
+              "id_usuario": 1,
+              "forma_pago": 3,
+              "importe": 4081.17,
+              "comentario": null,
+              "created_at": "2024-01-21 18:44:17",
+              "updated_at": "2024-01-21 18:44:17",
+              "nombreUsuario": "DESMARET JAVIER NICOLAS",
+              "Servicio": "Vito Daugherty",
+              "Cliente": "Mr. Keenan O'Connell DDS",
+              "idCliente": 1,
+              "formaPago": "MercadoPago"
+            }
+          ] --}}
+
+              <tr>
+                <td>{{$e->id}}</td>
+                <td>{{$e->Cliente}}</td>
+                <td>{{$e->Servicio}}</td>
+                <td>{{$e->formaPago}}</td>
+                <td>${{number_format($e->importe, 2)}}</td>
+                <td>
+                  @if($e->formaPago2)
+                    {{$e->formaPago2}}
+                  @else
+                    <small style="color: #999;">-</small>
+                  @endif
+                </td>
+                <td>
+                  @if($e->importe2 && $e->importe2 > 0)
+                    ${{number_format($e->importe2, 2)}}
+                  @else
+                    <small style="color: #999;">-</small>
+                  @endif
+                </td>
+                <td>
+                  <strong>${{number_format($e->importe + ($e->importe2 ?? 0), 2)}}</strong>
+                </td>
+                <td>{{$e->nombreUsuario}}</td>
+                <th>                  
+                    <strong><a href="{{route('PagosVer',['idServicioPagar'=>$e->idServicioPagar])}}" data-tooltip="Ver Pago">Ver</a></strong>
+                </th>
+              </tr>
+            @endforeach
+          
+          </tfoot>
+      </table>
+    </div>
 </figure>
 
 

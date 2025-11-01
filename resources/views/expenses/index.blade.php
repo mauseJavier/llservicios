@@ -34,7 +34,7 @@
     </article>
   @endif
 
-  <figure>
+  <figure class="overflow-auto">
     <table>
         <thead>
           <tr>
@@ -74,7 +74,7 @@
         
         </tbody>
     </table>
-</figure>
+  </figure>
 
 @if (method_exists($expenses, 'currentPage'))   
   {{-- //PAGINACION --}}

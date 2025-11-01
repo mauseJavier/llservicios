@@ -39,7 +39,7 @@
 </div>
 <div class="container">
 
-  <figure>
+  <figure class="overflow-auto">
     <table>
         <thead>
           <tr>
@@ -66,13 +66,32 @@
               <th>                  
                   <strong><a href="{{route('PagarServicio',['idServicioPagar'=>$e->idServicioPagar,'importe'=>$e->total])}}" data-tooltip="Pagar">Pagar</a></strong> | 
                   <strong><a href="{{route('NotificacionNuevoServicio',['idServicioPagar'=>$e->idServicioPagar])}}"  data-tooltip="Enviar Notificacion">Enviar Notif.</a></strong>
+                  
+                  @if(Auth::user()->role_id == 2 || Auth::user()->role_id == 3)
+                    | 
+                    <strong>
+                      <a href="#" 
+                         onclick="event.preventDefault(); if(confirm('¿Está seguro que desea eliminar este servicio impago?\n\nCliente: {{$e->nombreCliente}}\nServicio: {{$e->nombreServicio}}\nTotal: ${{$e->total}}\n\nEsta acción no se puede deshacer.')) { document.getElementById('delete-form-{{$e->idServicioPagar}}').submit(); }" 
+                         data-tooltip="Eliminar (Solo Admin/Super)"
+                         style="color: #d32f2f;">
+                        Eliminar
+                      </a>
+                    </strong>
+                    <form id="delete-form-{{$e->idServicioPagar}}" 
+                          action="{{route('EliminarServicioImpago', ['idServicioPagar' => $e->idServicioPagar])}}" 
+                          method="POST" 
+                          style="display: none;">
+                      @csrf
+                      @method('DELETE')
+                    </form>
+                  @endif
               </th>
             </tr>
           @endforeach
         
         </tfoot>
     </table>
-</figure>
+  </figure>
 
 
 

@@ -73,6 +73,8 @@ Route::middleware('auth')->group(function () {
             //Ver cliente Livewire
             Route::get('/VerCliente', \App\Livewire\VerCliente\VerCliente::class)->name('VerCliente');
 
+            //Detalle de cliente con servicios vinculados
+            Route::get('/DetalleCliente/{clienteId}', \App\Livewire\DetalleCliente::class)->name('DetalleCliente');
 
             Route::resource('Cliente',ClienteController::class);
 
@@ -101,6 +103,7 @@ Route::middleware('auth')->group(function () {
             Route::post('ConfirmarPago', [ServicioPagarController::class, 'ConfirmarPago'])->name('ConfirmarPago');
             Route::get('NuevoCobro', [ServicioPagarController::class, 'NuevoCobro'])->name('NuevoCobro'); 
             Route::post('AgregarNuevoCobro', [ServicioPagarController::class, 'AgregarNuevoCobro'])->name('AgregarNuevoCobro');
+            Route::delete('EliminarServicioImpago/{idServicioPagar}', [ServicioPagarController::class, 'EliminarServicioImpago'])->name('EliminarServicioImpago');
 
 
             //CORREOS 

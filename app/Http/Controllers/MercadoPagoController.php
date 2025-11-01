@@ -79,7 +79,6 @@ class MercadoPagoController extends Controller
                     $checkoutUrl = config('services.mercadopago.sandbox') 
                         ? $result['sandbox_init_point'] 
                         : $result['init_point'];
-                    
                     return redirect($checkoutUrl);
                 }
             } else {
