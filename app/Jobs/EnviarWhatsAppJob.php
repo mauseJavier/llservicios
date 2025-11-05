@@ -18,6 +18,8 @@ class EnviarWhatsAppJob implements ShouldQueue
     protected $message;
     protected $type;
     protected $additionalData;
+    protected $instanciaWS;
+    protected $tokenWS;
 
     /**
      * Número de intentos antes de fallar
@@ -37,12 +39,14 @@ class EnviarWhatsAppJob implements ShouldQueue
      * @param string $type Tipo: 'text', 'document', 'image'
      * @param array $additionalData Datos adicionales (caption, filename, etc)
      */
-    public function __construct(string $phoneNumber, string $message, string $type = 'text', array $additionalData = [])
+    public function __construct(array $datos)
     {
-        $this->phoneNumber = $phoneNumber;
-        $this->message = $message;
-        $this->type = $type;
-        $this->additionalData = $additionalData;
+        $this->phoneNumber = $datos['phoneNumber'] ?? null;
+        $this->message = $datos['message'] ?? null;
+        $this->type = $datos['type'] ?? 'text';
+        $this->additionalData = $datos['additionalData'] ?? [];
+        $this->instanciaWS = $datos['instanciaWS'] ?? null;
+        $this->tokenWS = $datos['tokenWS'] ?? null;
     }
 
     /**
@@ -50,8 +54,14 @@ class EnviarWhatsAppJob implements ShouldQueue
      *
      * @return void
      */
-    public function handle(WhatsAppService $whatsappService)
+    public function handle()
     {
+        $whatsappService = app()->make(WhatsAppService::class, [
+
+            'instanciaWS' => $this->instanciaWS ?? null,
+            'tokenWS' => $this->tokenWS ?? null,
+        ]);
+    
         Log::info('WhatsApp Job - Iniciando envío', [
             'phone' => $this->phoneNumber,
             'type' => $this->type,
@@ -70,7 +80,8 @@ class EnviarWhatsAppJob implements ShouldQueue
                     $this->message, // URL del documento
                     $this->additionalData['filename'] ?? 'documento.pdf',
                     $this->additionalData['caption'] ?? null,
-                    $this->additionalData
+                    $this->additionalData,
+                    $this->additionalData['base64'] ?? null
                 ),
                 'image' => $whatsappService->sendImage(
                     $this->phoneNumber,

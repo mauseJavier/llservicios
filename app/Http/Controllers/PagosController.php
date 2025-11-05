@@ -47,6 +47,7 @@ class PagosController extends Controller
         $fechaFin = $request->get('fecha_fin');
 
         $buscar = $request->get('buscar');
+        $usuarioId = $request->get('usuario_id');
         
         // Construir condiciones de fecha
         $condicionFecha = '';
@@ -75,6 +76,13 @@ class PagosController extends Controller
             $parametros[] = '%' . $buscar . '%';
         }
 
+        // Añadir filtro por usuario si existe
+        $condicionUsuario = '';
+        if ($usuarioId) {
+            $condicionUsuario = ' AND a.id_usuario = ?';
+            $parametros[] = $usuarioId;
+        }
+
         $datos = DB::select('SELECT
                                     a.*,
                                     b.id as idServicioPagar,
@@ -94,7 +102,7 @@ class PagosController extends Controller
                                     LEFT JOIN forma_pagos f2 ON a.forma_pago2 = f2.id
                                     INNER JOIN cliente_empresa g ON e.id = g.cliente_id
                                 WHERE
-                                    g.empresa_id = ?' . $condicionFecha . $condicionBusqueda, $parametros);
+                                    g.empresa_id = ?' . $condicionFecha . $condicionBusqueda . $condicionUsuario, $parametros);
 
         // Obtener resumen de pagos por forma de pago con filtros de fecha y empresa
         // Necesitamos filtros separados para el resumen ya que la estructura de la consulta es diferente
@@ -123,6 +131,13 @@ class PagosController extends Controller
             $parametrosResumen[] = '%' . $buscar . '%';
         }
 
+        // Añadir filtro por usuario al resumen
+        $condicionUsuarioResumen = '';
+        if ($usuarioId) {
+            $condicionUsuarioResumen = ' AND a.id_usuario = ?';
+            $parametrosResumen[] = $usuarioId;
+        }
+
         // Duplicar parámetros para el UNION ALL (segunda consulta usa los mismos filtros)
         $parametrosResumenCompletos = array_merge($parametrosResumen, $parametrosResumen);
 
@@ -136,7 +151,7 @@ class PagosController extends Controller
                                         INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
                                         INNER JOIN clientes e ON b.cliente_id = e.id
                                         INNER JOIN cliente_empresa g ON e.id = g.cliente_id
-                                    WHERE 1=1' . $condicionFechaResumen . $condicionBusquedaResumen . '
+                                    WHERE 1=1' . $condicionFechaResumen . $condicionBusquedaResumen . $condicionUsuarioResumen . '
                                     GROUP BY
                                         f.id, f.nombre
                                     
@@ -152,7 +167,7 @@ class PagosController extends Controller
                                         INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
                                         INNER JOIN clientes e ON b.cliente_id = e.id
                                         INNER JOIN cliente_empresa g ON e.id = g.cliente_id
-                                    WHERE a.forma_pago2 IS NOT NULL' . $condicionFechaResumen . $condicionBusquedaResumen . '
+                                    WHERE a.forma_pago2 IS NOT NULL' . $condicionFechaResumen . $condicionBusquedaResumen . $condicionUsuarioResumen . '
                                     GROUP BY
                                         f2.id, f2.nombre', $parametrosResumenCompletos);
 
@@ -203,8 +218,15 @@ class PagosController extends Controller
             
                 // return $pagos;
 
+                // Obtener usuarios de la empresa para el filtro
+                $usuarios = \App\Models\User::where('empresa_id', $empresaId)
+                    ->orderBy('name', 'asc')
+                    ->get();
 
-                return view('pagos.pagos', compact('pagos', 'resumenPagos', 'fechaInicio', 'fechaFin', 'buscar'))->render();
+                //agregar a los usuarios el usuario email like %pago% que es para todas las empresass
+                $usuarios->push(\App\Models\User::where('email', 'like', '%pago%')->first());
+
+                return view('pagos.pagos', compact('pagos', 'resumenPagos', 'fechaInicio', 'fechaFin', 'buscar', 'usuarios', 'usuarioId'))->render();
     }
 
     public function PagosVer ($idServicioPagar){
@@ -593,9 +615,10 @@ class PagosController extends Controller
                 // Crear registro en la tabla pagos
                 // Buscar el id de forma de pago correspondiente a MercadoPago
                 $formaPagoId = \App\Models\FormaPago::where('nombre', 'like', '%mercadopago%')->value('id') ?? 1;
+                $idUsuarioPago = \App\Models\User::where('email','like', '%pago%')->value('id') ?? 1; // Ajustar según tu lógica
                 Pagos::create([
                     'id_servicio_pagar' => $servicioPagar->id,
-                    'id_usuario' => Auth::id(),
+                    'id_usuario' => $idUsuarioPago,
                     'forma_pago' => $formaPagoId,
                     'importe' => $servicioPagar->total,
                     'comentario' => 'Pago procesado por MercadoPago. Payment ID: ' . $payment_id

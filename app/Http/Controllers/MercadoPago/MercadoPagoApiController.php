@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\MercadoPago;
 
-use App\Services\MercadoPagoApiService;
+use App\Http\Controllers\Controller;
+use App\Services\MercadoPago\MercadoPagoApiService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;

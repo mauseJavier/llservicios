@@ -28,4 +28,29 @@ class Empresa extends Model
     {
         return $this->belongsToMany(Cliente::class, 'cliente_empresa', 'empresa_id', 'cliente_id');
     }
+
+    /**
+     * Relación con tiendas de MercadoPago
+     */
+    public function mercadopagoStores(): HasMany
+    {
+        return $this->hasMany(MercadoPagoStore::class, 'empresa_id', 'id');
+    }
+
+    /**
+     * Verificar si tiene credenciales de MercadoPago configuradas
+     */
+    public function hasMercadoPagoConfigured(): bool
+    {
+        return !empty($this->MP_ACCESS_TOKEN) && !empty($this->MP_PUBLIC_KEY);
+    }
+
+        /**
+     * Relación con gastos (expenses)
+     */
+    public function expenses()
+    {
+        return $this->hasMany(Expense::class, 'empresa_id', 'id');
+    }
+
 }

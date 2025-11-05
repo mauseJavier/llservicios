@@ -11,6 +11,8 @@ use App\Models\FormaPago;
 use App\Models\Pagos;
 use App\Models\Servicio;
 use App\Models\ServicioPagar;
+use App\Models\Cliente;
+use App\Models\Empresa;
 
 
 use App\Events\PagoServicioEvent;
@@ -23,8 +25,48 @@ use Illuminate\Support\Collection;
 
 use Barryvdh\DomPDF\Facade\Pdf;
 
+use App\Jobs\EnviarWhatsAppJob;
+
 class ServicioPagarController extends Controller
 {
+
+    /**
+     * Genera un PDF pequeño con los datos del pago y retorna el archivo en base64
+     *
+     * El array $datosPago debe contener las siguientes claves:
+     *  - nombreCliente: string
+     *  - dniCliente: string
+     *  - nombreServicio: string
+     *  - nombreEmpresa: string
+     *  - cantidad: int|float
+     *  - precioUnitario: float
+     *  - forma_pago: string
+     *  - importe: float (opcional, si hay un solo pago)
+     *  - forma_pago2: string (opcional, si hay dos formas de pago)
+     *  - importe2: float (opcional, si hay dos formas de pago)
+     *  - comentario: string (opcional)
+     *  - fechaPago: string (opcional, formato d/m/Y H:i)
+     *
+     * @param array $datosPago Datos requeridos para el comprobante
+     * @return string base64
+     */
+    public function GenerarComprobantePagoPDFBase64(array $datosPago)
+    {
+        // Plantilla simple en HTML para el PDF
+        $html = view('pdf.comprobante_pago', $datosPago)->render();
+
+        // Generar el PDF usando DomPDF
+        $pdf = Pdf::loadHTML($html)->setPaper('a6'); // a6: pequeño
+
+        // Obtener el contenido binario del PDF
+        $output = $pdf->output();
+
+        // Codificar en base64
+        $base64 = base64_encode($output);
+
+        return $base64;
+    }
+
     
     public function ServiciosImpagos(Request $request){
 
@@ -236,9 +278,15 @@ class ServicioPagarController extends Controller
         // return $request;
 
         $usuario = Auth::user();
+        $empresa = Empresa::find($usuario->empresa_id);
         
         // Obtener el servicio_pagar para actualizar el precio si hubo ajuste
         $servicioPagar = ServicioPagar::findOrFail($request->idServicioPagar);
+
+        $cliente = Cliente::find($servicioPagar->cliente_id);
+
+        $nombreFormaPago1 = FormaPago::find($request->formaPago)->nombre;
+        $nombreFormaPago2 = $request->formaPago2 ? FormaPago::find($request->formaPago2)->nombre : null;
         
         // Si se aplicó un ajuste, actualizar el precio en servicio_pagar
         if ($request->filled('aplicarAjuste') && $request->aplicarAjuste) {
@@ -279,6 +327,9 @@ class ServicioPagarController extends Controller
                         date('Y-m-d H:i:s'),
                         $request->idServicioPagar]);
 
+
+
+
             // Preparar datos del pago
             $pago = ['idServicioPagar'=>$request->idServicioPagar,
                         'idUsuario'=>$usuario->id,
@@ -292,10 +343,73 @@ class ServicioPagarController extends Controller
                      
             PagoServicioEvent::dispatch($pago);
 
+            // Aquí tengo que hacer una notificación
+            ////////////////////////////////777
+            // app/Jobs/EnviarWhatsAppJob.php
+
+            //crear un mensaje personalizado con los datos del pago y del cliente y de la empresa 
+
+            $mensaje = "Hola {$cliente->nombre},\n\n";
+            $mensaje .= "Le informamos que hemos recibido su pago.\n";
+            $mensaje .= "Detalles del pago:\n";
+            $mensaje .= "• Servicio: {$servicioPagar->servicio->nombre}\n";
+
+            // Verificar si hay dos formas de pago
+            if ($request->filled('formaPago2') && $request->importe2 > 0) {
+                $mensaje .= "• Forma de pago 1: {$nombreFormaPago1} - \${$request->importe1}\n";
+                $mensaje .= "• Forma de pago 2: {$nombreFormaPago2} - \${$request->importe2}\n";
+                $mensaje .= "• Total pagado: \$" . ($request->importe1 + $request->importe2) . "\n";
+            } else {
+                $mensaje .= "• Forma de pago: {$nombreFormaPago1}\n";
+                $mensaje .= "• Importe: \${$request->importe1}\n";
+            }
+
+            $mensaje .= "• Fecha: " . now()->format('d/m/Y H:i') . "\n\n";
+            $mensaje .= "¡Gracias por su preferencia!";
+
+            $datos = [
+                'phoneNumber' => $cliente->telefono,
+                'message' => $mensaje,
+                'type' => 'text',
+                'additionalData' => [],
+                'instanciaWS' => $empresa->instanciaWS ?? null,
+                'tokenWS' => $empresa->tokenWS ?? null
+            ];
+            EnviarWhatsAppJob::dispatch($datos);
+
+            $datosPDF = [
+                'nombreCliente' => $cliente->nombre,
+                'dniCliente' => $cliente->dni,
+                'nombreServicio' => $servicioPagar->servicio->nombre,
+                'nombreEmpresa' => $empresa->nombre,
+                'cantidad' => $servicioPagar->cantidad,
+                'precioUnitario' => $servicioPagar->precio,
+                'forma_pago' => $nombreFormaPago1,
+                'importe' => $request->importe1,
+                'forma_pago2' => $nombreFormaPago2,
+                'importe2' => $request->importe2,
+                'comentario' => $comentarioFinal,
+                'fechaPago' => now()->format('d/m/Y H:i'),
+                'logoEmpresa' => $empresa->logo,
+            ];
 
 
-            if (isset( $request->comprobantePDF)){
-                
+            $datos = [
+                'phoneNumber' => $cliente->telefono,
+                'message' => 'Comprobante de Pago adjunto.',
+                'type' => 'document',
+                'additionalData' => [
+                    'filename' => 'comprobante_pago.pdf',
+                    'caption' => 'Comprobante de Pago',
+                    'base64' => $this->GenerarComprobantePagoPDFBase64($datosPDF)   
+                ],
+                'instanciaWS' => $empresa->instanciaWS ?? null,
+                'tokenWS' => $empresa->tokenWS ?? null
+            ];
+            EnviarWhatsAppJob::dispatch($datos);
+
+
+            if (isset( $request->comprobantePDF)){    
 
 
 
@@ -494,6 +608,133 @@ class ServicioPagarController extends Controller
 
             return redirect()->back()
                 ->withErrors(['Error al eliminar el servicio: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Contar la cantidad de servicios impagos de la empresa
+     * Retorna el número total de registros que cumplen los criterios
+     */
+    public function ContarServiciosImpagos()
+    {
+        try {
+            $usuario = Auth::user();
+
+            $resultado = DB::select('SELECT COUNT(*) as total
+                                FROM
+                                    servicio_pagar a,
+                                    servicios b,
+                                    empresas c,
+                                    clientes e
+                                WHERE
+                                    a.servicio_id = b.id 
+                                    AND b.empresa_id = c.id 
+                                    AND a.cliente_id = e.id 
+                                    AND a.estado = ? 
+                                    AND c.id = ?', 
+                                ['impago', $usuario->empresa_id]);
+
+            $total = $resultado[0]->total ?? 0;
+
+            return response()->json([
+                'success' => true,
+                'total' => $total,
+                'mensaje' => "Se encontraron {$total} servicios impagos."
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error al contar servicios impagos', [
+                'usuario_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al contar los servicios: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Eliminar múltiples servicios impagos de la empresa
+     * Solo puede ser ejecutado por usuarios Admin (role_id = 2) o Super (role_id = 3)
+     * Elimina todos los servicios impagos que pertenecen a la empresa del usuario
+     * 
+     * @param Request $request - Puede incluir confirmación
+     */
+    public function EliminarTodosServiciosImpagos(Request $request)
+    {
+        try {
+            $usuario = Auth::user();
+
+            // Validación 1: Verificar que el usuario sea Admin (2) o Super (3)
+            if (!in_array($usuario->role_id, [2, 3])) {
+                return redirect()->back()
+                    ->withErrors(['No tienes permisos para eliminar servicios. Solo usuarios Admin o Super pueden hacerlo.']);
+            }
+
+            // // Validación 2: Verificar confirmación (opcional pero recomendado)
+            // if (!$request->has('confirmar') || $request->confirmar !== 'SI') {
+            //     return redirect()->back()
+            //         ->withErrors(['Debes confirmar la eliminación enviando "confirmar=SI" en la petición.']);
+            // }
+
+            // Obtener todos los IDs de servicios impagos de la empresa
+            $serviciosImpagos = DB::select('SELECT a.id AS idServicioPagar
+                                FROM
+                                    servicio_pagar a,
+                                    servicios b,
+                                    empresas c,
+                                    clientes e
+                                WHERE
+                                    a.servicio_id = b.id 
+                                    AND b.empresa_id = c.id 
+                                    AND a.cliente_id = e.id 
+                                    AND a.estado = ? 
+                                    AND c.id = ?', 
+                                ['impago', $usuario->empresa_id]);
+
+            $totalServicios = count($serviciosImpagos);
+
+            if ($totalServicios === 0) {
+                return redirect()->route('ServiciosImpagos')
+                    ->with('status', 'No hay servicios impagos para eliminar.');
+            }
+
+            // Extraer los IDs
+            $ids = array_map(function($servicio) {
+                return $servicio->idServicioPagar;
+            }, $serviciosImpagos);
+
+            // Eliminar todos los servicios impagos
+            $eliminados = ServicioPagar::whereIn('id', $ids)
+                ->where('estado', 'impago')
+                ->delete();
+
+            // Log de la eliminación masiva
+            \Log::info('Eliminación masiva de servicios impagos', [
+                'usuario_id' => $usuario->id,
+                'usuario_nombre' => $usuario->name,
+                'role_id' => $usuario->role_id,
+                'empresa_id' => $usuario->empresa_id,
+                'total_eliminados' => $eliminados,
+                'ids_eliminados' => $ids,
+                'fecha_eliminacion' => now()
+            ]);
+
+            return redirect()->route('ServiciosImpagos')
+                ->with('status', "Se eliminaron correctamente {$eliminados} servicios impagos.");
+
+        } catch (\Exception $e) {
+            \Log::error('Error al eliminar servicios impagos masivamente', [
+                'usuario_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()
+                ->withErrors(['Error al eliminar los servicios: ' . $e->getMessage()]);
         }
     }
 

@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\MercadoPago;
 
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Services\MercadoPagoService;
+use App\Services\MercadoPago\MercadoPagoService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 

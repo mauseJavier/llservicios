@@ -60,7 +60,7 @@
 
 
             <!-- Estado del Filtro -->
-    @if($fechaInicio || $fechaFin)
+    @if($fechaInicio || $fechaFin || $usuarioId)
         <div class="estado-filtro activo">
           <div class="estado-content">
             <span class="estado-icon">✅</span>
@@ -76,6 +76,14 @@
                 Desde {{ \Carbon\Carbon::parse($fechaInicio)->format('d/m/Y') }}
               @elseif($fechaFin)
                 Hasta {{ \Carbon\Carbon::parse($fechaFin)->format('d/m/Y') }}
+              @endif
+              @if($usuarioId)
+                @php
+                  $usuarioSeleccionado = $usuarios->firstWhere('id', $usuarioId);
+                @endphp
+                @if($usuarioSeleccionado)
+                  <br>👤 Usuario: <strong>{{ $usuarioSeleccionado->name }}</strong>
+                @endif
               @endif
             </div>
           </div>
@@ -109,6 +117,19 @@
             <input type="date" id="fecha_fin" name="fecha_fin" 
                    value="{{ $fechaFin }}" 
                    class="input-fecha">
+          </div>
+
+          <div class="input-group">
+            <label for="usuario_id">👤 Usuario:</label>
+            <select id="usuario_id" name="usuario_id" class="input-fecha">
+              <option value="">Todos los usuarios</option>
+              @foreach($usuarios as $usuario)
+                <option value="{{ $usuario->id }}" 
+                  {{ (isset($usuarioId) && $usuarioId == $usuario->id) ? 'selected' : '' }}>
+                  {{ $usuario->name }}
+                </option>
+              @endforeach
+            </select>
           </div>
           
         </div>
@@ -197,7 +218,7 @@
     <article style="margin-bottom: 1rem; background: #4543d1ff; border-left: 4px solid #2196f3;">
       <p style="margin: 0;">
         🔍 <strong>Búsqueda activa:</strong> Filtrando por cliente que coincida con "{{ $buscar }}"
-        <a href="{{route('Pagos', ['fecha_inicio' => $fechaInicio, 'fecha_fin' => $fechaFin])}}" style="margin-left: 1rem;">
+        <a href="{{route('Pagos', ['fecha_inicio' => $fechaInicio, 'fecha_fin' => $fechaFin, 'usuario_id' => $usuarioId])}}" style="margin-left: 1rem;">
           ✖ Limpiar
         </a>
       </p>
@@ -215,9 +236,10 @@
                           value="{{$buscar}}"
                       @endif  placeholder="Buscar por cliente (nombre, correo, DNI)...">
                       
-                      {{-- Mantener los filtros de fecha al buscar --}}
+                      {{-- Mantener los filtros de fecha y usuario al buscar --}}
                       <input type="hidden" name="fecha_inicio" value="{{ $fechaInicio }}">
                       <input type="hidden" name="fecha_fin" value="{{ $fechaFin }}">
+                      <input type="hidden" name="usuario_id" value="{{ $usuarioId }}">
                   </div>
               </form>
             </li>
@@ -225,7 +247,7 @@
         <ul>
             @if(isset($buscar) && $buscar)
                 <li>
-                    <a href="{{route('Pagos', ['fecha_inicio' => $fechaInicio, 'fecha_fin' => $fechaFin])}}" role="button" class="secondary">
+                    <a href="{{route('Pagos', ['fecha_inicio' => $fechaInicio, 'fecha_fin' => $fechaFin, 'usuario_id' => $usuarioId])}}" role="button" class="secondary">
                         Limpiar búsqueda
                     </a>
                 </li>

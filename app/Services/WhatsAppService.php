@@ -107,7 +107,7 @@ class WhatsAppService
      * @param array $options Opciones adicionales
      * @return array
      */
-    public function sendDocument(string $phoneNumber, string $documentUrl, string $filename, ?string $caption = null, array $options = []): array
+    public function sendDocument(string $phoneNumber, string $documentUrl, string $filename, ?string $caption = null, array $options = [], ?string $base64 = null): array
     {
         try {
             Log::info('WhatsApp - Enviando documento', [
@@ -126,7 +126,9 @@ class WhatsAppService
             // Preparar el payload según la API de Evolution
             $payload = [
                 'number' => $phoneNumber,
-                'media' => $documentUrl,
+                'mediatype' => 'document',
+                'mimetype' => 'application/pdf',
+                'media' => $base64 ?? $documentUrl,
                 'fileName' => $filename,
                 'delay' => $options['delay'] ?? 0,
             ];

@@ -37,6 +37,7 @@ return [
         'app_id' => env('MERCADOPAGO_APP_ID'),
         'client_secret' => env('MERCADOPAGO_CLIENT_SECRET'),
         'sandbox' => env('MERCADOPAGO_SANDBOX', true),
+        'user_id' => env('MERCADOPAGO_USER_ID', '105046639'),
     ],
 
     'whatsapp' => [

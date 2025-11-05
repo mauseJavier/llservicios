@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Services;
 
-use App\Services\MercadoPagoApiService;
+use App\Services\MercadoPago\MercadoPagoApiService;
 use Tests\TestCase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Config;

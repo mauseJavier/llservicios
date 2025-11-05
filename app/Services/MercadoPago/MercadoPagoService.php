@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\MercadoPago;
 
 use MercadoPago\SDK;
 use MercadoPago\Preference;

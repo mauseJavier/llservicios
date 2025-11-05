@@ -175,4 +175,132 @@ class ClienteApiController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Guardar un nuevo cliente y vincularlo a una empresa
+     * Si el cliente ya existe (mismo nombre), devuelve el cliente existente
+     * 
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function guardarCliente(Request $request): JsonResponse
+    {
+        try {
+            // Validar los datos del cliente
+            $validated = $request->validate([
+                'nombre' => 'required|string|max:255',
+                'correo' => 'nullable|email|max:255',
+                'telefono' => 'nullable|string|max:255',
+                'dni' => 'nullable|integer',
+                'domicilio' => 'nullable|string|max:255',
+                'empresa_id' => 'required|integer|exists:empresas,id',
+            ]);
+
+            // Verificar si ya existe un cliente con el mismo nombre
+            $clienteExistente = Cliente::where('nombre', $validated['nombre'])->first();
+
+            if ($clienteExistente) {
+                // Cliente ya existe, verificar si ya está vinculado a la empresa
+                $yaVinculado = $clienteExistente->empresas()->where('empresa_id', $validated['empresa_id'])->exists();
+
+                if (!$yaVinculado) {
+                    // Vincular el cliente existente con la empresa
+                    $clienteExistente->empresas()->attach($validated['empresa_id']);
+                }
+
+                // Cargar la relación de empresas
+                $clienteExistente->load('empresas');
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Cliente ya existente. Se vinculó a la empresa solicitada.',
+                    'cliente_existente' => true,
+                    'data' => [
+                        'cliente' => [
+                            'id' => $clienteExistente->id,
+                            'nombre' => $clienteExistente->nombre,
+                            'correo' => $clienteExistente->correo,
+                            'telefono' => $clienteExistente->telefono,
+                            'dni' => $clienteExistente->dni,
+                            'domicilio' => $clienteExistente->domicilio,
+                            'created_at' => $clienteExistente->created_at,
+                            'updated_at' => $clienteExistente->updated_at,
+                        ],
+                        'empresas' => $clienteExistente->empresas->map(function ($empresa) {
+                            return [
+                                'id' => $empresa->id,
+                                'nombre' => $empresa->nombre,
+                            ];
+                        })
+                    ]
+                ], 200);
+            }
+
+            // Validar DNI único solo si se proporciona y no existe el cliente
+            if (isset($validated['dni'])) {
+                $dniExistente = Cliente::where('dni', $validated['dni'])->first();
+                if ($dniExistente) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'El DNI ya está registrado para otro cliente',
+                        'errors' => [
+                            'dni' => ['El DNI ya ha sido registrado.']
+                        ]
+                    ], 422);
+                }
+            }
+
+            // Crear el cliente
+            $cliente = Cliente::create([
+                'nombre' => $validated['nombre'],
+                'correo' => $validated['correo'] ?? null,
+                'telefono' => $validated['telefono'] ?? null,
+                'dni' => $validated['dni'] ?? null,
+                'domicilio' => $validated['domicilio'] ?? null,
+            ]);
+
+            // Vincular el cliente con la empresa
+            $cliente->empresas()->attach($validated['empresa_id']);
+
+            // Cargar la relación de empresas para devolverla en la respuesta
+            $cliente->load('empresas');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cliente creado y vinculado exitosamente',
+                'cliente_existente' => false,
+                'data' => [
+                    'cliente' => [
+                        'id' => $cliente->id,
+                        'nombre' => $cliente->nombre,
+                        'correo' => $cliente->correo,
+                        'telefono' => $cliente->telefono,
+                        'dni' => $cliente->dni,
+                        'domicilio' => $cliente->domicilio,
+                        'created_at' => $cliente->created_at,
+                        'updated_at' => $cliente->updated_at,
+                    ],
+                    'empresas' => $cliente->empresas->map(function ($empresa) {
+                        return [
+                            'id' => $empresa->id,
+                            'nombre' => $empresa->nombre,
+                        ];
+                    })
+                ]
+            ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al guardar el cliente',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

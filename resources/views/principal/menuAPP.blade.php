@@ -5,10 +5,14 @@
 
           <li>
             
-            <img class="imagenLogo" src="{{session('logoEmpresa')}}" alt=""  >
-            <a href="{{route('panelServicios')}}" class="contrast" 
-              ><strong>LL Servicios</strong></a
-            >
+            <img class="imagenLogo" src="{{session('logoEmpresa')}}" alt="" style="border-radius: 50%; object-fit: cover;">
+            <a href="{{route('panelServicios')}}" class="contrast">
+                @auth
+                  <strong>{{ \App\Models\Empresa::find(Auth()->user()->empresa_id)->nombre }}</strong>
+                @else
+                  <strong>Panel de Servicios</strong>
+                @endauth
+            </a>
           </li>
 
         </ul>
@@ -33,6 +37,8 @@
         
                   <li><a href="{{route('expenses.index')}}">Gastos</a></li>
                   <li><a href="{{route('cierre-caja')}}">Cierre de Caja</a></li>
+
+                  <li><a href="{{route('mercadopago.qr-manager')}}">Gestión QR MP</a></li>
               
                 @endif
         

@@ -4,7 +4,7 @@ namespace Tests\Unit\Controllers;
 
 use Tests\TestCase;
 use App\Http\Controllers\PagosController;
-use App\Services\MercadoPagoApiService;
+use App\Services\MercadoPago\MercadoPagoApiService;
 use App\Models\ServicioPagar;
 use App\Models\Cliente;
 use App\Models\Servicio;

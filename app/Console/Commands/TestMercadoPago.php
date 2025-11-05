@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Services\MercadoPagoService;
+use App\Services\MercadoPago\MercadoPagoService;
 
 class TestMercadoPago extends Command
 {

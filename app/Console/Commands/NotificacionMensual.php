@@ -118,12 +118,17 @@ class NotificacionMensual extends Command
                     $mensajeWhatsApp = $this->generarMensajeWhatsApp($datos);
                     
                     // Despachar Job para envío asíncrono
-                    EnviarWhatsAppJob::dispatch(
-                        $datos['telefonoCliente'],
-                        $mensajeWhatsApp,
-                        'text'
-                    )->delay(now()->addSeconds(5 * $key)); // Espaciar envíos
-                    
+                    $datos = [
+                        'phoneNumber' => $datos['telefonoCliente'],
+                        'message' => $mensajeWhatsApp,
+                        'type' => 'text',
+                        'additionalData' => [],
+                        'instanciaWS' => null,
+                        'tokenWS' => null
+                    ];
+
+                    EnviarWhatsAppJob::dispatch($datos)->delay(now()->addSeconds(5 * $key)); // Espaciar envíos
+
                     $this->info("  ✅ WhatsApp programado para: {$datos['telefonoCliente']}");
                     $whatsappsEnviados++;
                 } catch (\Exception $e) {

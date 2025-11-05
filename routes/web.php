@@ -25,9 +25,9 @@ use App\Jobs\TutorialJob;
 
 
 // Rutas para MercadoPago
-use App\Http\Controllers\MercadoPagoController;
-use App\Http\Controllers\PaymentFormController;
-use App\Http\Controllers\MercadoPagoWebhookController;
+use App\Http\Controllers\MercadoPago\MercadoPagoController;
+use App\Http\Controllers\MercadoPago\PaymentFormController;
+use App\Http\Controllers\MercadoPago\MercadoPagoWebhookController;
 
 
 
@@ -79,6 +79,15 @@ Route::middleware('auth')->group(function () {
             // Importar clientes desde CSV (Livewire)
             Route::get('/ImportarClientesCSV', \App\Livewire\ImportarCliente::class)->name('ImportarClientesCSV');
 
+            // Gestión de QR MercadoPago (Livewire)
+            Route::get('/mercadopago/qr-manager', \App\Livewire\MercadoPagoQrManager::class)->name('mercadopago.qr-manager');
+
+
+            // Pago mediante QR MercadoPago (Livewire) ejemplo
+            Route::get('/mercadopago/qrEjemplo', \App\Livewire\QRPayment::class)->name('mercadopago.qrEjemplo');
+
+
+
             Route::resource('Cliente',ClienteController::class);
 
             Route::get('/BuscarCliente', [ClienteController::class, 'BuscarCliente'])->name('BuscarCliente');
@@ -107,6 +116,17 @@ Route::middleware('auth')->group(function () {
             Route::get('NuevoCobro', [ServicioPagarController::class, 'NuevoCobro'])->name('NuevoCobro'); 
             Route::post('AgregarNuevoCobro', [ServicioPagarController::class, 'AgregarNuevoCobro'])->name('AgregarNuevoCobro');
             Route::delete('EliminarServicioImpago/{idServicioPagar}', [ServicioPagarController::class, 'EliminarServicioImpago'])->name('EliminarServicioImpago');
+
+            // dos rutas corregir servicios  impagos 
+            
+                // Contar servicios impagos
+                Route::get('/servicios/impagos/contar', [ServicioPagarController::class, 'ContarServiciosImpagos'])
+                    ->name('ContarServiciosImpagos');
+
+                // Eliminar todos los servicios impagos (requiere POST con confirmación)
+                Route::post('/servicios/impagos/eliminar-todos', [ServicioPagarController::class, 'EliminarTodosServiciosImpagos'])
+                    ->name('EliminarTodosServiciosImpagos');
+
 
 
             //CORREOS 

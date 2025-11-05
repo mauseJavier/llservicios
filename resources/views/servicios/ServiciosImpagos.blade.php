@@ -32,6 +32,22 @@
           <a href="{{route('NotificacionTodosServiciosImpagos')}}" role="button">Notif. Todos</a>
         </li>
 
+        @if(Auth::user()->role_id == 3)
+          <li>
+            <form method="POST" action="{{ route('EliminarTodosServiciosImpagos') }}" onsubmit="return confirm('¿Está seguro que desea eliminar TODOS los servicios impagos?\n\nEsta acción no se puede deshacer.');">
+              @csrf
+              <button type="submit" style="background: none; border: none; color: #d32f2f; cursor: pointer;" data-tooltip="Eliminar Todos (Solo Admin/Super)">
+                Eliminar Todos
+              </button>
+            </form>
+          </li>
+
+          <li>
+            <a href="{{ route('ContarServiciosImpagos') }}" role="button">Contar Impagos</a>
+          </li>
+
+        @endif
+
       </ul>
   
   </nav>

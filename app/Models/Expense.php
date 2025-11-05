@@ -26,4 +26,13 @@ class Expense extends Model
     {
         return $this->belongsTo(\App\Models\User::class, 'usuario_id');
     }
+
+        /**
+     * Relación con Empresa
+     */
+    public function empresa()
+    {
+        return $this->belongsTo(Empresa::class, 'empresa_id');
+    }
+
 }
