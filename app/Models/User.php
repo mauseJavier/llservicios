@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 use App\Models\role;
 use App\Models\Empresa;
@@ -60,5 +61,13 @@ class User extends Authenticatable implements MustVerifyEmail
     public function empresa():BelongsTo
     {
         return $this->belongsTo(Empresa::class,'empresa_id','id');
+    }
+
+    /**
+     * Relación con las cajas de MercadoPago asignadas al usuario
+     */
+    public function mercadoPagoPOS(): HasMany
+    {
+        return $this->hasMany(\App\Models\MercadoPagoPOS::class, 'usuario_id', 'id');
     }
 }

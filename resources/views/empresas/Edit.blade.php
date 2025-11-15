@@ -66,11 +66,18 @@
         </div>
 
         <div class="grid">
+          <label for="MP_USER_ID">
+            User ID MercadoPago
+            <input type="text" id="MP_USER_ID" name="MP_USER_ID" placeholder="User ID" value="{{$empresa->MP_USER_ID}}">
+          </label>
+      
           <label for="client_secret">
             Client Secret
             <input type="text" id="client_secret" name="client_secret" placeholder="Client Secret" value="{{$empresa->client_secret}}">
           </label>
-      
+        </div>
+
+        <div class="grid">
           <label for="client_id">
             Client ID
             <input type="text" id="client_id" name="client_id" placeholder="Client ID" value="{{$empresa->client_id}}">

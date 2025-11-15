@@ -56,18 +56,27 @@ class ServicioController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $usuario =  Auth::user();
-        
-   
-            $servicios = Servicio::where('empresa_id',$usuario->empresa_id)
-            ->orderBy('id', 'DESC')
-            ->paginate(15);
-       
-        // return $servicios;
 
-        return view('servicios.Servicios',compact('servicios'))->render();
+        // dd($request->all());
+
+        $usuario = Auth::user();
+        $mostrarInactivos = $request->get('inactivos', false);
+   
+        $query = Servicio::where('empresa_id', $usuario->empresa_id);
+        
+        // Filtrar por estado activo/inactivo
+        if (!$mostrarInactivos) {
+            $query->activos();
+        }
+        
+        $servicios = $query->orderBy('id', 'DESC')->paginate(15);
+        
+        // Mantener el parámetro en la paginación
+        $servicios->appends(['inactivos' => $mostrarInactivos]);
+
+        return view('servicios.Servicios', compact('servicios', 'mostrarInactivos'))->render();
     }
 
     /**
@@ -153,5 +162,39 @@ class ServicioController extends Controller
     public function destroy(Servicio $Servicio)
     {
         //
+    }
+
+    /**
+     * Cambiar el estado activo/inactivo de un servicio
+     * Si se desactiva, también desvincula todos los clientes
+     */
+    public function toggleEstado(Servicio $Servicio)
+    {
+        $usuario = Auth::user();
+        
+        // Validar que el servicio pertenece a la empresa del usuario
+        if ($Servicio->empresa_id !== $usuario->empresa_id) {
+            return redirect()->route('Servicios.index')
+                ->with('error', 'No tiene permisos para modificar este servicio.');
+        }
+
+        try {
+            if ($Servicio->estaActivo()) {
+                // Desactivar y desvincular clientes
+                $Servicio->desactivar();
+                $mensaje = "Servicio '{$Servicio->nombre}' desactivado y desvinculado de todos los clientes.";
+            } else {
+                // Activar servicio
+                $Servicio->activar();
+                $mensaje = "Servicio '{$Servicio->nombre}' activado exitosamente.";
+            }
+
+            return redirect()->route('Servicios.index')
+                ->with('status', $mensaje);
+
+        } catch (\Exception $e) {
+            return redirect()->route('Servicios.index')
+                ->with('error', 'Error al cambiar el estado del servicio: ' . $e->getMessage());
+        }
     }
 }

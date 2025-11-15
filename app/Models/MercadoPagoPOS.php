@@ -25,6 +25,7 @@ class MercadoPagoPOS extends Model
         'status',
         'qr_data',
         'active',
+        'usuario_id',
     ];
 
     protected $casts = [
@@ -37,6 +38,14 @@ class MercadoPagoPOS extends Model
     public function store(): BelongsTo
     {
         return $this->belongsTo(MercadoPagoStore::class, 'mercadopago_store_id', 'id');
+    }
+
+    /**
+     * Relación con el usuario asignado a la caja
+     */
+    public function usuario(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'usuario_id', 'id');
     }
 
     /**

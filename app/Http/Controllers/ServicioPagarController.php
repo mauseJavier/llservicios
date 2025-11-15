@@ -13,6 +13,14 @@ use App\Models\Servicio;
 use App\Models\ServicioPagar;
 use App\Models\Cliente;
 use App\Models\Empresa;
+use App\Models\MercadoPagoPOS;
+use App\Models\MercadoPagoQROrder;
+
+
+use App\Services\MercadoPago\MercadoPagoQRService;
+use Illuminate\Support\Str;
+
+
 
 
 use App\Events\PagoServicioEvent;
@@ -29,7 +37,6 @@ use App\Jobs\EnviarWhatsAppJob;
 
 class ServicioPagarController extends Controller
 {
-
     /**
      * Genera un PDF pequeño con los datos del pago y retorna el archivo en base64
      *
@@ -375,6 +382,7 @@ class ServicioPagarController extends Controller
                 'instanciaWS' => $empresa->instanciaWS ?? null,
                 'tokenWS' => $empresa->tokenWS ?? null
             ];
+            
             EnviarWhatsAppJob::dispatch($datos);
 
             $datosPDF = [
@@ -427,6 +435,14 @@ class ServicioPagarController extends Controller
 
     public function PagarServicio($idServicioPagar,$importe){
 
+
+        // de esta manera buscamos el id de la caja de mercado pago asignada al usuario
+        $this->posMpId = auth()->user()->mercadoPagoPOS()->first()->id;
+
+        // foreach (auth()->user()->mercadoPagoPOS as $pos) {
+        //     @dump($pos->id);
+        // }
+
         $formaPago = FormaPago::all();
         
         // Utilizar el modelo ServicioPagar con sus relaciones
@@ -462,8 +478,230 @@ class ServicioPagarController extends Controller
             'servicio' => $datosServicio,
             'formaPago' => $formaPago,
             'idServicioPagar' => $idServicioPagar,
-            'importe' => $importe
+            'importe' => $importe,
+            'posMpId' => $this->posMpId,
         ])->render();
+    }
+
+    // public function GenerarQRMercadoPago(Request $request, $posMpId, $importe, $idServicioPagar){
+
+    //     // return array($posMpId, $importe, $idServicioPagar);
+
+    //     $usuario = Auth::user();
+    //     $empresa = Empresa::find($usuario->empresa_id);
+
+    //            // Utilizar el modelo ServicioPagar con sus relaciones
+    //     $servicioPagar = ServicioPagar::with(['servicio', 'cliente'])
+    //         ->findOrFail($idServicioPagar);
+
+    //     $this->createOrder($posMpId, $importe, $idServicioPagar);
+
+    // }
+
+    /**
+     * Mostrar vista con QR de MercadoPago
+     */
+    public function mostrarQR($servicioPagar, $importe, $posMpId)
+    {
+        $servicioPagar = ServicioPagar::with(['servicio', 'cliente'])
+            ->findOrFail($servicioPagar);
+        
+        return view('servicios.QRPago', [
+            'servicioPagar' => $servicioPagar,
+            'importe' => $importe,
+            'posMpId' => $posMpId,
+        ]);
+    }
+
+    /**
+     * Crear orden de pago QR (API)
+     */
+    public function createOrder(Request $request)
+    {
+        $request->validate([
+            'servicioPagar' => 'required|integer',
+            'importe' => 'required|numeric',
+            'posMpId' => 'required|integer'
+        ]);
+
+        try {
+            // Utilizar el modelo ServicioPagar con sus relaciones
+            $servicioPagar = ServicioPagar::with(['servicio', 'cliente'])
+                ->findOrFail($request->servicioPagar);
+
+            $pos = MercadoPagoPOS::findOrFail($request->posMpId);
+            
+            // Configurar credenciales
+            config([
+                'services.mercadopago.access_token' => $pos->store->empresa->MP_ACCESS_TOKEN,
+                'services.mercadopago.user_id' => $pos->store->empresa->MP_USER_ID,
+                'services.mercadopago.sandbox' => false
+            ]);
+            
+            $qrService = new MercadoPagoQRService();
+            
+            // Generar referencia única
+            $orderReference = 'QR-' . time() . '-' . Str::random(6);
+            
+            $baseUrl = config('app.env') === 'local' ? 'https://prepositionally-vacciniaceous-irving.ngrok-free.dev' : config('app.url');
+            
+            // Datos de la orden
+            $orderData = [
+                'external_reference' => $orderReference,
+                'title' => $servicioPagar->servicio->nombre ?: 'Pago en caja',
+                'description' => $servicioPagar->servicio->descripcion ?: 'Cobro mediante código QR',
+                'total_amount' => floatval($servicioPagar->precio) * floatval($servicioPagar->cantidad),
+                'notification_url' => env('APP_ENV') == 'local' ? $baseUrl .'/api/mercadopago/webhook/qr' : route('api.mercadopago.webhook.qr'),
+                'items' => [
+                    [
+                        'sku_number' => 'ITEM-001-' . $orderReference,
+                        'category' => 'marketplace',
+                        'title' => $servicioPagar->servicio->nombre ?: 'Producto/Servicio',
+                        'description' => $servicioPagar->servicio->descripcion ?: 'Cobro mediante código QR',
+                        'unit_price' => floatval($servicioPagar->precio),
+                        'quantity' => floatval($servicioPagar->cantidad),
+                        'unit_measure' => 'unit',
+                        'total_amount' => floatval($servicioPagar->precio) * floatval($servicioPagar->cantidad),
+                    ]
+                ],
+                'expiration_date' => now()->addMinutes(10)->format('Y-m-d\TH:i:s.vP')
+            ];
+            
+            // Crear orden en MercadoPago
+            $response = $qrService->createQROrder($pos->external_id, $orderData);
+            
+            if (!$response['success']) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Error al crear orden: ' . $response['error']
+                ], 400);
+            }
+            
+            // Guardar orden en BD
+            $order = MercadoPagoQROrder::create([
+                'mercadopago_pos_id' => $pos->id,
+                'servicio_pagar_id' => $servicioPagar->id,
+                'external_reference' => $orderReference,
+                'in_store_order_id' => $response['in_store_order_id'],
+                'total_amount' => $orderData['total_amount'],
+                'status' => 'pending',
+                'items' => $orderData['items'],
+                'expires_at' => now()->addMinutes(10)
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'qr_data' => $response['qr_data'],
+                'order_id' => $order->id,
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error creando orden QR', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Verificar estado del pago (polling)
+     */
+    public function checkPaymentStatus(Request $request)
+    {
+        $request->validate([
+            'order_id' => 'required|integer'
+        ]);
+
+        try {
+            $order = MercadoPagoQROrder::find($request->order_id);
+            
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Orden no encontrada'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'status' => $order->status,
+                'payment_id' => $order->payment_id,
+                'amount' => $order->total_amount
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error verificando estado de pago', [
+                'error' => $e->getMessage(),
+                'order_id' => $request->order_id
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al verificar estado'
+            ], 500);
+        }
+    }
+
+    /**
+     * Cancelar orden
+     */
+    public function cancelOrder(Request $request)
+    {
+        $request->validate([
+            'order_id' => 'required|integer'
+        ]);
+
+        try {
+            $order = MercadoPagoQROrder::find($request->order_id);
+            
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Orden no encontrada'
+                ], 404);
+            }
+            
+            if ($order->isPending()) {
+                $pos = $order->pos;
+                
+                // Configurar credenciales
+                config([
+                    'services.mercadopago.access_token' => $pos->store->empresa->MP_ACCESS_TOKEN,
+                    'services.mercadopago.user_id' => $pos->store->empresa->MP_USER_ID,
+                ]);
+                
+                $qrService = new MercadoPagoQRService();
+                $qrService->deleteQROrder($pos->external_id);
+                
+                $order->update(['status' => 'cancelled']);
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Orden cancelada correctamente'
+                ]);
+            }
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'La orden no puede ser cancelada en su estado actual'
+            ], 400);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error cancelando orden', [
+                'error' => $e->getMessage(),
+                'order_id' => $request->order_id
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al cancelar la orden'
+            ], 500);
+        }
     }
 
     public function NuevoCobro (){

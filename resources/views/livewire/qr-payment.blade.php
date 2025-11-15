@@ -82,6 +82,7 @@
                                     <hr>
                                     <p class="mb-0">
                                         El cliente debe escanear el código QR físico de la caja con su aplicación de Mercado Pago
+                                        <img src="https://qrcode.tec-it.com/API/QRCode?data={{ urlencode($qrData) }}&backcolor=%23ffffff" />
                                     </p>
                                 </div>
 
@@ -123,14 +124,9 @@
         </div>
     </div>
 
-    {{-- Polling para verificar el estado del pago cada 3 segundos --}}
-    @if ($polling)
-        <script>
-            // Polling cada 3 segundos
-            setInterval(() => {
-                @this.call('checkPaymentStatus');
-            }, 3000);
-        </script>
+    {{-- Polling para verificar el estado del pago cada 3 segundos (solo cuando está pendiente) --}}
+    @if ($orderStatus === 'pending' && $polling)
+        <div wire:poll.3s="checkPaymentStatus" style="display: none;"></div>
     @endif
 
     {{-- Sonido de éxito cuando se complete el pago --}}

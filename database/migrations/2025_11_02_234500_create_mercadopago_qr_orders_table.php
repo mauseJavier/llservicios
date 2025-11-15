@@ -10,6 +10,8 @@ return new class extends Migration
     {
         Schema::create('mercadopago_qr_orders', function (Blueprint $table) {
             $table->id();
+
+            //relacion con la tabla mercadopago_pos campo id
             $table->foreignId('mercadopago_pos_id')->constrained('mercadopago_pos')->onDelete('cascade');
             $table->string('external_reference')->unique()->comment('Referencia externa única');
             $table->string('in_store_order_id')->nullable()->comment('ID de la orden en MercadoPago');

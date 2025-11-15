@@ -19,6 +19,8 @@ class QRPayment extends Component
     public $paymentId = null;
     public $showQR = false;
     public $qrData = null;
+
+
     
     // Para polling
     public $polling = false;
@@ -33,6 +35,7 @@ class QRPayment extends Component
         // dd(MercadoPagoPOS::first()->mp_pos_id);
 
         $this->posId = $posId ?? MercadoPagoPOS::first()->id;
+
     }
 
     /**
@@ -57,13 +60,15 @@ class QRPayment extends Component
             // Generar referencia única
             $this->orderReference = 'QR-' . time() . '-' . Str::random(6);
             
+
+            $baseUrl = config('app.env') === 'local' ? 'https://prepositionally-vacciniaceous-irving.ngrok-free.dev' : config('app.url');
             // Datos de la orden
             $orderData = [
                 'external_reference' => $this->orderReference,
                 'title' => $this->description ?: 'Pago en caja',
                 'description' => $this->description ?: 'Cobro mediante código QR',
                 'total_amount' => floatval($this->amount),
-                'notification_url' => env('APP_ENV') == 'local' ? 'https://example.com/webhook' : route('api.mercadopago.webhook.qr'),
+                'notification_url' => env('APP_ENV') == 'local' ? $baseUrl .'/api/mercadopago/webhook/qr' : route('api.mercadopago.webhook.qr'),
                 'items' => [
                     [
                         'sku_number' => 'ITEM-001',
@@ -76,11 +81,14 @@ class QRPayment extends Component
                         'total_amount' => floatval($this->amount)
                     ]
                 ],
-                'expiration_date' => now()->addMinutes(10)->toIso8601String() // Expira en 10 minutos
+                // ...existing code...
+                'expiration_date' => now()->addMinutes(10)->format('Y-m-d\TH:i:s.vP')
+                // Genera: 2025-11-08T21:42:17.000-03:00
+
             ];
             
             // Crear orden en MercadoPago
-            $response = $qrService->createQROrder($pos->mp_pos_id, $orderData);
+            $response = $qrService->createQROrder($pos->external_id, $orderData);
             
             if (!$response['success']) {
                 session()->flash('error', 'Error al crear orden: ' . $response['error']);
@@ -102,11 +110,13 @@ class QRPayment extends Component
             $this->orderStatus = 'pending';
             $this->showQR = true;
             $this->polling = true;
+            $this->qrData = $response['qr_data'];
             
             // Dispatch evento para mostrar QR en el frontend
             $this->dispatch('qr-created', [
                 'orderId' => $this->orderId,
-                'amount' => $this->amount
+                'amount' => $this->amount,
+                'qrData' => $this->qrData
             ]);
             
             session()->flash('success', 'Orden creada. Escanea el código QR para pagar.');

@@ -192,11 +192,64 @@ class PagosController extends Controller
             return $b->totalImporte <=> $a->totalImporte;
         });
 
+        // Obtener resumen por usuario que realizó el cobro
+        $condicionUsuarioResumenPorUsuario = '';
+        $parametrosResumenPorUsuario = [];
+        
+        if ($fechaInicio) {
+            $condicionUsuarioResumenPorUsuario .= ' AND DATE(a.created_at) >= ?';
+            $parametrosResumenPorUsuario[] = $fechaInicio;
+        }
+        
+        if ($fechaFin) {
+            $condicionUsuarioResumenPorUsuario .= ' AND DATE(a.created_at) <= ?';
+            $parametrosResumenPorUsuario[] = $fechaFin;
+        }
+        
+        $condicionUsuarioResumenPorUsuario .= ' AND g.empresa_id = ?';
+        $parametrosResumenPorUsuario[] = $empresaId;
+
+        // Añadir condición de búsqueda
+        if ($buscar) {
+            $condicionUsuarioResumenPorUsuario .= ' AND (e.nombre LIKE ? OR e.correo LIKE ? OR e.dni LIKE ?)';
+            $parametrosResumenPorUsuario[] = '%' . $buscar . '%';
+            $parametrosResumenPorUsuario[] = '%' . $buscar . '%';
+            $parametrosResumenPorUsuario[] = '%' . $buscar . '%';
+        }
+
+        // Añadir filtro por usuario
+        if ($usuarioId) {
+            $condicionUsuarioResumenPorUsuario .= ' AND a.id_usuario = ?';
+            $parametrosResumenPorUsuario[] = $usuarioId;
+        }
+
+        // Consulta para resumen por usuario - suma importe1 + importe2
+        $resumenPorUsuarioRaw = DB::select('SELECT
+                                        c.id as usuarioId,
+                                        c.name AS nombreUsuario,
+                                        COUNT(DISTINCT a.id) AS cantidadPagos,
+                                        SUM(a.importe) AS totalImporte1,
+                                        SUM(COALESCE(a.importe2, 0)) AS totalImporte2,
+                                        SUM(a.importe + COALESCE(a.importe2, 0)) AS totalImporte
+                                    FROM
+                                        pagos a
+                                        INNER JOIN users c ON a.id_usuario = c.id
+                                        INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
+                                        INNER JOIN clientes e ON b.cliente_id = e.id
+                                        INNER JOIN cliente_empresa g ON e.id = g.cliente_id
+                                    WHERE 1=1' . $condicionUsuarioResumenPorUsuario . '
+                                    GROUP BY
+                                        c.id, c.name
+                                    ORDER BY
+                                        totalImporte DESC', $parametrosResumenPorUsuario);
+
+        $resumenPorUsuario = $resumenPorUsuarioRaw;
+
         // return $datos;
 
 
                 // Número de elementos por página
-                $perPage = 15;
+                $perPage = 100;
 
                 // Página actual obtenida de la consulta de la URL (puedes usar Request::input('page') en un controlador real)
                 $paginaActual = (isset($request->page)) ? $request->page : 1;
@@ -223,10 +276,12 @@ class PagosController extends Controller
                     ->orderBy('name', 'asc')
                     ->get();
 
+            
+
                 //agregar a los usuarios el usuario email like %pago% que es para todas las empresass
                 $usuarios->push(\App\Models\User::where('email', 'like', '%pago%')->first());
 
-                return view('pagos.pagos', compact('pagos', 'resumenPagos', 'fechaInicio', 'fechaFin', 'buscar', 'usuarios', 'usuarioId'))->render();
+                return view('pagos.pagos', compact('pagos', 'resumenPagos', 'resumenPorUsuario', 'fechaInicio', 'fechaFin', 'buscar', 'usuarios', 'usuarioId'))->render();
     }
 
     public function PagosVer ($idServicioPagar){

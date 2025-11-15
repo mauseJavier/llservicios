@@ -53,4 +53,12 @@ class Empresa extends Model
         return $this->hasMany(Expense::class, 'empresa_id', 'id');
     }
 
+    /**
+     * Relación con servicios - Una empresa puede tener muchos servicios
+     */
+    public function servicios(): HasMany
+    {
+        return $this->hasMany(Servicio::class, 'empresa_id', 'id');
+    }
+
 }

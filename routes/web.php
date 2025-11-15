@@ -99,6 +99,7 @@ Route::middleware('auth')->group(function () {
     
             Route::resource('Servicios', ServicioController::class);
             Route::get('BuscarServicio',  [ServicioController::class, 'BuscarServicio'])->name('BuscarServicio');
+            Route::post('Servicios/{Servicio}/toggle-estado', [ServicioController::class, 'toggleEstado'])->name('Servicios.toggleEstado');
 
 
             //AK ESTOY TRABAJANDO 
@@ -113,6 +114,13 @@ Route::middleware('auth')->group(function () {
             Route::get('ServicioPagarBuscarCliente/{estado?}', [ServicioPagarController::class, 'ServicioPagarBuscarCliente'])->name('ServicioPagarBuscarCliente');
             Route::get('PagarServicio/{idServicioPagar}/{importe}', [ServicioPagarController::class, 'PagarServicio'])->name('PagarServicio');  
             Route::post('ConfirmarPago', [ServicioPagarController::class, 'ConfirmarPago'])->name('ConfirmarPago');
+            
+            //Rutas para QR de MercadoPago
+            Route::get('GenerarQRMercadoPago/{servicioPagar}/{importe}/{posMpId}', [ServicioPagarController::class, 'mostrarQR'])->name('GenerarQRMercadoPago');
+            Route::post('api/qr/create', [ServicioPagarController::class, 'createOrder'])->name('api.qr.create');
+            Route::post('api/qr/check-status', [ServicioPagarController::class, 'checkPaymentStatus'])->name('api.qr.check-status');
+            Route::post('api/qr/cancel', [ServicioPagarController::class, 'cancelOrder'])->name('api.qr.cancel');
+            
             Route::get('NuevoCobro', [ServicioPagarController::class, 'NuevoCobro'])->name('NuevoCobro'); 
             Route::post('AgregarNuevoCobro', [ServicioPagarController::class, 'AgregarNuevoCobro'])->name('AgregarNuevoCobro');
             Route::delete('EliminarServicioImpago/{idServicioPagar}', [ServicioPagarController::class, 'EliminarServicioImpago'])->name('EliminarServicioImpago');

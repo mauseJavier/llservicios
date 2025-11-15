@@ -20,31 +20,33 @@
     </div>
 
     <div class="container-fluid">
-        <div class="overflow-auto">
+        <div class="overflow-auto" style="max-width: 100%; overflow-x: auto;">
 
             <figure>
-                <table id="grilla" >
+                <table id="grilla" style="position: relative;">
                         <thead>
                             <tr>
-                                <th scope="col">Cliente</th>
-                                <th scope="col" style="text-align: right;">Enero</th>
-                                <th scope="col" style="text-align: right;">Febrero</th>
-                                <th scope="col" style="text-align: right;">Marzo</th>
-                                <th scope="col" style="text-align: right;">Abril</th>
-                                <th scope="col" style="text-align: right;">Mayo</th>
-                                <th scope="col" style="text-align: right;">Junio</th>
-                                <th scope="col" style="text-align: right;">Julio</th>
-                                <th scope="col" style="text-align: right;">Agosto</th>
-                                <th scope="col" style="text-align: right;">Septiembre</th>
-                                <th scope="col" style="text-align: right;">Octubre</th>
-                                <th scope="col" style="text-align: right;">Noviembre</th>
-                                <th scope="col" style="text-align: right;">Diciembre</th>
+                                <th scope="col" style="position: sticky; left: 0; background-color: var(--pico-background-color, white); z-index: 10; box-shadow: 2px 0 5px rgba(0,0,0,0.1);">Cliente</th>
+                                <th scope="col" style="text-align: right; min-width: 100px;">Enero</th>
+                                <th scope="col" style="text-align: right; min-width: 100px;">Febrero</th>
+                                <th scope="col" style="text-align: right; min-width: 100px;">Marzo</th>
+                                <th scope="col" style="text-align: right; min-width: 100px;">Abril</th>
+                                <th scope="col" style="text-align: right; min-width: 100px;">Mayo</th>
+                                <th scope="col" style="text-align: right; min-width: 100px;">Junio</th>
+                                <th scope="col" style="text-align: right; min-width: 100px;">Julio</th>
+                                <th scope="col" style="text-align: right; min-width: 100px;">Agosto</th>
+                                <th scope="col" style="text-align: right; min-width: 100px;">Septiembre</th>
+                                <th scope="col" style="text-align: right; min-width: 100px;">Octubre</th>
+                                <th scope="col" style="text-align: right; min-width: 100px;">Noviembre</th>
+                                <th scope="col" style="text-align: right; min-width: 100px;">Diciembre</th>
+                                <th scope="col" style="text-align: center; min-width: 100px;">Cliente</th>
+
                             </tr>
                         </thead>
                         <tbody>
                                 @foreach ($clientes as $c)
                                     <tr>
-                                        <td>
+                                        <td style="position: sticky; left: 0; background-color: var(--pico-background-color, white); z-index: 5; box-shadow: 2px 0 5px rgba(0,0,0,0.1);">
                                             <a href="{{route('ServicioPagarBuscarCliente',['estado'=>'impago','buscar'=>$c->nombre])}}" data-tooltip="Ver Impagos">{{$c->nombre}}</a>
                                         </td>
                                         @if (!empty($c->datos))
@@ -59,24 +61,32 @@
                                                 </td>
                                             @endforeach
                                         @endif
+
+                                        <td style="text-align: center;">
+                                            <a  href="{{route('ServicioPagarBuscarCliente',['estado'=>'impago','buscar'=>$c->nombre])}}" data-tooltip="Ver Impagos">{{$c->nombre}}</a>
+                                        </td>
                                     </tr>
                                 @endforeach
 
                             <tr>
-                                <td><h5 class="pico-color-red-450">Impago</h5></td>
+                                <td style="position: sticky; left: 0; background-color: var(--pico-background-color, white); z-index: 5; box-shadow: 2px 0 5px rgba(0,0,0,0.1);"><h5 class="pico-color-red-450">Impago</h5></td>
                                 @if (!empty($total))
                                     @foreach ($total as $item)
                                         <td style="text-align: right;"><h5 style="color: #e3342f;">${{$item['impago']}}</h5></td>
                                     @endforeach
                                 @endif
+                                <td style="text-align: center; background-color: var(--pico-background-color, white); box-shadow: 2px 0 5px rgba(0,0,0,0.1);"><h5 class="pico-color-red-450">Impago</h5></td>
+
                             </tr>
                             <tr>
-                                <td><h5 class="pico-color-jade-500">Pago</h5></td>
+                                <td style="position: sticky; left: 0; background-color: var(--pico-background-color, white); z-index: 5; box-shadow: 2px 0 5px rgba(0,0,0,0.1);"><h5 class="pico-color-jade-500">Pago</h5></td>
                                 @if (!empty($total))
                                     @foreach ($total as $item)
                                         <td style="text-align: right;"><h5 style="color: #38c172;">${{$item['pago']}}</h5></td>
                                     @endforeach
                                 @endif
+                                <td style="text-align: center; background-color: var(--pico-background-color, white); box-shadow: 2px 0 5px rgba(0,0,0,0.1);"><h5 class="pico-color-jade-500">Pago</h5></td>
+
                             </tr>
                         </tbody>
                 </table>

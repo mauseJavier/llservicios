@@ -42,6 +42,8 @@ class MercadoPagoQrManager extends Component
     public $empresa = null;
     public $mpConfigured = false;
 
+    public $usuarioIDCaja = null;
+
 
 
 
@@ -382,13 +384,14 @@ class MercadoPagoQrManager extends Component
                     'name' => $this->posName,
                     'fixed_amount' => $this->posFixedAmount ? 'true' : 'false',
                     'category' => $this->posCategory,
+                    'usuario_id' => $this->usuarioIDCaja,
                 ]);
                 
                 $this->successMessage = 'Caja actualizada exitosamente';
             } else {
                 // Crear nueva caja
                 // El external_id debe ser alfanumérico (sin guiones bajos ni caracteres especiales)
-                $externalId = 'pos' . $store->id . Str::random(8);
+                $externalId = 'posStore' . $store->id . Str::random(8);
                 $posData['external_id'] = $externalId;
                 $posData['store_id'] = $store->mp_store_id;
                 $posData['external_store_id'] = $store->external_id;
@@ -424,6 +427,7 @@ class MercadoPagoQrManager extends Component
                         'status' => $responseData['status'] ?? 'active',
                         'qr_data' => $responseData['qr_code'] ?? null,
                         'active' => true,
+                        'usuario_id' => $this->usuarioIDCaja,
                     ]);
                     
                     $this->successMessage = 'Caja creada exitosamente con código QR';
@@ -572,6 +576,7 @@ class MercadoPagoQrManager extends Component
 
         return view('livewire.mercado-pago-qr-manager', [
             'stores' => $stores,
+            'usuarios' => $this->empresa->users()->get(),
         ])
         ->extends('principal.principal')
             ->section('body');

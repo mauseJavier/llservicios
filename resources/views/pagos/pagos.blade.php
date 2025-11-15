@@ -212,6 +212,77 @@
 
   <hr>
 
+  {{-- Resumen por Usuario que realizó el cobro --}}
+  <div class="resumen-pagos">
+    <h2>👥 Resumen de Pagos por Usuario (Quien Cobró)</h2>
+    
+    <div class="resumen-cards">
+      @if(isset($resumenPorUsuario) && count($resumenPorUsuario) > 0)
+        @foreach($resumenPorUsuario as $resumen)
+          <div class="resumen-card" style="border-left: 4px solid #2196f3; padding-left: 0.5rem; margin-bottom: 1rem; margin-right: 1px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <strong style="font-size: 1.1rem;">👤 {{ $resumen->nombreUsuario }}</strong>
+            </div>
+            <div class="total" style="color: #2196f3;">${{ number_format($resumen->totalImporte, 2) }}</div>
+            <div class="cantidad">{{ $resumen->cantidadPagos }} pagos</div>
+            <div class="promedio">Promedio: ${{ number_format($resumen->totalImporte / $resumen->cantidadPagos, 2) }}</div>
+          </div>
+          <hr>
+        @endforeach
+      @else
+        <div style="grid-column: 1 / -1; text-align: center; padding: 2rem;">
+          <p>👥 No hay pagos registrados por usuarios</p>
+        </div>
+      @endif
+    </div>
+  </div>
+
+  @if(isset($resumenPorUsuario) && count($resumenPorUsuario) > 0)
+    <div class="resumen-tabla">
+      <h3>📊 Análisis Detallado por Usuario</h3>
+      <figure>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">👤 Usuario</th>
+              <th scope="col">Cantidad Pagos</th>
+              <th scope="col">Total Cobrado</th>
+              <th scope="col">Promedio por Pago</th>
+              <th scope="col">Porcentaje del Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            @php 
+              $totalGeneralUsuarios = collect($resumenPorUsuario)->sum('totalImporte');
+              $totalPagosUsuarios = collect($resumenPorUsuario)->sum('cantidadPagos');
+            @endphp
+            @foreach($resumenPorUsuario as $resumen)
+              <tr>
+                <td><strong>{{ $resumen->nombreUsuario }}</strong></td>
+                <td>{{ $resumen->cantidadPagos }}</td>
+                <td>${{ number_format($resumen->totalImporte, 2) }}</td>
+                <td>${{ number_format($resumen->totalImporte / $resumen->cantidadPagos, 2) }}</td>
+                <td>
+                  {{ number_format(($resumen->totalImporte / $totalGeneralUsuarios) * 100, 1) }}%
+                  <div class="porcentaje-bar" style="width: {{ ($resumen->totalImporte / $totalGeneralUsuarios) * 100 }}px; background-color: #2196f3;"></div>
+                </td>
+              </tr>
+            @endforeach
+            <tr class="total-row">
+              <td><strong>TOTAL GENERAL</strong></td>
+              <td><strong>{{ $totalPagosUsuarios }}</strong></td>
+              <td><strong>${{ number_format($totalGeneralUsuarios, 2) }}</strong></td>
+              <td><strong>${{ number_format($totalGeneralUsuarios / $totalPagosUsuarios, 2) }}</strong></td>
+              <td><strong>100%</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </figure>
+    </div>
+  @endif
+
+  <hr>
+
   <h2>Detalle de Pagos</h2>
 
   @if(isset($buscar) && $buscar)

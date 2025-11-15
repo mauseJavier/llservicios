@@ -144,7 +144,7 @@ class DetalleCliente extends Component
         // Construir query base
         $query = 'SELECT s.id, s.nombre, s.descripcion, s.precio, s.tiempo 
                   FROM servicios s 
-                  WHERE s.empresa_id = ?';
+                  WHERE s.empresa_id = ? AND s.activo = 1';
         
         $params = [$usuario->empresa_id];
         

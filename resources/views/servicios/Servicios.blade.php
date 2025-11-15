@@ -5,25 +5,54 @@
 
 
 <div class="container">
+  
+  {{-- Mensajes de éxito y error --}}
+  @if(session('status'))
+    <div style="padding: 1rem; margin-bottom: 1rem; background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; border-radius: 4px;">
+      {{ session('status') }}
+    </div>
+  @endif
+  
+  @if(session('error'))
+    <div style="padding: 1rem; margin-bottom: 1rem; background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px;">
+      {{ session('error') }}
+    </div>
+  @endif
+
+
   <h1>Servicios</h1>
 
 
-          <form action="{{route('BuscarServicio')}}" method="GET">
-              
-            <fieldset role="group">
-
-                <a href="{{route('Servicios.create')}}" role="button">Nuevo</a>
-
-                <input id="buscar" name="buscar"  
-                  @if (isset($buscar))
-                      value="{{$buscar}}"
-                  @endif  placeholder="Buscar..." />
+  
+              <fieldset role="group">
                 
+                <a href="{{route('Servicios.create')}}" role="button">Nuevo</a>
+                
+                <form action="{{route('BuscarServicio')}}" method="GET">
+                            <input id="buscar" name="buscar"  
+                              @if (isset($buscar))
+                                  value="{{$buscar}}"
+                              @endif  placeholder="Buscar..." />
+                </form>
 
+                
+                
+              </fieldset>
               
-            </fieldset>
+              <form action="{{route('Servicios.index')}}" method="get">
 
-          </form>
+                <div class="grid">
+                  <label style="color:red">
+                    <input type="checkbox" name="inactivos" value="1" 
+                      @if(isset($mostrarInactivos) && $mostrarInactivos) checked @endif
+                      onchange="this.form.submit()">
+                    Mostrar inactivos
+                  </label>
+
+                </div>
+
+
+              </form>
 
 
 
@@ -39,6 +68,7 @@
           <thead>
             <tr>
               <th scope="col">#</th>
+              <th scope="col">Estado</th>
               <th scope="col">Nombre</th>
               <th scope="col">Precio</th>
               <th scope="col">Precio 2</th>
@@ -53,13 +83,21 @@
               <th scope="col">Link Pago</th>
               <th scope="col">Editar</th>
               <th scope="col">Agregar</th>
+              <th scope="col">Activar/Desactivar</th>
             </tr>
           </thead>
           <tbody>
        
             @foreach ($servicios as $e)
-              <tr>              
+              <tr class="{{ !$e->activo ? 'opacity-50' : '' }}" style="{{ !$e->activo ? 'background-color: #f0f0f0;' : '' }}">              
                 <td>{{$e->id}}</td>
+                <td>
+                  @if($e->activo)
+                    <span style="color: green; font-weight: bold;">● Activo</span>
+                  @else
+                    <span style="color: red; font-weight: bold;">● Inactivo</span>
+                  @endif
+                </td>
                 <td>{{$e->nombre}}</td>
                 <td>${{$e->precio}}</td>
                 <td>{{ $e->precio2 ? '$' . $e->precio2 : '-' }}</td>
@@ -70,7 +108,7 @@
     
     
                 
-                <td>{{$e->empresa->nombre .' '.$e->empresa->id}}</td>
+                <td>{{$e->empresa->nombre .'('.$e->empresa->id.')'}}</td>
                 <td><img src="{{$e->imagen}}" alt=""></td>
                 <td>
                   <a href="https://{{$e->linkPago}}" role="button">
@@ -79,20 +117,42 @@
                   
                   </a>
                 </td>
-                <th>                
-                      <a  href="{{route('Servicios.edit',['Servicio'=>$e->id])}}" data-tooltip="Editar" role="button">
-                    
-                        <i class="fa-regular fa-pen-to-square"></i>
+
+                  @if ($e->activo)
+                    <th>                
+                          <a  href="{{route('Servicios.edit',['Servicio'=>$e->id])}}" data-tooltip="Editar" role="button">
+                        
+                            <i class="fa-regular fa-pen-to-square"></i>
+                        
+                          </a>
+                    </th>
+                    <td>
+                      <a  href="{{route('ServiciosAgregarCliente',['Servicio'=>$e->id])}}"  data-tooltip="Agregar Cliente" role="button">
+                        
+                        <i class="fa-solid fa-user-plus"></i>
                     
                       </a>
-                </th>
-                <td>
-                  <a  href="{{route('ServiciosAgregarCliente',['Servicio'=>$e->id])}}"  data-tooltip="Agregar Cliente" role="button">
-                    
-                    <i class="fa-solid fa-user-plus"></i>
-                
-                  </a>
-                </td>
+                    </td>
+
+                  @else
+                    <th>--</th>
+                    <td>--</td>
+                  @endif
+                    <td>
+                      <form action="{{route('Servicios.toggleEstado', ['Servicio' => $e->id])}}" method="POST" style="display: inline;">
+                        @csrf
+                        <button type="submit" 
+                          data-tooltip="{{ $e->activo ? 'Desactivar servicio' : 'Activar servicio' }}"
+                          style="background-color: {{ $e->activo ? '#dc3545' : '#28a745' }}; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                          @if($e->activo)
+                            <i class="fa-solid fa-ban"></i> Desactivar
+                          @else
+                            <i class="fa-solid fa-check-circle"></i> Activar
+                          @endif
+                        </button>
+                      </form>
+                    </td>
+                      
               </tr>
             @endforeach
           

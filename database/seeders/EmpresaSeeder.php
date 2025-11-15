@@ -21,7 +21,7 @@ class EmpresaSeeder extends Seeder
         ]);
 
         if(env('APP_DEBUG')==true){//para cuando estoy en produccion
-            Empresa::factory()->count(20)->create();
+            Empresa::factory()->count(3)->create();
         }
         
 

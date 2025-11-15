@@ -203,11 +203,19 @@
 
           <HR></HR>
 
-          <!-- Checkbox para activar segunda forma de pago -->
-          <label>
-            <input name="dosFormasPago" id="dosFormasPago" type="checkbox" role="switch" />
-            Dividir pago en dos formas de pago
-          </label>
+          <div class="grid">
+            <!-- Checkbox para activar segunda forma de pago -->
+            <label>
+              <input name="dosFormasPago" id="dosFormasPago" type="checkbox" role="switch" />
+              Dividir pago en dos formas de pago
+            </label>
+
+            @if($posMpId)
+              <a href="{{ route('GenerarQRMercadoPago', ['posMpId' => $posMpId, 'importe' => $importe, 'servicioPagar' => $idServicioPagar]) }}" target="_blank" class="button">Generar QR MercadoPago</a>
+            @endif
+
+          </div>
+
 
           <HR></HR>
 
@@ -220,6 +228,7 @@
                 @foreach ($formaPago as $elemento)
                   <option value="{{$elemento->id}}">{{$elemento->nombre}}</option>
                 @endforeach
+
               </select>
             </label>
 

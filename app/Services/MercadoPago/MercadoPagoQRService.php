@@ -405,10 +405,12 @@ class MercadoPagoQRService
                 $data['expiration_date'] = $orderData['expiration_date'];
             }
 
+            // dd( 'Data to send:', $data , 'to URL: ' . $this->baseUrl . '/instore/orders/qr/seller/collectors/' . $this->userId . '/pos/' . $posId . '/qrs' , 'Using token: ' . ($this->accessToken) . '...');
+
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->accessToken,
                 'Content-Type' => 'application/json'
-            ])->post($this->baseUrl . '/instore/qr/seller/collectors/' . $this->userId . '/pos/' . $posId . '/qrs', $data);
+            ])->post($this->baseUrl . '/instore/orders/qr/seller/collectors/' . $this->userId . '/pos/' . $posId . '/qrs', $data);
 
             if ($response->successful()) {
                 $responseData = $response->json();

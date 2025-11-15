@@ -100,9 +100,6 @@ class EnviarWhatsAppJob implements ShouldQueue
                 default => throw new \Exception("Tipo de mensaje no soportado: {$this->type}")
             };
 
-            if (!$result['success']) {
-                throw new \Exception($result['error']);
-            }
 
             Log::info('WhatsApp Job - Mensaje enviado exitosamente', [
                 'phone' => $this->phoneNumber,

@@ -11,6 +11,7 @@ class MercadoPagoQROrder extends Model
 
     protected $fillable = [
         'mercadopago_pos_id',
+        'servicio_pagar_id',
         'external_reference',
         'in_store_order_id',
         'total_amount',
@@ -34,6 +35,11 @@ class MercadoPagoQROrder extends Model
     public function pos(): BelongsTo
     {
         return $this->belongsTo(MercadoPagoPOS::class, 'mercadopago_pos_id');
+    }
+
+    public function servicioPagar(): BelongsTo
+    {
+        return $this->belongsTo(ServicioPagar::class, 'servicio_pagar_id');
     }
 
     public function isPending(): bool

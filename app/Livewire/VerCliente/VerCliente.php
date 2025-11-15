@@ -8,6 +8,8 @@ use Livewire\WithPagination;
 
 use App\Models\Cliente;
 use App\Models\Empresa;
+use App\Models\Servicio;
+
 use App\Models\ServicioPagar;
 use App\Models\Pagos;
 use Illuminate\Support\Facades\Auth;
@@ -80,8 +82,9 @@ class VerCliente extends Component
     }
 
     /**
-     * Elimina el cliente y todos sus servicios (pagos e impagos)
-     * También elimina los pagos asociados y las relaciones en tablas pivot
+     * Elimina el cliente de la empresa actual y todos sus servicios asociados
+     * Solo elimina servicios, pagos y relaciones vinculadas a esta empresa
+     * El cliente solo se elimina completamente si no pertenece a ninguna otra empresa
      */
     public function eliminarCliente()
     {
@@ -95,35 +98,67 @@ class VerCliente extends Component
 
             $clienteId = $this->clienteAEliminar->id;
             $clienteNombre = $this->clienteAEliminar->nombre;
+            $empresaId = Auth::user()->empresa_id;
+            $empresa = Empresa::find($empresaId);
 
-            // 1. Obtener todos los servicios a pagar del cliente
-            $serviciosPagar = ServicioPagar::where('cliente_id', $clienteId)->get();
+            // Validar que el cliente pertenece a esta empresa
+            $clientePerteneceAEmpresa = DB::table('cliente_empresa')
+                ->where('cliente_id', $clienteId)
+                ->where('empresa_id', $empresaId)
+                ->exists();
 
-            // 2. Eliminar los pagos asociados a estos servicios
-            foreach ($serviciosPagar as $servicioPagar) {
-                Pagos::where('id_servicio_pagar', $servicioPagar->id)->delete();
+            if (!$clientePerteneceAEmpresa) {
+                DB::rollBack();
+                session()->flash('error', 'El cliente no pertenece a esta empresa.');
+                $this->mostrarModalConfirmacion = false;
+                $this->clienteAEliminar = null;
+                return;
             }
 
-            // 3. Eliminar todos los registros de servicio_pagar (pagos e impagos)
-            ServicioPagar::where('cliente_id', $clienteId)->delete();
+            // Obtener IDs de servicios de esta empresa (solo una vez)
+            $serviciosIds = $empresa->servicios()->pluck('id')->toArray();
 
-            // 4. Eliminar las relaciones cliente-servicio en la tabla pivot
+            // 1. Obtener todos los servicios a pagar del cliente en esta empresa
+            $serviciosPagarIds = ServicioPagar::where('cliente_id', $clienteId)
+                ->whereIn('servicio_id', $serviciosIds)
+                ->pluck('id')
+                ->toArray();
+
+            // 2. Eliminar los pagos asociados a estos servicios
+            if (!empty($serviciosPagarIds)) {
+                Pagos::whereIn('id_servicio_pagar', $serviciosPagarIds)->delete();
+            }
+
+            // 3. Eliminar todos los registros de servicio_pagar de esta empresa
+            ServicioPagar::where('cliente_id', $clienteId)
+                ->whereIn('servicio_id', $serviciosIds)
+                ->delete();
+
+            // 4. Eliminar las relaciones cliente-servicio de esta empresa
             DB::table('cliente_servicio')
                 ->where('cliente_id', $clienteId)
+                ->whereIn('servicio_id', $serviciosIds)
                 ->delete();
 
-            // 5. Eliminar la relación cliente-empresa en la tabla pivot
+            // 5. Eliminar la relación cliente-empresa
             DB::table('cliente_empresa')
                 ->where('cliente_id', $clienteId)
+                ->where('empresa_id', $empresaId)
                 ->delete();
 
-            // 6. Finalmente, eliminar el cliente
-            Cliente::destroy($clienteId);
+            // 6. Verificar si el cliente pertenece a otras empresas
+            $tieneOtrasEmpresas = DB::table('cliente_empresa')
+                ->where('cliente_id', $clienteId)
+                ->exists();
+
+            // 7. Si no pertenece a ninguna otra empresa, eliminar el cliente completamente
+            if (!$tieneOtrasEmpresas) {
+                Cliente::destroy($clienteId);
+            }
 
             DB::commit();
 
             // Actualizar la lista de clientes
-            $empresa = Empresa::find(Auth::user()->empresa_id);
             $this->clientes = $empresa->clientes;
 
             // Cerrar el modal
@@ -131,7 +166,11 @@ class VerCliente extends Component
             $this->clienteAEliminar = null;
 
             // Mensaje de éxito
-            session()->flash('success', "Cliente '{$clienteNombre}' eliminado exitosamente junto con todos sus servicios y pagos.");
+            $mensajeEliminacion = $tieneOtrasEmpresas 
+                ? "Cliente '{$clienteNombre}' desvinculado de la empresa exitosamente."
+                : "Cliente '{$clienteNombre}' eliminado completamente junto con todos sus servicios y pagos.";
+            
+            session()->flash('success', $mensajeEliminacion);
 
         } catch (\Exception $e) {
             DB::rollBack();
