@@ -290,6 +290,14 @@ class ServicioPagarController extends Controller
         // Obtener el servicio_pagar para actualizar el precio si hubo ajuste
         $servicioPagar = ServicioPagar::findOrFail($request->idServicioPagar);
 
+        //si el servicioPagar esta en estado pago no se puede pagar de nuevo
+        if ($servicioPagar->estado === 'pago') {
+            // return response()->json(['error' => 'El servicio ya ha sido pagado.'], 400);
+            return redirect()->route('ServiciosImpagos')
+                ->with('status', 'Servicio ya ha sido pagado.');
+
+        }
+
         $cliente = Cliente::find($servicioPagar->cliente_id);
 
         $nombreFormaPago1 = FormaPago::find($request->formaPago)->nombre;
@@ -437,7 +445,9 @@ class ServicioPagarController extends Controller
 
 
         // de esta manera buscamos el id de la caja de mercado pago asignada al usuario
-        $this->posMpId = auth()->user()->mercadoPagoPOS()->first()->id;
+        $this->posMpId = auth()->user()->mercadoPagoPOS()->first()->id ?? 1;
+
+
 
         // foreach (auth()->user()->mercadoPagoPOS as $pos) {
         //     @dump($pos->id);

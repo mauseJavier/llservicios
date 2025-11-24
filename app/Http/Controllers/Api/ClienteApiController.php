@@ -66,6 +66,26 @@ class ClienteApiController extends Controller
                 ], 404);
             }
 
+            // Verificar si los datos de empresa están presentes
+            if ($empresaId || $nombreEmpresa) {
+                // Verificar si el cliente está vinculado a la empresa
+                $estaVinculado = $cliente->empresas()->where(function ($q) use ($empresaId, $nombreEmpresa) {
+                    if ($empresaId) {
+                        $q->where('empresas.id', $empresaId);
+                    }
+                    if ($nombreEmpresa) {
+                        $q->where('empresas.nombre', 'LIKE', "%{$nombreEmpresa}%");
+                    }
+                })->exists();
+
+                if (!$estaVinculado) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'El cliente no está vinculado a la empresa especificada'
+                    ], 403);
+                }
+            }
+
             // Construir la consulta para servicios pagos e impagos
             $serviciosPagosQuery = $cliente->serviciosPagos()->with(['servicio.empresa']);
             $serviciosImpagosQuery = $cliente->serviciosImpagos()->with(['servicio.empresa']);
@@ -197,7 +217,7 @@ class ClienteApiController extends Controller
             ]);
 
             // Verificar si ya existe un cliente con el mismo nombre
-            $clienteExistente = Cliente::where('nombre', $validated['nombre'])->first();
+            $clienteExistente = Cliente::where('dni', $validated['dni'])->first();
 
             if ($clienteExistente) {
                 // Cliente ya existe, verificar si ya está vinculado a la empresa

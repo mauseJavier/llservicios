@@ -19,7 +19,6 @@
 
         
         <ul>
-          <a href="{{route('NuevoCobro')}}" role="button" style="white-space: nowrap;">Agregar Servicio</a>
           <li>
 
             <details class="dropdown">
@@ -27,6 +26,10 @@
 
               <summary>Menu</summary>
               <ul>
+                <li>
+                            <a href="{{route('NuevoCobro')}}" role="button" style="white-space: nowrap;">Agregar Servicio</a>
+
+                </li>
                 <li><a href="{{route('panelServicios')}}">Panel</a></li>
                 {{-- <li><a href="{{route('reciboSueldo')}}">Recibos Sueldo</a></li> --}}
         

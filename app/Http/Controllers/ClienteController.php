@@ -255,6 +255,15 @@ class ClienteController extends Controller
      */
     public function update(UpdateClienteRequest $request, Cliente $Cliente)
     {
+
+        // si existe un cliente con el mismo dni y distinto id
+        $clienteExistente = Cliente::where('dni', $request->dni)
+                                    ->where('id', '!=', $Cliente->id)
+                                    ->first();
+        if ($clienteExistente) {
+            return redirect()->back()->withErrors(['dni' => 'El DNI ya está en uso por otro cliente.'])->withInput();
+        }
+        
         $Cliente->update(['nombre'=>$request->nombre,
                             'dni'=>$request->dni,
                             'correo'=>$request->correo,
