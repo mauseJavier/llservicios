@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Mail;
 use App\Jobs\EnviarWhatsAppJob;
 use App\Models\Cliente;
 
+use Illuminate\Support\Facades\Log;
+
 class NotificacionMensual extends Command
 {
     /**
@@ -40,12 +42,16 @@ class NotificacionMensual extends Command
                 a.cliente_id AS cliente_id,
                 b.nombre AS nombreCliente,
                 b.correo AS correoCliente,
-                b.telefono AS telefonoCliente
+                b.telefono AS telefonoCliente,
+                d.nombre AS nombreEmpresa,
+                d.id AS empresa_id
             FROM
                 servicio_pagar a,
-                clientes b
+                clientes b,
+                servicios c,
+                empresas d
             WHERE
-                a.cliente_id = b.id AND a.estado = ?
+                a.cliente_id = b.id AND a.servicio_id = c.id AND c.empresa_id = d.id AND a.estado = ? 
             GROUP BY
                 a.cliente_id, b.nombre, b.correo, b.telefono', ['impago']);
 
@@ -73,12 +79,15 @@ class NotificacionMensual extends Command
                                                 a.cantidad AS cantidad,
                                                 a.precio AS precio,
                                                 a.precio * a.cantidad AS total,
-                                                a.created_at as fecha
+                                                a.created_at as fecha,
+                                                c.nombre AS nombreEmpresa,
+                                                c.id AS empresa_id
                                             FROM
                                                 servicio_pagar a,
-                                                servicios b
+                                                servicios b,
+                                                empresas c
                                             WHERE
-                                                a.servicio_id = b.id AND a.cliente_id = ? AND a.estado = ?', [$valor->cliente_id, 'impago']);
+                                                a.servicio_id = b.id AND b.empresa_id = c.id AND a.cliente_id = ? AND a.estado = ?', [$valor->cliente_id, 'impago']);
 
             foreach ($serviciosImpagos[$i]['servicios'] as $datos) {
                 $totalServicios = $totalServicios + $datos->total;
@@ -127,9 +136,11 @@ class NotificacionMensual extends Command
                         'tokenWS' => null
                     ];
 
+                    Log::debug('Programando envío de WhatsApp', $datos);
+
                     EnviarWhatsAppJob::dispatch($datos)->delay(now()->addSeconds(5 * $key)); // Espaciar envíos
 
-                    $this->info("  ✅ WhatsApp programado para: {$datos['telefonoCliente']}");
+                    $this->info("  ✅ WhatsApp programado para: {$datos['phoneNumber']}");
                     $whatsappsEnviados++;
                 } catch (\Exception $e) {
                     $this->error("  ❌ Error programando WhatsApp: " . $e->getMessage());
@@ -180,7 +191,11 @@ class NotificacionMensual extends Command
         $mensaje .= "━━━━━━━━━━━━━━━━━━━━━\n";
         $mensaje .= "*TOTAL ADEUDADO: \$" . number_format($datos['total'], 2) . "*\n";
         $mensaje .= "━━━━━━━━━━━━━━━━━━━━━\n\n";
-        $mensaje .= "Por favor, regulariza tu situación a la brevedad.\n\n";
+
+        $mensaje .= "Realice el pago del servicio en la plataforma: " . env('APP_URL') . ".\n\n"; 
+        
+        $mensaje .= "Para registrarse, visite: " . env('APP_URL') . "/registro\n\n";
+        
         $mensaje .= "Cualquier consulta, no dudes en contactarnos.\n\n";
         $mensaje .= "_Mensaje automático - " . config('app.name') . "_";
         

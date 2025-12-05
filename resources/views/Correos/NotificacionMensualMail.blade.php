@@ -80,6 +80,7 @@
             <thead>
                 <tr>
                     <th>Fecha</th>
+                    <th>Empresa</th>
                     <th>Servicio</th>
                     
                     <th>Cantidad</th>
@@ -91,6 +92,7 @@
                 @foreach ($datos['servicios'] as $item)
                 <tr>
                     <td>{{$item->fecha}}</td>
+                    <td>{{$item->nombreEmpresa}}</td>
                     <td>{{$item->nombreServicio}}</td>
                     
                     <td>{{$item->cantidad}}</td>
@@ -104,6 +106,12 @@
             </tbody>
         </table>
         <p>Total a abonar: <strong>${{$datos['total']}}</strong></p>
+                
+        <p>Realice el pago del servicio en la plataforma: {{env('APP_URL')}}</p>
+        
+        <p>Para registrarse, visite: {{env('APP_URL')}}/registro</p>
+
+
         <p>Por favor, realice el pago antes de la fecha de vencimiento.</p>
         <p>¡Gracias por confiar en nuestros servicios!</p>
         <p>

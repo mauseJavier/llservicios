@@ -146,7 +146,12 @@ class EnviarWhatsAppNuevoServicioJob implements ShouldQueue
         $mensaje .= "   • Fecha de registro: {$fechaFormateada}\n\n";
         
         $mensaje .= "💰 *Total a pagar: \${$total}*\n\n";
-        $mensaje .= "Por favor, proceda con el pago a la brevedad posible.\n\n";
+                
+        $mensaje .= "Realice el pago del servicio en la plataforma: " . env('APP_URL') . ".\n\n"; 
+        
+        $mensaje .= "Para registrarse, visite: " . env('APP_URL') . "/registro\n\n";
+
+
         $mensaje .= "Si tiene alguna consulta, no dude en contactarnos.\n\n";
         $mensaje .= "Gracias por su atención. 🙏";
 

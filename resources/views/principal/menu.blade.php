@@ -18,7 +18,7 @@
         </details>
       </li> --}}
       <li>
-        <details role="list" dir="rtl">
+        {{-- <details role="list" dir="rtl">
           <summary aria-haspopup="listbox" role="link" class="contrast">Acciones</summary>
           <ul role="listbox">
             
@@ -26,7 +26,9 @@
             <li><a href="{{route('registro')}}">Registro</a></li>
 
           </ul>
-        </details>
+        </details> --}}
+          <a role="button" href="{{route('login')}}">Entrar</a>
+          <a role="button" href="{{route('registro')}}" style="background-color: slategray;">Registro</a>
       </li>
     </ul>
   </nav>

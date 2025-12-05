@@ -45,8 +45,8 @@ class EnviarWhatsAppJob implements ShouldQueue
         $this->message = $datos['message'] ?? null;
         $this->type = $datos['type'] ?? 'text';
         $this->additionalData = $datos['additionalData'] ?? [];
-        $this->instanciaWS = $datos['instanciaWS'] ?? null;
-        $this->tokenWS = $datos['tokenWS'] ?? null;
+        $this->instanciaWS = $datos['instanciaWS'] ?? env('WHATSAPP_INSTANCE_ID', null);
+        $this->tokenWS = $datos['tokenWS'] ?? env('WHATSAPP_API_KEY', null);
     }
 
     /**
