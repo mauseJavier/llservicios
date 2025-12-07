@@ -16,10 +16,14 @@ class PanelController extends Controller
     public function index(Request $request){
 
         $usuario = Auth::user();
+
+        //fecha inicio principio de mes y fecha fin fin de mes
+        $conffechaInicio = Carbon::now()->startOfMonth()->toDateString();
+        $conffechaFin = Carbon::now()->endOfMonth()->toDateString();
         
         // Obtener parámetros de filtrado
-        $fechaDesde = $request->input('fecha_desde', null);
-        $fechaHasta = $request->input('fecha_hasta', null);
+        $fechaDesde = $request->input('fecha_desde', $conffechaInicio);
+        $fechaHasta = $request->input('fecha_hasta', $conffechaFin);
         $importeMin = $request->input('importe_min', null);
         $importeMax = $request->input('importe_max', null);
         $nombreServicio = $request->input('nombre_servicio', null);
@@ -34,6 +38,15 @@ class PanelController extends Controller
                 ->impagos()
                 ->with(['servicio.empresa']);
 
+                //obter los nombres de las empresas relacionadas
+                //
+            $empresas = $queryImpagos->get()
+                ->pluck('servicio.empresa.nombre')
+                ->unique()
+                ->filter()
+                ->values();
+            // dd($empresas);
+
             // Debug: Ver la SQL generada
             // dd($queryImpagos->toSql(), $queryImpagos->getBindings());
 
@@ -44,11 +57,11 @@ class PanelController extends Controller
 
             // Aplicar filtros de fecha
             if ($fechaDesde) {
-                $queryImpagos->whereDate('servicio_pagar.created_at', '>=', $fechaDesde);
+                // $queryImpagos->whereDate('servicio_pagar.created_at', '>=', $fechaDesde);
                 $queryPagos->whereDate('servicio_pagar.created_at', '>=', $fechaDesde);
             }
             if ($fechaHasta) {
-                $queryImpagos->whereDate('servicio_pagar.created_at', '<=', $fechaHasta);
+                // $queryImpagos->whereDate('servicio_pagar.created_at', '<=', $fechaHasta);
                 $queryPagos->whereDate('servicio_pagar.created_at', '<=', $fechaHasta);
             }
 
@@ -143,7 +156,8 @@ class PanelController extends Controller
             'importeMin',
             'importeMax',
             'nombreServicio',
-            'nombreEmpresa'
+            'nombreEmpresa',
+            'empresas'
         ))->render();
     }
 }

@@ -24,35 +24,45 @@
 
 
   
-              <fieldset role="group">
+                <div class="container">
+                    
+                    
+                    <form action="{{route('BuscarServicio')}}" method="GET" >
+                      <input id="buscar" name="buscar"  type="search"
+                      @if (isset($buscar))
+                      value="{{$buscar}}"
+                      @endif  placeholder="Buscar..." />
+                    </form>        
+                    
                 
-                <a href="{{route('Servicios.create')}}" role="button">Nuevo</a>
-                
-                <form action="{{route('BuscarServicio')}}" method="GET">
-                            <input id="buscar" name="buscar"  
-                              @if (isset($buscar))
-                                  value="{{$buscar}}"
-                              @endif  placeholder="Buscar..." />
+              </div>
+              
+                <article style="display: flex; justify-content: flex-end; align-items: center; gap: 1rem;">
+
+                <a href="{{route('Servicios.create')}}" role="button" style="flex: 0 0 10%; max-width: 10%;">
+              
+                  <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-square-plus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 12h6" /><path d="M12 9v6" /><path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14z" /></svg>
+              
+                </a>
+
+                <form action="{{route('Servicios.index')}}" method="get">
+              
+                  <div class="grid">
+                  <label style="color:red">
+                  <input type="checkbox" name="inactivos" value="1" 
+                  @if(isset($mostrarInactivos) && $mostrarInactivos) checked @endif
+                  onchange="this.form.submit()">
+                  Mostrar inactivos
+                  </label>
+              
+                  </div>
+              
+              
                 </form>
 
+                </article>
                 
-                
-              </fieldset>
               
-              <form action="{{route('Servicios.index')}}" method="get">
-
-                <div class="grid">
-                  <label style="color:red">
-                    <input type="checkbox" name="inactivos" value="1" 
-                      @if(isset($mostrarInactivos) && $mostrarInactivos) checked @endif
-                      onchange="this.form.submit()">
-                    Mostrar inactivos
-                  </label>
-
-                </div>
-
-
-              </form>
 
 
 

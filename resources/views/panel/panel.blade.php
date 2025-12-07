@@ -8,17 +8,17 @@
 
         {{-- Estadísticas resumidas --}}
         <div class="grid" style="margin-bottom: 20px;">
-            <article style="background: #ff6b6b; color: white; text-align: center;">
+            <article style="background: transparent; color: rgb(117, 23, 23); text-align: center; border: 2px solid #ff6b6b; border-radius: 8px;">
                 <h3 style="margin: 0;">{{ $serviciosImpagos->count() }}</h3>
                 <p style="margin: 0;">Servicios Impagos</p>
                 <h4 style="margin: 0;">${{ number_format($serviciosImpagos->sum('total'), 2) }}</h4>
             </article>
-            <article style="background: #21652cff; color: white; text-align: center;">
+            <article style="background: transparent; color: rgb(117, 23, 23); text-align: center; border: 2px solid #ff6b6b; border-radius: 8px;">
                 <h3 style="margin: 0;">{{ $serviciosPagos->count() }}</h3>
                 <p style="margin: 0;">Servicios Pagos</p>
                 <h4 style="margin: 0;">${{ number_format($serviciosPagos->sum('total'), 2) }}</h4>
             </article>
-            <article style="background: #339af0; color: white; text-align: center;">
+            <article style="background: transparent; color: rgb(117, 23, 23); text-align: center; border: 2px solid #ff6b6b; border-radius: 8px;">
                 <h3 style="margin: 0;">{{ $serviciosImpagos->count() + $serviciosPagos->count() }}</h3>
                 <p style="margin: 0;">Total Servicios</p>
                 <h4 style="margin: 0;">
@@ -29,7 +29,7 @@
         <details
             {{ request()->hasAny(['fecha_desde', 'fecha_hasta', 'importe_min', 'importe_max', 'nombre_servicio', 'nombre_empresa']) ? 'open' : '' }}>
             <summary
-                style="cursor: pointer; padding: 12px 16px; background: #495057; color: white; border-radius: 8px; margin-bottom: 16px; font-weight: 500; list-style: none;">
+                style="cursor: pointer; padding: 12px 16px; background: #495057; color: rgb(117, 23, 23); border-radius: 8px; margin-bottom: 16px; font-weight: 500; list-style: none;">
                 <strong>🔍 Filtros de Búsqueda</strong>
                 @if (request()->hasAny([
                         'fecha_desde',
@@ -57,7 +57,7 @@
                         <input type="date" id="fecha_hasta" name="fecha_hasta" value="{{ $fechaHasta ?? '' }}"
                             style="width: 100%;">
                     </div>
-                    <div>
+                    {{-- <div>
                         <label for="importe_min"><strong>💵 Importe mínimo</strong></label>
                         <input type="number" step="0.01" id="importe_min" name="importe_min"
                             value="{{ $importeMin ?? '' }}" placeholder="0.00" style="width: 100%;">
@@ -66,7 +66,7 @@
                         <label for="importe_max"><strong>💵 Importe máximo</strong></label>
                         <input type="number" step="0.01" id="importe_max" name="importe_max"
                             value="{{ $importeMax ?? '' }}" placeholder="Sin límite" style="width: 100%;">
-                    </div>
+                    </div> --}}
                     <div>
                         <label for="nombre_servicio"><strong>🛍️ Servicio</strong></label>
                         <input type="text" id="nombre_servicio" name="nombre_servicio"
@@ -74,12 +74,21 @@
                     </div>
                     <div>
                         <label for="nombre_empresa"><strong>🏢 Empresa</strong></label>
-                        <input type="text" id="nombre_empresa" name="nombre_empresa" value="{{ $nombreEmpresa ?? '' }}"
-                            placeholder="Nombre de la empresa" style="width: 100%;">
+                        {{-- <input type="text" id="nombre_empresa" name="nombre_empresa" value="{{ $nombreEmpresa ?? '' }}"
+                            placeholder="Nombre de la empresa" style="width: 100%;"> --}}
+
+                        <select id="nombre_empresa" name="nombre_empresa" style="width: 100%;">
+                            <option value="">Todo</option>
+                            @foreach ($empresas as $empresa)
+                                <option value="{{ $empresa }}" {{ (isset($nombreEmpresa) && $nombreEmpresa == $empresa) ? 'selected' : '' }}>
+                                    {{ $empresa }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
                     <div style="grid-column: 1 / -1; display: flex; gap: 10px; justify-content: center;">
                         <button type="submit"
-                            style="background: #28a745; color: white; border: none; border-radius: 8px; padding: 12px 32px; font-size: 16px; cursor: pointer; font-weight: bold;">
+                            style="background: #28a745; color: rgb(117, 23, 23); border: none; border-radius: 8px; padding: 12px 32px; font-size: 16px; cursor: pointer; font-weight: bold;">
                             🔍 Filtrar
                         </button>
                         <a href="{{ route('panelServicios') }}" role="button" class="secondary"
@@ -98,7 +107,7 @@
             ⚠️ Servicios Impagos
             @if ($serviciosImpagos->count() > 0)
                 <span
-                    style="background: #ff6b6b; color: white; padding: 4px 12px; border-radius: 20px; font-size: 16px; margin-left: 10px;">
+                    style="background: #ff6b6b; color: rgb(117, 23, 23); padding: 4px 12px; border-radius: 20px; font-size: 16px; margin-left: 10px;">
                     {{ $serviciosImpagos->count() }}
                 </span>
             @endif
@@ -111,7 +120,7 @@
                         <header style="padding: 0; position: relative;">
                             <img src="{{ $s->imagenServicio }}" alt="{{ $s->nombreServicio }}"
                                 style="width: 100%; height: 180px; object-fit: cover; border-radius: 6px 6px 0 0;">
-                            <div style="position: absolute; top: 10px; right: 10px; background: #ff6b6b; color: white; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 18px;">
+                            <div style="position: absolute; top: 10px; right: 10px; background: #ff6b6b; color: rgb(117, 23, 23); padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 18px;">
                                 ${{ number_format($s->total, 2) }}
                             </div>
                         </header>
@@ -137,14 +146,16 @@
                         <footer style="padding: 16px; text-align: center; border-top: 1px solid #dee2e6;">
                             <a href="{{ route('pago.generar', $s->servicio_id) }}" role="button"
                                 style="background: #28a745; width: 100%; margin: 0; padding: 12px 20px; font-size: 16px;">
-                                💳 Pagar Servicio
+                                                                
+                                <img width="50%" src="https://i.postimg.cc/3rq4kqvt/MP-RGB-HANDSHAKE-color-horizontal.png" alt="">
+
                             </a>
                         </footer>
                     </article>
                 @endforeach
             </div>
 
-            <article style="background: #fff3cd; border: 2px solid #ffc107; padding: 20px; text-align: center; margin-top: 20px;">
+            <article style="background: transparent; border: 2px solid #ffc107; padding: 20px; text-align: center; margin-top: 20px;">
                 <h3 style="margin: 0; color: #856404;">
                     💰 TOTAL A PAGAR: <span style="color: #ff6b6b; font-size: 24px;">${{ number_format($serviciosImpagos->sum('total'), 2) }}</span>
                 </h3>
@@ -163,7 +174,7 @@
             ✅ Servicios Pagos
             @if ($serviciosPagos->count() > 0)
                 <span
-                    style="background: #51cf66; color: white; padding: 4px 12px; border-radius: 20px; font-size: 16px; margin-left: 10px;">
+                    style="background: #51cf66; color: rgb(117, 23, 23); padding: 4px 12px; border-radius: 20px; font-size: 16px; margin-left: 10px;">
                     {{ $serviciosPagos->count() }}
                 </span>
             @endif
@@ -212,7 +223,7 @@
             </figure>
         @else
             <article
-                style="background: #f8f9fa; border: 2px solid #dee2e6; color: #6c757d; text-align: center; padding: 30px;">
+                style="background: transparent; border: 2px solid #173c62; color: #6c757d; text-align: center; padding: 30px;">
                 <h3 style="margin: 0;">📋 No hay servicios pagados registrados</h3>
             </article>
         @endif

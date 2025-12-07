@@ -19,23 +19,25 @@
 
         <div class="grid">
 
-            <fieldset role="group">
-
-                
-                <a href="{{ route('ImportarClientesCSV') }}" role="button" data-tooltip="Importar Clientes" style="background-color: green;">
-                    Importar
-                </a>
-
-                <a href="{{ route('Cliente.create') }}" role="button" data-tooltip="Nuevo Cliente">
-                    Nuevo
-                </a>
-                <input type="text" placeholder="Buscar cliente..." wire:model.live="buscarCliente" />
-
-
+            <fieldset role="group">       
+                <input type="search" placeholder="Buscar cliente..." wire:model.live="buscarCliente" />
             </fieldset>
 
 
         </div>
+
+        <article style="display: flex; justify-content: flex-end;">
+
+            <a href="{{ route('Cliente.create') }}" role="button" data-tooltip="Nuevo Cliente" style="margin-right: 10px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-square-plus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 12h6" /><path d="M12 9v6" /><path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14z" /></svg>
+            </a>
+
+            <a href="{{ route('ImportarClientesCSV') }}" role="button" data-tooltip="Importar Clientes" style="background-color: green;">
+                Importar
+            </a>
+
+        </article>
+
 
         <div class="overflow-auto">
             <table>

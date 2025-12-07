@@ -11,7 +11,7 @@
 
         <fieldset role="group">
 
-            <a href="{{route('NuevoCobro')}}" role="button" style="white-space: nowrap;">Agregar Servicio</a>
+            {{-- <a href="{{route('NuevoCobro')}}" role="button" style="white-space: nowrap;">Agregar Servicio</a> --}}
             <input type="search" class="input" id="buscar" name="buscar" wire:model.live="buscar" placeholder="Buscar...">
 
         </fieldset>
