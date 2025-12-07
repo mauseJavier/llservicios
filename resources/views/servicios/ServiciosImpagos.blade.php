@@ -7,9 +7,9 @@
 <div class="container">
   <h1>Servicios Impagos</h1>
 
-  <a href="{{route('ServiciosImpagos')}}" role="button" class="outline" style="font-size: 20px; padding: 4px 8px; ">Impagos</a>
+  {{-- <a href="{{route('ServiciosImpagos')}}" role="button" class="outline" style="font-size: 20px; padding: 4px 8px; ">Impagos</a>
   <a href="{{route('ServiciosPagos')}}" role="button" class="contrast outline" style="font-size: 20px; padding: 4px 8px; ">Pagos</a>
-  <a href="{{route('Grilla')}}" role="button" class="contrast outline" style="font-size: 20px; padding: 4px 8px; ">Grilla</a>
+  <a href="{{route('Grilla')}}" role="button" class="contrast outline" style="font-size: 20px; padding: 4px 8px; ">Grilla</a> --}}
   
   <nav>
       <ul>
@@ -31,9 +31,23 @@
         <li>
           <a href="{{route('NotificacionTodosServiciosImpagos')}}" role="button">Notif. Todos</a>
         </li>
-        <li>
-          <a href="{{route('NuevoCobro')}}" role="button">Nuevo Cobro</a>
-        </li>
+
+        @if(Auth::user()->role_id == 3)
+          <li>
+            <form method="POST" action="{{ route('EliminarTodosServiciosImpagos') }}" onsubmit="return confirm('¿Está seguro que desea eliminar TODOS los servicios impagos?\n\nEsta acción no se puede deshacer.');">
+              @csrf
+              <button type="submit" style="background: none; border: none; color: #d32f2f; cursor: pointer;" data-tooltip="Eliminar Todos (Solo Admin/Super)">
+                Eliminar Todos
+              </button>
+            </form>
+          </li>
+
+          <li>
+            <a href="{{ route('ContarServiciosImpagos') }}" role="button">Contar Impagos</a>
+          </li>
+
+        @endif
+
       </ul>
   
   </nav>
@@ -41,7 +55,7 @@
 </div>
 <div class="container">
 
-  <figure>
+  <figure class="overflow-auto">
     <table>
         <thead>
           <tr>
@@ -68,13 +82,32 @@
               <th>                  
                   <strong><a href="{{route('PagarServicio',['idServicioPagar'=>$e->idServicioPagar,'importe'=>$e->total])}}" data-tooltip="Pagar">Pagar</a></strong> | 
                   <strong><a href="{{route('NotificacionNuevoServicio',['idServicioPagar'=>$e->idServicioPagar])}}"  data-tooltip="Enviar Notificacion">Enviar Notif.</a></strong>
+                  
+                  @if(Auth::user()->role_id == 2 || Auth::user()->role_id == 3)
+                    | 
+                    <strong>
+                      <a href="#" 
+                         onclick="event.preventDefault(); if(confirm('¿Está seguro que desea eliminar este servicio impago?\n\nCliente: {{$e->nombreCliente}}\nServicio: {{$e->nombreServicio}}\nTotal: ${{$e->total}}\n\nEsta acción no se puede deshacer.')) { document.getElementById('delete-form-{{$e->idServicioPagar}}').submit(); }" 
+                         data-tooltip="Eliminar (Solo Admin/Super)"
+                         style="color: #d32f2f;">
+                        Eliminar
+                      </a>
+                    </strong>
+                    <form id="delete-form-{{$e->idServicioPagar}}" 
+                          action="{{route('EliminarServicioImpago', ['idServicioPagar' => $e->idServicioPagar])}}" 
+                          method="POST" 
+                          style="display: none;">
+                      @csrf
+                      @method('DELETE')
+                    </form>
+                  @endif
               </th>
             </tr>
           @endforeach
         
         </tfoot>
     </table>
-</figure>
+  </figure>
 
 
 

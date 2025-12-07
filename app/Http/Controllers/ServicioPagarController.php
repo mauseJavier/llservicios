@@ -10,6 +10,17 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\FormaPago;
 use App\Models\Pagos;
 use App\Models\Servicio;
+use App\Models\ServicioPagar;
+use App\Models\Cliente;
+use App\Models\Empresa;
+use App\Models\MercadoPagoPOS;
+use App\Models\MercadoPagoQROrder;
+
+
+use App\Services\MercadoPago\MercadoPagoQRService;
+use Illuminate\Support\Str;
+
+
 
 
 use App\Events\PagoServicioEvent;
@@ -22,8 +33,47 @@ use Illuminate\Support\Collection;
 
 use Barryvdh\DomPDF\Facade\Pdf;
 
+use App\Jobs\EnviarWhatsAppJob;
+
 class ServicioPagarController extends Controller
 {
+    /**
+     * Genera un PDF pequeño con los datos del pago y retorna el archivo en base64
+     *
+     * El array $datosPago debe contener las siguientes claves:
+     *  - nombreCliente: string
+     *  - dniCliente: string
+     *  - nombreServicio: string
+     *  - nombreEmpresa: string
+     *  - cantidad: int|float
+     *  - precioUnitario: float
+     *  - forma_pago: string
+     *  - importe: float (opcional, si hay un solo pago)
+     *  - forma_pago2: string (opcional, si hay dos formas de pago)
+     *  - importe2: float (opcional, si hay dos formas de pago)
+     *  - comentario: string (opcional)
+     *  - fechaPago: string (opcional, formato d/m/Y H:i)
+     *
+     * @param array $datosPago Datos requeridos para el comprobante
+     * @return string base64
+     */
+    public function GenerarComprobantePagoPDFBase64(array $datosPago)
+    {
+        // Plantilla simple en HTML para el PDF
+        $html = view('pdf.comprobante_pago', $datosPago)->render();
+
+        // Generar el PDF usando DomPDF
+        $pdf = Pdf::loadHTML($html)->setPaper('a6'); // a6: pequeño
+
+        // Obtener el contenido binario del PDF
+        $output = $pdf->output();
+
+        // Codificar en base64
+        $base64 = base64_encode($output);
+
+        return $base64;
+    }
+
     
     public function ServiciosImpagos(Request $request){
 
@@ -220,34 +270,162 @@ class ServicioPagarController extends Controller
         $request->validate([
             'comentario' => 'max:200',
             'idServicioPagar' => 'required',
-            'importe' => 'required',
+            'importe' => 'required|numeric|min:0',
+            'importeOriginal' => 'required|numeric|min:0',
+            'formaPago' => 'required',
+            'importe1' => 'required|numeric|min:0',
+            'formaPago2' => 'nullable',
+            'importe2' => 'nullable|numeric|min:0',
+            'aplicarAjuste' => 'nullable',
+            'tipoAjuste' => 'nullable|in:descuento,incremento',
+            'ajusteTipo' => 'nullable|in:porcentaje,monto',
+            'valorAjuste' => 'nullable|numeric|min:0',
         ]);
 
         // return $request;
 
-
         $usuario = Auth::user();
-        // return $usuario;
+        $empresa = Empresa::find($usuario->empresa_id);
+        
+        // Obtener el servicio_pagar para actualizar el precio si hubo ajuste
+        $servicioPagar = ServicioPagar::findOrFail($request->idServicioPagar);
+
+        //si el servicioPagar esta en estado pago no se puede pagar de nuevo
+        if ($servicioPagar->estado === 'pago') {
+            // return response()->json(['error' => 'El servicio ya ha sido pagado.'], 400);
+            return redirect()->route('ServiciosImpagos')
+                ->with('status', 'Servicio ya ha sido pagado.');
+
+        }
+
+        $cliente = Cliente::find($servicioPagar->cliente_id);
+
+        $nombreFormaPago1 = FormaPago::find($request->formaPago)->nombre;
+        $nombreFormaPago2 = $request->formaPago2 ? FormaPago::find($request->formaPago2)->nombre : null;
+        
+        // Si se aplicó un ajuste, actualizar el precio en servicio_pagar
+        if ($request->filled('aplicarAjuste') && $request->aplicarAjuste) {
+            $importeFinal = floatval($request->importe);
+            $importeOriginal = floatval($request->importeOriginal);
+            
+            // Calcular el nuevo precio unitario basado en el importe final
+            if ($servicioPagar->cantidad > 0) {
+                $nuevoPrecio = $importeFinal / $servicioPagar->cantidad;
+                
+                // Actualizar el precio en servicio_pagar
+                $servicioPagar->update([
+                    'precio' => $nuevoPrecio,
+                ]);
+                
+                // Agregar información del ajuste al comentario
+                $tipoAjusteTexto = $request->tipoAjuste === 'descuento' ? 'Descuento' : 'Incremento';
+                $ajusteTexto = $request->ajusteTipo === 'porcentaje' 
+                    ? $request->valorAjuste . '%' 
+                    : '$' . $request->valorAjuste;
+                
+                $comentarioAjuste = "{$tipoAjusteTexto} aplicado: {$ajusteTexto} (Importe original: \${$importeOriginal}, Importe final: \${$importeFinal})";
+                
+                // Combinar con el comentario del usuario si existe
+                $comentarioFinal = $request->comentario 
+                    ? $request->comentario . ' | ' . $comentarioAjuste 
+                    : $comentarioAjuste;
+            } else {
+                $comentarioFinal = $request->comentario;
+            }
+        } else {
+            $comentarioFinal = $request->comentario;
+        }
+        
+        // Actualizar el estado del servicio a pagado
         DB::update('UPDATE servicio_pagar SET estado=?,updated_at=? WHERE  id = ?',
                          ['pago',
                         date('Y-m-d H:i:s'),
                         $request->idServicioPagar]);
 
-            // 'id_servicio_pagar'=> $event->pago->idServicioPagar,
-            // 'id_usuario'=> $event->pago->idUsuario,
-            // 'importe'=> $event->pago->importe,
+
+
+
+            // Preparar datos del pago
             $pago = ['idServicioPagar'=>$request->idServicioPagar,
                         'idUsuario'=>$usuario->id,
-                        'importe'=>$request->importe,
+                        'importe'=>$request->importe1,
                         'forma_pago'=>$request->formaPago,
-                        'comentario'=>$request->comentario];
+                        'forma_pago2'=>$request->formaPago2,
+                        'importe2'=>$request->importe2,
+                        'comentario'=>$comentarioFinal];
+
+            // dd($pago);
                      
             PagoServicioEvent::dispatch($pago);
 
+            // Aquí tengo que hacer una notificación
+            ////////////////////////////////777
+            // app/Jobs/EnviarWhatsAppJob.php
+
+            //crear un mensaje personalizado con los datos del pago y del cliente y de la empresa 
+
+            $mensaje = "Hola {$cliente->nombre},\n\n";
+            $mensaje .= "Le informamos que hemos recibido su pago.\n";
+            $mensaje .= "Detalles del pago:\n";
+            $mensaje .= "• Servicio: {$servicioPagar->servicio->nombre}\n";
+
+            // Verificar si hay dos formas de pago
+            if ($request->filled('formaPago2') && $request->importe2 > 0) {
+                $mensaje .= "• Forma de pago 1: {$nombreFormaPago1} - \${$request->importe1}\n";
+                $mensaje .= "• Forma de pago 2: {$nombreFormaPago2} - \${$request->importe2}\n";
+                $mensaje .= "• Total pagado: \$" . ($request->importe1 + $request->importe2) . "\n";
+            } else {
+                $mensaje .= "• Forma de pago: {$nombreFormaPago1}\n";
+                $mensaje .= "• Importe: \${$request->importe1}\n";
+            }
+
+            $mensaje .= "• Fecha: " . now()->format('d/m/Y H:i') . "\n\n";
+            $mensaje .= "¡Gracias por su preferencia!";
+
+            $datos = [
+                'phoneNumber' => $cliente->telefono,
+                'message' => $mensaje,
+                'type' => 'text',
+                'additionalData' => [],
+                'instanciaWS' => $empresa->instanciaWS ?? null,
+                'tokenWS' => $empresa->tokenWS ?? null
+            ];
+            
+            EnviarWhatsAppJob::dispatch($datos);
+
+            $datosPDF = [
+                'nombreCliente' => $cliente->nombre,
+                'dniCliente' => $cliente->dni,
+                'nombreServicio' => $servicioPagar->servicio->nombre,
+                'nombreEmpresa' => $empresa->nombre,
+                'cantidad' => $servicioPagar->cantidad,
+                'precioUnitario' => $servicioPagar->precio,
+                'forma_pago' => $nombreFormaPago1,
+                'importe' => $request->importe1,
+                'forma_pago2' => $nombreFormaPago2,
+                'importe2' => $request->importe2,
+                'comentario' => $comentarioFinal,
+                'fechaPago' => now()->format('d/m/Y H:i'),
+                'logoEmpresa' => $empresa->logo,
+            ];
 
 
-            if (isset( $request->comprobantePDF)){
-                
+            $datos = [
+                'phoneNumber' => $cliente->telefono,
+                'message' => 'Comprobante de Pago adjunto.',
+                'type' => 'document',
+                'additionalData' => [
+                    'filename' => 'comprobante_pago.pdf',
+                    'caption' => 'Comprobante de Pago',
+                    'base64' => $this->GenerarComprobantePagoPDFBase64($datosPDF)   
+                ],
+                'instanciaWS' => $empresa->instanciaWS ?? null,
+                'tokenWS' => $empresa->tokenWS ?? null
+            ];
+            EnviarWhatsAppJob::dispatch($datos);
+
+
+            if (isset( $request->comprobantePDF)){    
 
 
 
@@ -265,14 +443,275 @@ class ServicioPagarController extends Controller
 
     public function PagarServicio($idServicioPagar,$importe){
 
+
+        // de esta manera buscamos el id de la caja de mercado pago asignada al usuario
+        $this->posMpId = auth()->user()->mercadoPagoPOS()->first()->id ?? 1;
+
+
+
+        // foreach (auth()->user()->mercadoPagoPOS as $pos) {
+        //     @dump($pos->id);
+        // }
+
         $formaPago = FormaPago::all();
-        $servicio = DB::select('SELECT a.*,b.* FROM servicio_pagar a, servicios b WHERE a.servicio_id = b.id AND a.id = ?', [$idServicioPagar]);
-        // return $servicio;
+        
+        // Utilizar el modelo ServicioPagar con sus relaciones
+        $servicioPagar = ServicioPagar::with(['servicio', 'cliente'])
+            ->findOrFail($idServicioPagar);
+        
+        // Preparar datos para la vista con información del cliente y servicio
+        $datosServicio = (object) [
+            'id' => $servicioPagar->id,
+            'cantidad' => $servicioPagar->cantidad,
+            'precio' => $servicioPagar->precio,
+            'total' => $servicioPagar->total,
+            'estado' => $servicioPagar->estado,
+            'created_at' => $servicioPagar->created_at,
+            'updated_at' => $servicioPagar->updated_at,
+            // Datos del servicio
+            'servicio_id' => $servicioPagar->servicio->id,
+            'nombre' => $servicioPagar->servicio->nombre,
+            'descripcion' => $servicioPagar->servicio->descripcion,
+            'tiempo' => $servicioPagar->servicio->tiempo,
+            'linkPago' => $servicioPagar->servicio->linkPago,
+            'imagen' => $servicioPagar->servicio->imagen,
+            // Datos del cliente
+            'cliente_id' => $servicioPagar->cliente->id,
+            'nombreCliente' => $servicioPagar->cliente->nombre,
+            'correoCliente' => $servicioPagar->cliente->correo,
+            'telefonoCliente' => $servicioPagar->cliente->telefono,
+            'dniCliente' => $servicioPagar->cliente->dni,
+            'domicilioCliente' => $servicioPagar->cliente->domicilio,
+        ];
 
+        return view('servicios.PagarServicio', [
+            'servicio' => $datosServicio,
+            'formaPago' => $formaPago,
+            'idServicioPagar' => $idServicioPagar,
+            'importe' => $importe,
+            'posMpId' => $this->posMpId,
+        ])->render();
+    }
 
-      return view('servicios.PagarServicio',['servicio'=>$servicio[0],'formaPago'=>$formaPago,'idServicioPagar'=>$idServicioPagar,'importe'=>$importe])->render();
+    // public function GenerarQRMercadoPago(Request $request, $posMpId, $importe, $idServicioPagar){
 
+    //     // return array($posMpId, $importe, $idServicioPagar);
 
+    //     $usuario = Auth::user();
+    //     $empresa = Empresa::find($usuario->empresa_id);
+
+    //            // Utilizar el modelo ServicioPagar con sus relaciones
+    //     $servicioPagar = ServicioPagar::with(['servicio', 'cliente'])
+    //         ->findOrFail($idServicioPagar);
+
+    //     $this->createOrder($posMpId, $importe, $idServicioPagar);
+
+    // }
+
+    /**
+     * Mostrar vista con QR de MercadoPago
+     */
+    public function mostrarQR($servicioPagar, $importe, $posMpId)
+    {
+        $servicioPagar = ServicioPagar::with(['servicio', 'cliente'])
+            ->findOrFail($servicioPagar);
+        
+        return view('servicios.QRPago', [
+            'servicioPagar' => $servicioPagar,
+            'importe' => $importe,
+            'posMpId' => $posMpId,
+        ]);
+    }
+
+    /**
+     * Crear orden de pago QR (API)
+     */
+    public function createOrder(Request $request)
+    {
+        $request->validate([
+            'servicioPagar' => 'required|integer',
+            'importe' => 'required|numeric',
+            'posMpId' => 'required|integer'
+        ]);
+
+        try {
+            // Utilizar el modelo ServicioPagar con sus relaciones
+            $servicioPagar = ServicioPagar::with(['servicio', 'cliente'])
+                ->findOrFail($request->servicioPagar);
+
+            $pos = MercadoPagoPOS::findOrFail($request->posMpId);
+            
+            // Configurar credenciales
+            config([
+                'services.mercadopago.access_token' => $pos->store->empresa->MP_ACCESS_TOKEN,
+                'services.mercadopago.user_id' => $pos->store->empresa->MP_USER_ID,
+                'services.mercadopago.sandbox' => false
+            ]);
+            
+            $qrService = new MercadoPagoQRService();
+            
+            // Generar referencia única
+            $orderReference = 'QR-' . time() . '-' . Str::random(6);
+            
+            $baseUrl = config('app.env') === 'local' ? 'https://prepositionally-vacciniaceous-irving.ngrok-free.dev' : config('app.url');
+            
+            // Datos de la orden
+            $orderData = [
+                'external_reference' => $orderReference,
+                'title' => $servicioPagar->servicio->nombre ?: 'Pago en caja',
+                'description' => $servicioPagar->servicio->descripcion ?: 'Cobro mediante código QR',
+                'total_amount' => floatval($servicioPagar->precio) * floatval($servicioPagar->cantidad),
+                'notification_url' => env('APP_ENV') == 'local' ? $baseUrl .'/api/mercadopago/webhook/qr' : route('api.mercadopago.webhook.qr'),
+                'items' => [
+                    [
+                        'sku_number' => 'ITEM-001-' . $orderReference,
+                        'category' => 'marketplace',
+                        'title' => $servicioPagar->servicio->nombre ?: 'Producto/Servicio',
+                        'description' => $servicioPagar->servicio->descripcion ?: 'Cobro mediante código QR',
+                        'unit_price' => floatval($servicioPagar->precio),
+                        'quantity' => floatval($servicioPagar->cantidad),
+                        'unit_measure' => 'unit',
+                        'total_amount' => floatval($servicioPagar->precio) * floatval($servicioPagar->cantidad),
+                    ]
+                ],
+                'expiration_date' => now()->addMinutes(10)->format('Y-m-d\TH:i:s.vP')
+            ];
+            
+            // Crear orden en MercadoPago
+            $response = $qrService->createQROrder($pos->external_id, $orderData);
+            
+            if (!$response['success']) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Error al crear orden: ' . $response['error']
+                ], 400);
+            }
+            
+            // Guardar orden en BD
+            $order = MercadoPagoQROrder::create([
+                'mercadopago_pos_id' => $pos->id,
+                'servicio_pagar_id' => $servicioPagar->id,
+                'external_reference' => $orderReference,
+                'in_store_order_id' => $response['in_store_order_id'],
+                'total_amount' => $orderData['total_amount'],
+                'status' => 'pending',
+                'items' => $orderData['items'],
+                'expires_at' => now()->addMinutes(10)
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'qr_data' => $response['qr_data'],
+                'order_id' => $order->id,
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error creando orden QR', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Verificar estado del pago (polling)
+     */
+    public function checkPaymentStatus(Request $request)
+    {
+        $request->validate([
+            'order_id' => 'required|integer'
+        ]);
+
+        try {
+            $order = MercadoPagoQROrder::find($request->order_id);
+            
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Orden no encontrada'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'status' => $order->status,
+                'payment_id' => $order->payment_id,
+                'amount' => $order->total_amount
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error verificando estado de pago', [
+                'error' => $e->getMessage(),
+                'order_id' => $request->order_id
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al verificar estado'
+            ], 500);
+        }
+    }
+
+    /**
+     * Cancelar orden
+     */
+    public function cancelOrder(Request $request)
+    {
+        $request->validate([
+            'order_id' => 'required|integer'
+        ]);
+
+        try {
+            $order = MercadoPagoQROrder::find($request->order_id);
+            
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Orden no encontrada'
+                ], 404);
+            }
+            
+            if ($order->isPending()) {
+                $pos = $order->pos;
+                
+                // Configurar credenciales
+                config([
+                    'services.mercadopago.access_token' => $pos->store->empresa->MP_ACCESS_TOKEN,
+                    'services.mercadopago.user_id' => $pos->store->empresa->MP_USER_ID,
+                ]);
+                
+                $qrService = new MercadoPagoQRService();
+                $qrService->deleteQROrder($pos->external_id);
+                
+                $order->update(['status' => 'cancelled']);
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Orden cancelada correctamente'
+                ]);
+            }
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'La orden no puede ser cancelada en su estado actual'
+            ], 400);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error cancelando orden', [
+                'error' => $e->getMessage(),
+                'order_id' => $request->order_id
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al cancelar la orden'
+            ], 500);
+        }
     }
 
     public function NuevoCobro (){
@@ -294,12 +733,20 @@ class ServicioPagarController extends Controller
         $request->validate([
             'precio' => 'required|numeric|min:1',
             'cantidad' => 'required|numeric|min:0.5',
-            'fecha' => 'required'
+            'fecha_vencimiento' => 'nullable|date',
+            'comentario' => 'nullable|string|max:1000',
+            'periodo_servicio' => 'nullable|string|max:255'
         ]);
 
         // return $request;
 
-        $fechaHoy = date('y-m-d H:i:s');
+        $fechaHoy = date('Y-m-d H:i:s');
+
+        // Convertir periodo_servicio (YYYY-MM) al primer día del mes (YYYY-MM-01)
+        $periodoServicio = null;
+        if ($request->periodo_servicio) {
+            $periodoServicio = $request->periodo_servicio . '-01';
+        }
 
         // {
         //     "_method": "POST",
@@ -315,16 +762,228 @@ class ServicioPagarController extends Controller
             'servicio_id' => $request->servicio,
             'precio' => $request->precio,
             'estado' => 'impago',
-            'created_at' => $request->fecha,
-            'updated_at' => $request->fecha,
+            'created_at' => $fechaHoy,
+            'updated_at' => $fechaHoy,
             'cantidad' => $request->cantidad,
+            'fecha_vencimiento' => $request->fecha_vencimiento,
+            'comentario' => $request->comentario,
+            'periodo_servicio' => $periodoServicio,
         ]);
+
+
+        $empresa = \App\Models\Empresa::find(Auth::user()->empresa_id);
+
+                // Enviar WhatsApp
+        // EnviarWhatsAppNuevoServicioJob::dispatch($id, $instanciaWS, $tokenWS);
+        \App\Jobs\EnviarWhatsAppNuevoServicioJob::dispatch($id, $empresa->instanciaWS, $empresa->tokenWS);
+
 
         // use App\Events\NuevoServicioPagarEvent;
         NuevoServicioPagarEvent::dispatch($id);
 
         return redirect()->route('ServiciosImpagos')->with('status','Cobro correcto id:' .$id);
         
+    }
+
+    /**
+     * Eliminar un servicio impago
+     * Solo puede ser eliminado por usuarios Admin (role_id = 2) o Super (role_id = 3)
+     * Y el servicio debe estar en estado 'impago'
+     */
+    public function EliminarServicioImpago($idServicioPagar)
+    {
+        try {
+            $usuario = Auth::user();
+
+            // Validación 1: Verificar que el usuario sea Admin (2) o Super (3)
+            if (!in_array($usuario->role_id, [2, 3])) {
+                return redirect()->back()
+                    ->withErrors(['No tienes permisos para eliminar servicios. Solo usuarios Admin o Super pueden hacerlo.']);
+            }
+
+            // Obtener el servicio a eliminar
+            $servicioPagar = ServicioPagar::find($idServicioPagar);
+
+            // Validación 2: Verificar que el servicio existe
+            if (!$servicioPagar) {
+                return redirect()->back()
+                    ->withErrors(['El servicio no existe.']);
+            }
+
+            // Validación 3: Verificar que el servicio pertenece a la empresa del usuario
+            $servicio = Servicio::find($servicioPagar->servicio_id);
+            if ($servicio->empresa_id != $usuario->empresa_id) {
+                return redirect()->back()
+                    ->withErrors(['No puedes eliminar servicios de otra empresa.']);
+            }
+
+            // Validación 4: Verificar que el servicio está en estado 'impago'
+            if ($servicioPagar->estado !== 'impago') {
+                return redirect()->back()
+                    ->withErrors(['Solo se pueden eliminar servicios en estado IMPAGO. Este servicio está: ' . strtoupper($servicioPagar->estado)]);
+            }
+
+            // Obtener información para el log antes de eliminar
+            $cliente = $servicioPagar->cliente;
+            $servicioNombre = $servicio->nombre;
+            $total = $servicioPagar->total;
+
+            // Eliminar el servicio
+            $servicioPagar->delete();
+
+            // Log de la eliminación
+            \Log::info('Servicio impago eliminado', [
+                'usuario_id' => $usuario->id,
+                'usuario_nombre' => $usuario->name,
+                'role_id' => $usuario->role_id,
+                'servicio_pagar_id' => $idServicioPagar,
+                'cliente' => $cliente->nombre ?? 'N/A',
+                'servicio' => $servicioNombre,
+                'total' => $total,
+                'fecha_eliminacion' => now()
+            ]);
+
+            return redirect()->route('ServiciosImpagos')
+                ->with('status', 'Servicio eliminado correctamente.');
+
+        } catch (\Exception $e) {
+            \Log::error('Error al eliminar servicio impago', [
+                'usuario_id' => Auth::id(),
+                'servicio_pagar_id' => $idServicioPagar,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()
+                ->withErrors(['Error al eliminar el servicio: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Contar la cantidad de servicios impagos de la empresa
+     * Retorna el número total de registros que cumplen los criterios
+     */
+    public function ContarServiciosImpagos()
+    {
+        try {
+            $usuario = Auth::user();
+
+            $resultado = DB::select('SELECT COUNT(*) as total
+                                FROM
+                                    servicio_pagar a,
+                                    servicios b,
+                                    empresas c,
+                                    clientes e
+                                WHERE
+                                    a.servicio_id = b.id 
+                                    AND b.empresa_id = c.id 
+                                    AND a.cliente_id = e.id 
+                                    AND a.estado = ? 
+                                    AND c.id = ?', 
+                                ['impago', $usuario->empresa_id]);
+
+            $total = $resultado[0]->total ?? 0;
+
+            return response()->json([
+                'success' => true,
+                'total' => $total,
+                'mensaje' => "Se encontraron {$total} servicios impagos."
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error al contar servicios impagos', [
+                'usuario_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error al contar los servicios: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Eliminar múltiples servicios impagos de la empresa
+     * Solo puede ser ejecutado por usuarios Admin (role_id = 2) o Super (role_id = 3)
+     * Elimina todos los servicios impagos que pertenecen a la empresa del usuario
+     * 
+     * @param Request $request - Puede incluir confirmación
+     */
+    public function EliminarTodosServiciosImpagos(Request $request)
+    {
+        try {
+            $usuario = Auth::user();
+
+            // Validación 1: Verificar que el usuario sea Admin (2) o Super (3)
+            if (!in_array($usuario->role_id, [2, 3])) {
+                return redirect()->back()
+                    ->withErrors(['No tienes permisos para eliminar servicios. Solo usuarios Admin o Super pueden hacerlo.']);
+            }
+
+            // // Validación 2: Verificar confirmación (opcional pero recomendado)
+            // if (!$request->has('confirmar') || $request->confirmar !== 'SI') {
+            //     return redirect()->back()
+            //         ->withErrors(['Debes confirmar la eliminación enviando "confirmar=SI" en la petición.']);
+            // }
+
+            // Obtener todos los IDs de servicios impagos de la empresa
+            $serviciosImpagos = DB::select('SELECT a.id AS idServicioPagar
+                                FROM
+                                    servicio_pagar a,
+                                    servicios b,
+                                    empresas c,
+                                    clientes e
+                                WHERE
+                                    a.servicio_id = b.id 
+                                    AND b.empresa_id = c.id 
+                                    AND a.cliente_id = e.id 
+                                    AND a.estado = ? 
+                                    AND c.id = ?', 
+                                ['impago', $usuario->empresa_id]);
+
+            $totalServicios = count($serviciosImpagos);
+
+            if ($totalServicios === 0) {
+                return redirect()->route('ServiciosImpagos')
+                    ->with('status', 'No hay servicios impagos para eliminar.');
+            }
+
+            // Extraer los IDs
+            $ids = array_map(function($servicio) {
+                return $servicio->idServicioPagar;
+            }, $serviciosImpagos);
+
+            // Eliminar todos los servicios impagos
+            $eliminados = ServicioPagar::whereIn('id', $ids)
+                ->where('estado', 'impago')
+                ->delete();
+
+            // Log de la eliminación masiva
+            \Log::info('Eliminación masiva de servicios impagos', [
+                'usuario_id' => $usuario->id,
+                'usuario_nombre' => $usuario->name,
+                'role_id' => $usuario->role_id,
+                'empresa_id' => $usuario->empresa_id,
+                'total_eliminados' => $eliminados,
+                'ids_eliminados' => $ids,
+                'fecha_eliminacion' => now()
+            ]);
+
+            return redirect()->route('ServiciosImpagos')
+                ->with('status', "Se eliminaron correctamente {$eliminados} servicios impagos.");
+
+        } catch (\Exception $e) {
+            \Log::error('Error al eliminar servicios impagos masivamente', [
+                'usuario_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()
+                ->withErrors(['Error al eliminar los servicios: ' . $e->getMessage()]);
+        }
     }
 
 }

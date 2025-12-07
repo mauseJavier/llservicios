@@ -42,7 +42,18 @@ class ClienteServicioController extends Controller
 
 
         $usuario = Auth::user();
-        $servicio = Servicio::find($Servicio);
+        // devolver servicios activos 
+        // para agregar a un cliente
+        // $serviciosActivos = Servicio::where('activo', true)->get();
+        
+
+        $servicio = Servicio::where('activo', true)->where('id', $Servicio)->first();
+
+        if (!$servicio) {
+            return redirect()->route('Servicios.index')->with('status','Servicio no encontrado o inactivo');
+        }
+
+        
         $datoBuscado = $request->Buscar;
         // Obtén la fecha y hora actual
         $fechaActual = Carbon::now();

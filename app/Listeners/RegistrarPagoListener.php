@@ -29,6 +29,8 @@ class RegistrarPagoListener
             'id_usuario'=> $event->pago['idUsuario'],
             'importe'=> $event->pago['importe'],
             'forma_pago'=> $event->pago['forma_pago'],
+            'forma_pago2'=> $event->pago['forma_pago2'] ?? null,
+            'importe2'=> $event->pago['importe2'] ?? null,
             'comentario'=> $event->pago['comentario'],
         ]);
 

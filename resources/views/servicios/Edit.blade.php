@@ -48,9 +48,11 @@
               <input type="text" id="nombre" name="nombre" placeholder="Nombre Servicio" value="{{$Servicio->nombre}}" required>
             </label>
         
-            <label for="precio">
-              Precio
-              <input type="numeric" id="precio" name="precio" placeholder="Precio" value="{{$Servicio->precio}}" required>
+
+
+            <label for="diasVencimiento">
+              Días Vencimiento
+              <input type="number" min="1" id="diasVencimiento" name="diasVencimiento" placeholder="Días Vencimiento" value="{{$Servicio->diasVencimiento ?? 10}}" required>
             </label>
 
             <label for="descripcion">
@@ -63,16 +65,35 @@
 
       <div class="grid">
 
+            <label for="precio">
+              Precio
+              <input type="numeric" id="precio" name="precio" placeholder="Precio" value="{{$Servicio->precio}}" required>
+            </label>
+
+            <label for="precio2">
+              Precio 2
+              <input type="number" step="0.01" min="0" id="precio2" name="precio2" placeholder="Precio 2 (opcional)" value="{{$Servicio->precio2}}">
+            </label>
+
+            <label for="precio3">
+              Precio 3
+              <input type="number" step="0.01" min="0" id="precio3" name="precio3" placeholder="Precio 3 (opcional)" value="{{$Servicio->precio3}}">
+            </label>
+
+      </div>
+
+      <div class="grid">
+
 
 
           <label for="linkPago">
             Link de Pago
-            <input type="text" id="linkPago" name="linkPago" placeholder="Link de Pago" value="{{$Servicio->linkPago}}" required>
+            <input type="text" id="linkPago" name="linkPago" placeholder="Link de Pago" value="{{$Servicio->linkPago}}">
           </label>
 
           <label for="imagen">
             Link de Imagen
-            <input type="text" id="imagen" name="imagen" placeholder="Link de Imagen" value="{{$Servicio->imagen}}" required>
+            <input type="text" id="imagen" name="imagen" placeholder="Link de Imagen" value="{{$Servicio->imagen}}" >
           </label>
 
           <!-- Select -->

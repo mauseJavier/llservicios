@@ -36,11 +36,13 @@
             <input type="text" id="nombre" name="nombre" placeholder="Nombre Servicio" value="{{old('nombre')}}" required>
           </label>
 
-          <label for="precio">
-            Precio
-            <input type="number" step="0.01" min="0"  id="precio" name="precio" placeholder="Precio" value="{{old('precio')}}" required>            
+
+
+          <label for="diasVencimiento">
+            Días Vencimiento
+            <input type="number" min="1"  id="diasVencimiento" name="diasVencimiento" placeholder="Días Vencimiento" value="{{old('diasVencimiento', 10)}}" required>            
           </label>
-      
+
           <label for="descripcion">
             Descripcion
             <textarea name="descripcion" id="descripcion" cols="10" rows="1">{{old('descripcion')}}</textarea>
@@ -49,6 +51,28 @@
 
       
         </div>
+
+        <div class="grid">
+
+          <label for="precio">
+            Precio
+            <input type="number" step="0.01" min="0"  id="precio" name="precio" placeholder="Precio" value="{{old('precio')}}" required>            
+          </label>
+
+          <label for="precio2">
+            Precio 2
+            <input type="number" step="0.01" min="0"  id="precio2" name="precio2" placeholder="Precio 2 (opcional)" value="{{old('precio2')}}">            
+          </label>
+      
+          <label for="precio3">
+            Precio 3
+            <input type="number" step="0.01" min="0"  id="precio3" name="precio3" placeholder="Precio 3 (opcional)" value="{{old('precio3')}}">            
+          </label>
+
+
+        </div>
+
+        
 
         <div class="grid">
 

@@ -19,7 +19,7 @@ class RolSuper
         $usuario = Auth::user();
         $usuario->role->nombre;
         if($usuario->role->nombre != 'Super'){
-            return redirect()->route('servicios')->with('status','No Autorizado');
+            return redirect()->route('panelServicios')->with('status','No Autorizado');
         }
         return $next($request);
     }

@@ -2,22 +2,22 @@
 
 @section('body')
 
-<nav>
-    <ul>
-        <li>
-            <h1>Nuevo Gasto</h1>
-        </li>
-        <li>
-          {{-- <input type="search" id="search" name="search" placeholder="Search"> --}}
-        </li>
-    </ul>
-    <ul>
-        <li>
-
-        </li>
-    </ul>
-</nav>
 <div class="container">
+  <nav>
+      <ul>
+          <li>
+              <h1>Nuevo Gasto</h1>
+          </li>
+          <li>
+            {{-- <input type="search" id="search" name="search" placeholder="Search"> --}}
+          </li>
+      </ul>
+      <ul>
+          <li>
+
+          </li>
+      </ul>
+  </nav>
 
     @if ($errors->any())
         <article style="background-color: #f8d7da; border-color: #f5c6cb; color: #721c24;">

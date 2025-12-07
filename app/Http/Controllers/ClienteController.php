@@ -6,9 +6,12 @@ use Illuminate\Http\Request;
 use App\Http\Requests\StoreClienteRequest;
 use App\Http\Requests\UpdateClienteRequest;
 use App\Models\Cliente;
+use App\Models\Servicio;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+
+use Carbon\Carbon;
 
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
@@ -120,7 +123,12 @@ class ClienteController extends Controller
     public function create()
     {
         //
-        return view('clientes.Create')->render();
+        $usuario = Auth::user();
+        $servicios = Servicio::where('empresa_id', $usuario->empresa_id)
+                            ->orderBy('nombre', 'ASC')
+                            ->get();
+        
+        return view('clientes.Create', compact('servicios'))->render();
     }
 
     /**
@@ -139,7 +147,7 @@ class ClienteController extends Controller
 
             $id = Cliente::create(['nombre'=>$request->nombre,
                                 'dni'=>$request->dni,
-                                'correo'=>$request->correo,
+                                'correo'=>$request->correo ?? null,
                                 'domicilio'=>$request->domicilio,
                                 'telefono'=>$request->telefono,
                                 ]);
@@ -151,6 +159,11 @@ class ClienteController extends Controller
                 'created_at' => date('y-m-d H:i:s'),
                 'updated_at' => date('y-m-d H:i:s'),
             ]);
+
+            // Vincular con servicio si se seleccionó uno
+            if ($request->servicio_id) {
+                $this->vincularClienteServicio($id->id, $request->servicio_id, $request->vencimiento, $request->cantidad ?? 1);
+            }
     
             return redirect()->route('Cliente.index')->with('status','Cliente '.$id->nombre.' agregado id:'.$id->id);
 
@@ -173,6 +186,11 @@ class ClienteController extends Controller
                     'updated_at' => date('y-m-d H:i:s'),
                 ]);
 
+                // Vincular con servicio si se seleccionó uno
+                if ($request->servicio_id) {
+                    $this->vincularClienteServicio($cliente[0]->id, $request->servicio_id, $request->vencimiento, $request->cantidad ?? 1);
+                }
+
                 return redirect()->route('Cliente.index')->with('status','Cliente vinculado: '.$cliente[0]->nombre.' agregado id:'.$id);
             }else{
                 return redirect()->route('Cliente.index')->with('status','Cliente ya vinculado: '.$cliente[0]->nombre);
@@ -183,6 +201,35 @@ class ClienteController extends Controller
      
 
 
+    }
+
+    /**
+     * Vincular cliente con servicio en la tabla cliente_servicio
+     */
+    private function vincularClienteServicio($clienteId, $servicioId, $vencimiento, $cantidad)
+    {
+        // Verificar si ya está vinculado
+        $existe = DB::table('cliente_servicio')
+            ->where('cliente_id', $clienteId)
+            ->where('servicio_id', $servicioId)
+            ->exists();
+
+        if (!$existe) {
+            $fecha = date('y-m-d H:i:s');
+            
+            // Convertir la fecha de vencimiento al formato correcto
+            $fechaCarbon = Carbon::parse($vencimiento);
+            $fechaFormateada = $fechaCarbon->format('y-m-d H:i:s');
+
+            DB::table('cliente_servicio')->insert([
+                'cliente_id' => $clienteId,
+                'servicio_id' => $servicioId,
+                'cantidad' => $cantidad,
+                'vencimiento' => $fechaFormateada,
+                'created_at' => $fecha,
+                'updated_at' => $fecha,
+            ]);
+        }
     }
 
     /**
@@ -208,6 +255,15 @@ class ClienteController extends Controller
      */
     public function update(UpdateClienteRequest $request, Cliente $Cliente)
     {
+
+        // si existe un cliente con el mismo dni y distinto id
+        $clienteExistente = Cliente::where('dni', $request->dni)
+                                    ->where('id', '!=', $Cliente->id)
+                                    ->first();
+        if ($clienteExistente) {
+            return redirect()->back()->withErrors(['dni' => 'El DNI ya está en uso por otro cliente.'])->withInput();
+        }
+        
         $Cliente->update(['nombre'=>$request->nombre,
                             'dni'=>$request->dni,
                             'correo'=>$request->correo,

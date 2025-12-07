@@ -6,9 +6,9 @@
 
   <h1>Grilla Clientes</h1>
 
-      <a href="{{route('ServiciosImpagos')}}" role="button" class="contrast outline" style="font-size: 20px; padding: 4px 8px; ">Impagos</a>
+      {{-- <a href="{{route('ServiciosImpagos')}}" role="button" class="contrast outline" style="font-size: 20px; padding: 4px 8px; ">Impagos</a>
       <a href="{{route('ServiciosPagos')}}" role="button" class="contrast outline" style="font-size: 20px; padding: 4px 8px; ">Pagos</a>
-      <a href="{{route('Grilla')}}" role="button" class=" outline" style="font-size: 20px; padding: 4px 8px; ">Grilla</a>
+      <a href="{{route('Grilla')}}" role="button" class=" outline" style="font-size: 20px; padding: 4px 8px; ">Grilla</a> --}}
 
 
   <nav>

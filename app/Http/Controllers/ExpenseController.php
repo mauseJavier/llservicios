@@ -14,18 +14,19 @@ class ExpenseController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Expense::with(['formaPago', 'usuario']);
+        $query = Expense::with(['formaPago', 'usuario'])
+            ->where('empresa_id', Auth::id());
         
         if ($request->filled('buscar')) {
             $buscar = $request->buscar;
             $query->where(function($q) use ($buscar) {
-                $q->where('detalle', 'like', '%' . $buscar . '%')
-                  ->orWhere('estado', 'like', '%' . $buscar . '%')
-                  ->orWhere('comentario', 'like', '%' . $buscar . '%')
-                  ->orWhere('usuario_nombre', 'like', '%' . $buscar . '%')
-                  ->orWhereHas('formaPago', function($subQuery) use ($buscar) {
-                      $subQuery->where('nombre', 'like', '%' . $buscar . '%');
-                  });
+            $q->where('detalle', 'like', '%' . $buscar . '%')
+              ->orWhere('estado', 'like', '%' . $buscar . '%')
+              ->orWhere('comentario', 'like', '%' . $buscar . '%')
+              ->orWhere('usuario_nombre', 'like', '%' . $buscar . '%')
+              ->orWhereHas('formaPago', function($subQuery) use ($buscar) {
+                  $subQuery->where('nombre', 'like', '%' . $buscar . '%');
+              });
             });
         }
         
@@ -60,6 +61,7 @@ class ExpenseController extends Controller
         $expenseData = $request->all();
         $expenseData['usuario_id'] = Auth::id();
         $expenseData['usuario_nombre'] = Auth::user()->name;
+        $expenseData['empresa_id'] = Auth::user()->empresa_id;
 
         Expense::create($expenseData);
 

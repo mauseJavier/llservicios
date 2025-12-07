@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
-use App\Models\empresa;
+use App\Models\Empresa;
 use App\Models\role;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
@@ -46,7 +46,7 @@ class UserController extends Controller
 
         Auth::login($user);
 
-        return redirect()->route('servicios');
+        return redirect()->route('Servicios.index');
 
     }
 
@@ -67,7 +67,7 @@ class UserController extends Controller
             $empresa_id = $usuario->empresa_id;
             // Via the global "session" helper...
             
-            $empresa = empresa::where('id',$empresa_id)->get();
+            $empresa = Empresa::where('id',$empresa_id)->get();
 
             session(['logoEmpresa' => $empresa[0]->logo]);    
 
@@ -126,7 +126,7 @@ class UserController extends Controller
     public function EditarUsuario(Request $id){
 
         $roles = role::all();
-        $empresas = empresa::all();
+        $empresas = Empresa::all();
         $usuario = User::find($id->id);
        return view('usuarios.edit',
                     ['usuario'=>$usuario,
@@ -146,7 +146,7 @@ class UserController extends Controller
 
     public function miPerfil(){
 
-        $empresa = empresa::find(Auth::User()->empresa_id);
+        $empresa = Empresa::find(Auth::User()->empresa_id);
         $rol = role::find(Auth::User()->role_id);
 
         // return $rol;

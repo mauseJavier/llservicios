@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
-use App\Models\empresa;
+use App\Models\Empresa;
 
 class EmpresaSeeder extends Seeder
 {
@@ -14,13 +14,14 @@ class EmpresaSeeder extends Seeder
      */
     public function run(): void
     {
-        empresa::create([
+        Empresa::create([
             'nombre' => 'EmpresaPrueba',
             'cuit' => 20358337164,
+            'correo' => 'empresaprueba@example.com',
         ]);
 
         if(env('APP_DEBUG')==true){//para cuando estoy en produccion
-            empresa::factory()->count(20)->create();
+            Empresa::factory()->count(3)->create();
         }
         
 

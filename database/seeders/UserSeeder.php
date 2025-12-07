@@ -35,8 +35,17 @@ class UserSeeder extends Seeder
                 'role_id'=> 3
             ]);
 
-            if(env('APP_DEBUG')==true){//para cuando estoy en produccion
-                    User::factory()->count(100)->create();
-            }
+            DB::table('users')->insert([
+            'name' => 'Pago Online',
+                'email' => 'pago.online@example.com',
+                'dni' => '12345678',
+                'password'=> Hash::make(1234),
+                'role_id'=> 3
+            ]);
+
+
+            // if(env('APP_DEBUG')==true){//para cuando estoy en produccion
+            //         User::factory()->count(5)->create();
+            // }
     }
 }

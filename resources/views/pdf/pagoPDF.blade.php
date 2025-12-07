@@ -155,15 +155,50 @@
                 <span>{{$datos->Servicio}}</span>
             </div>
             
-            <div class="item">
-                <span>Monto:</span>
-                <span>${{$datos->importe}}</span>
-            </div>
+            @if($datos->forma_pago2 && $datos->importe2)
+                <hr style="margin: 10px 0; border: 1px dashed #ccc;">
+                <div class="item" style="background-color: #e3f2fd; padding: 5px; margin-bottom: 5px;">
+                    <span>Pago dividido:</span>
+                    <span></span>
+                </div>
+                
+                <div class="item" style="margin-left: 10px;">
+                    <span>Forma de pago 1:</span>
+                    <span>{{$datos->formaPago}}</span>
+                </div>
+                
+                <div class="item" style="margin-left: 10px;">
+                    <span>Monto 1:</span>
+                    <span>${{number_format($datos->importe, 2)}}</span>
+                </div>
+                
+                <div class="item" style="margin-left: 10px;">
+                    <span>Forma de pago 2:</span>
+                    <span>{{$datos->formaPago2}}</span>
+                </div>
+                
+                <div class="item" style="margin-left: 10px;">
+                    <span>Monto 2:</span>
+                    <span>${{number_format($datos->importe2, 2)}}</span>
+                </div>
+                
+                <hr style="margin: 10px 0; border: 1px dashed #ccc;">
+                
+                <div class="item" style="background-color: #c8e6c9; padding: 5px; font-size: 16px;">
+                    <span>TOTAL PAGADO:</span>
+                    <span>${{number_format($datos->importe + $datos->importe2, 2)}}</span>
+                </div>
+            @else
+                <div class="item">
+                    <span>Monto:</span>
+                    <span>${{number_format($datos->importe, 2)}}</span>
+                </div>
 
-            <div class="item">
-                <span>Forma de pago:</span>
-                <span> {{$datos->formaPago}}</span>
-            </div>
+                <div class="item">
+                    <span>Forma de pago:</span>
+                    <span>{{$datos->formaPago}}</span>
+                </div>
+            @endif
             
             <div class="item">
               <span>Comentario:</span>

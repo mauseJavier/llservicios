@@ -12,10 +12,22 @@ use Illuminate\Http\Request;
 use App\Http\Requests\StorePagosRequest;
 use App\Http\Requests\UpdatePagosRequest;
 use App\Models\Pagos;
-use App\Models\empresa;
+use App\Models\Empresa;
+use App\Models\ServicioPagar;
+
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+
+// Importar SDK oficial de MercadoPago
+use MercadoPago\MercadoPagoConfig;
+use MercadoPago\Client\Preference\PreferenceClient;
+use MercadoPago\Client\Payment\PaymentClient;
+use MercadoPago\Client\Common\RequestOptions;
+use MercadoPago\Exceptions\MPApiException;
+
+// use App\Services\MercadoPagoService;
+// use App\Services\MercadoPagoApiService;
 
 
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -27,13 +39,23 @@ class PagosController extends Controller
      */
     public function index(Request $request)
     {
-        // Obtener filtros de fecha
+        // Obtener filtros de fecha, si no se proporcionan, usar la fecha actual
+        // $fechaInicio = $request->get('fecha_inicio', date('Y-m-d'));
+        // $fechaFin = $request->get('fecha_fin', date('Y-m-d'));
+
         $fechaInicio = $request->get('fecha_inicio');
         $fechaFin = $request->get('fecha_fin');
+
+        $buscar = $request->get('buscar');
+        $usuarioId = $request->get('usuario_id');
         
-        // Construir condiciones de fecha solo si se proporcionan
+        // Construir condiciones de fecha
         $condicionFecha = '';
         $parametros = [];
+        
+        // Añadir filtro por empresa del usuario autenticado
+        $empresaId = auth()->user()->empresa_id;
+        $parametros[] = $empresaId;
         
         if ($fechaInicio) {
             $condicionFecha .= ' AND DATE(a.created_at) >= ?';
@@ -45,6 +67,22 @@ class PagosController extends Controller
             $parametros[] = $fechaFin;
         }
 
+        // Añadir condición de búsqueda por cliente si existe
+        $condicionBusqueda = '';
+        if ($buscar) {
+            $condicionBusqueda = ' AND (e.nombre LIKE ? OR e.correo LIKE ? OR e.dni LIKE ?)';
+            $parametros[] = '%' . $buscar . '%';
+            $parametros[] = '%' . $buscar . '%';
+            $parametros[] = '%' . $buscar . '%';
+        }
+
+        // Añadir filtro por usuario si existe
+        $condicionUsuario = '';
+        if ($usuarioId) {
+            $condicionUsuario = ' AND a.id_usuario = ?';
+            $parametros[] = $usuarioId;
+        }
+
         $datos = DB::select('SELECT
                                     a.*,
                                     b.id as idServicioPagar,
@@ -52,36 +90,166 @@ class PagosController extends Controller
                                     d.nombre AS Servicio,
                                     e.nombre AS Cliente,
                                     e.id as idCliente,
-                                    f.nombre AS formaPago
+                                    f.nombre AS formaPago,
+                                    f2.nombre AS formaPago2
                                 FROM
-                                    pagos a,
-                                    servicio_pagar b,
-                                    users c,
-                                    servicios d,
-                                    clientes e,
-                                    forma_pagos f
+                                    pagos a
+                                    INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
+                                    INNER JOIN users c ON a.id_usuario = c.id
+                                    INNER JOIN servicios d ON b.servicio_id = d.id
+                                    INNER JOIN clientes e ON b.cliente_id = e.id
+                                    INNER JOIN forma_pagos f ON a.forma_pago = f.id
+                                    LEFT JOIN forma_pagos f2 ON a.forma_pago2 = f2.id
+                                    INNER JOIN cliente_empresa g ON e.id = g.cliente_id
                                 WHERE
-                                    a.id_servicio_pagar = b.id AND a.id_usuario = c.id AND b.servicio_id = d.id AND b.cliente_id = e.id AND a.forma_pago = f.id' . $condicionFecha, $parametros);
+                                    g.empresa_id = ?' . $condicionFecha . $condicionBusqueda . $condicionUsuario, $parametros);
 
-        // Obtener resumen de pagos por forma de pago con filtros de fecha
-        $resumenPagos = DB::select('SELECT
+        // Obtener resumen de pagos por forma de pago con filtros de fecha y empresa
+        // Necesitamos filtros separados para el resumen ya que la estructura de la consulta es diferente
+        $condicionFechaResumen = '';
+        $parametrosResumen = [];
+        
+        if ($fechaInicio) {
+            $condicionFechaResumen .= ' AND DATE(a.created_at) >= ?';
+            $parametrosResumen[] = $fechaInicio;
+        }
+        
+        if ($fechaFin) {
+            $condicionFechaResumen .= ' AND DATE(a.created_at) <= ?';
+            $parametrosResumen[] = $fechaFin;
+        }
+        
+        $condicionFechaResumen .= ' AND g.empresa_id = ?';
+        $parametrosResumen[] = $empresaId;
+
+        // Añadir condición de búsqueda al resumen también
+        $condicionBusquedaResumen = '';
+        if ($buscar) {
+            $condicionBusquedaResumen = ' AND (e.nombre LIKE ? OR e.correo LIKE ? OR e.dni LIKE ?)';
+            $parametrosResumen[] = '%' . $buscar . '%';
+            $parametrosResumen[] = '%' . $buscar . '%';
+            $parametrosResumen[] = '%' . $buscar . '%';
+        }
+
+        // Añadir filtro por usuario al resumen
+        $condicionUsuarioResumen = '';
+        if ($usuarioId) {
+            $condicionUsuarioResumen = ' AND a.id_usuario = ?';
+            $parametrosResumen[] = $usuarioId;
+        }
+
+        // Duplicar parámetros para el UNION ALL (segunda consulta usa los mismos filtros)
+        $parametrosResumenCompletos = array_merge($parametrosResumen, $parametrosResumen);
+
+        $resumenPagosRaw = DB::select('SELECT
                                         f.nombre AS formaPago,
                                         COUNT(a.id) AS cantidadPagos,
                                         SUM(a.importe) AS totalImporte
                                     FROM
                                         pagos a
                                         INNER JOIN forma_pagos f ON a.forma_pago = f.id
-                                    WHERE 1=1' . $condicionFecha . '
+                                        INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
+                                        INNER JOIN clientes e ON b.cliente_id = e.id
+                                        INNER JOIN cliente_empresa g ON e.id = g.cliente_id
+                                    WHERE 1=1' . $condicionFechaResumen . $condicionBusquedaResumen . $condicionUsuarioResumen . '
                                     GROUP BY
                                         f.id, f.nombre
+                                    
+                                    UNION ALL
+                                    
+                                    SELECT
+                                        f2.nombre AS formaPago,
+                                        COUNT(a.id) AS cantidadPagos,
+                                        SUM(a.importe2) AS totalImporte
+                                    FROM
+                                        pagos a
+                                        INNER JOIN forma_pagos f2 ON a.forma_pago2 = f2.id
+                                        INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
+                                        INNER JOIN clientes e ON b.cliente_id = e.id
+                                        INNER JOIN cliente_empresa g ON e.id = g.cliente_id
+                                    WHERE a.forma_pago2 IS NOT NULL' . $condicionFechaResumen . $condicionBusquedaResumen . $condicionUsuarioResumen . '
+                                    GROUP BY
+                                        f2.id, f2.nombre', $parametrosResumenCompletos);
+
+        // Agrupar y sumar los resultados por forma de pago
+        $resumenAgrupado = [];
+        foreach ($resumenPagosRaw as $resumen) {
+            $formaPago = $resumen->formaPago;
+            if (!isset($resumenAgrupado[$formaPago])) {
+                $resumenAgrupado[$formaPago] = (object)[
+                    'formaPago' => $formaPago,
+                    'cantidadPagos' => 0,
+                    'totalImporte' => 0
+                ];
+            }
+            $resumenAgrupado[$formaPago]->cantidadPagos += $resumen->cantidadPagos;
+            $resumenAgrupado[$formaPago]->totalImporte += $resumen->totalImporte;
+        }
+
+        // Convertir a array y ordenar por totalImporte descendente
+        $resumenPagos = array_values($resumenAgrupado);
+        usort($resumenPagos, function($a, $b) {
+            return $b->totalImporte <=> $a->totalImporte;
+        });
+
+        // Obtener resumen por usuario que realizó el cobro
+        $condicionUsuarioResumenPorUsuario = '';
+        $parametrosResumenPorUsuario = [];
+        
+        if ($fechaInicio) {
+            $condicionUsuarioResumenPorUsuario .= ' AND DATE(a.created_at) >= ?';
+            $parametrosResumenPorUsuario[] = $fechaInicio;
+        }
+        
+        if ($fechaFin) {
+            $condicionUsuarioResumenPorUsuario .= ' AND DATE(a.created_at) <= ?';
+            $parametrosResumenPorUsuario[] = $fechaFin;
+        }
+        
+        $condicionUsuarioResumenPorUsuario .= ' AND g.empresa_id = ?';
+        $parametrosResumenPorUsuario[] = $empresaId;
+
+        // Añadir condición de búsqueda
+        if ($buscar) {
+            $condicionUsuarioResumenPorUsuario .= ' AND (e.nombre LIKE ? OR e.correo LIKE ? OR e.dni LIKE ?)';
+            $parametrosResumenPorUsuario[] = '%' . $buscar . '%';
+            $parametrosResumenPorUsuario[] = '%' . $buscar . '%';
+            $parametrosResumenPorUsuario[] = '%' . $buscar . '%';
+        }
+
+        // Añadir filtro por usuario
+        if ($usuarioId) {
+            $condicionUsuarioResumenPorUsuario .= ' AND a.id_usuario = ?';
+            $parametrosResumenPorUsuario[] = $usuarioId;
+        }
+
+        // Consulta para resumen por usuario - suma importe1 + importe2
+        $resumenPorUsuarioRaw = DB::select('SELECT
+                                        c.id as usuarioId,
+                                        c.name AS nombreUsuario,
+                                        COUNT(DISTINCT a.id) AS cantidadPagos,
+                                        SUM(a.importe) AS totalImporte1,
+                                        SUM(COALESCE(a.importe2, 0)) AS totalImporte2,
+                                        SUM(a.importe + COALESCE(a.importe2, 0)) AS totalImporte
+                                    FROM
+                                        pagos a
+                                        INNER JOIN users c ON a.id_usuario = c.id
+                                        INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
+                                        INNER JOIN clientes e ON b.cliente_id = e.id
+                                        INNER JOIN cliente_empresa g ON e.id = g.cliente_id
+                                    WHERE 1=1' . $condicionUsuarioResumenPorUsuario . '
+                                    GROUP BY
+                                        c.id, c.name
                                     ORDER BY
-                                        totalImporte DESC', $parametros);
+                                        totalImporte DESC', $parametrosResumenPorUsuario);
+
+        $resumenPorUsuario = $resumenPorUsuarioRaw;
 
         // return $datos;
 
 
                 // Número de elementos por página
-                $perPage = 15;
+                $perPage = 100;
 
                 // Página actual obtenida de la consulta de la URL (puedes usar Request::input('page') en un controlador real)
                 $paginaActual = (isset($request->page)) ? $request->page : 1;
@@ -103,13 +271,24 @@ class PagosController extends Controller
             
                 // return $pagos;
 
+                // Obtener usuarios de la empresa para el filtro
+                $usuarios = \App\Models\User::where('empresa_id', $empresaId)
+                    ->orderBy('name', 'asc')
+                    ->get();
 
-                return view('pagos.pagos', compact('pagos', 'resumenPagos'))->render();
+            
+
+                //agregar a los usuarios el usuario email like %pago% que es para todas las empresass
+                $usuarios->push(\App\Models\User::where('email', 'like', '%pago%')->first());
+
+                return view('pagos.pagos', compact('pagos', 'resumenPagos', 'resumenPorUsuario', 'fechaInicio', 'fechaFin', 'buscar', 'usuarios', 'usuarioId'))->render();
     }
 
     public function PagosVer ($idServicioPagar){
 
         // return $idServicioPagar;
+
+        $empresaId = auth()->user()->empresa_id;
 
         $datos = DB::select('SELECT
                             a.*,
@@ -118,16 +297,20 @@ class PagosController extends Controller
                             d.nombre AS Servicio,
                             e.nombre AS Cliente,
                             e.id as idCliente,
-                            f.nombre AS formaPago
+                            f.nombre AS formaPago,
+                            f2.nombre AS formaPago2
                         FROM
-                            pagos a,
-                            servicio_pagar b,
-                            users c,
-                            servicios d,
-                            clientes e,
-                            forma_pagos f
+                            pagos a
+                            INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
+                            INNER JOIN users c ON a.id_usuario = c.id
+                            INNER JOIN servicios d ON b.servicio_id = d.id
+                            INNER JOIN clientes e ON b.cliente_id = e.id
+                            INNER JOIN forma_pagos f ON a.forma_pago = f.id
+                            LEFT JOIN forma_pagos f2 ON a.forma_pago2 = f2.id
+                            INNER JOIN cliente_empresa g ON e.id = g.cliente_id
                         WHERE
-                            a.id_servicio_pagar = b.id AND a.id_usuario = c.id AND b.servicio_id = d.id AND b.cliente_id = e.id AND a.forma_pago = f.id and b.id = ?',[$idServicioPagar] );
+                            g.empresa_id = ? 
+                            AND b.id = ?',[$empresaId, $idServicioPagar] );
         
         // return $datos;
 
@@ -137,6 +320,8 @@ class PagosController extends Controller
     public function pagoPDF($idServicioPagar,Request $request){
         // return view('pdf.ejemploPDF',)->render();
 
+        $empresaId = auth()->user()->empresa_id;
+
         $datos = DB::select('SELECT
                     a.*,
                     b.id as idServicioPagar,
@@ -144,32 +329,36 @@ class PagosController extends Controller
                     d.nombre AS Servicio,
                     e.nombre AS Cliente,
                     e.id as idCliente,
-                    f.nombre AS formaPago
+                    f.nombre AS formaPago,
+                    f2.nombre AS formaPago2
                 FROM
-                    pagos a,
-                    servicio_pagar b,
-                    users c,
-                    servicios d,
-                    clientes e,
-                    forma_pagos f
+                    pagos a
+                    INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
+                    INNER JOIN users c ON a.id_usuario = c.id
+                    INNER JOIN servicios d ON b.servicio_id = d.id
+                    INNER JOIN clientes e ON b.cliente_id = e.id
+                    INNER JOIN forma_pagos f ON a.forma_pago = f.id
+                    LEFT JOIN forma_pagos f2 ON a.forma_pago2 = f2.id
+                    INNER JOIN cliente_empresa g ON e.id = g.cliente_id
                 WHERE
-                    a.id_servicio_pagar = b.id AND a.id_usuario = c.id AND b.servicio_id = d.id AND b.cliente_id = e.id AND a.forma_pago = f.id and b.id = ?',[$idServicioPagar] );
+                    g.empresa_id = ? 
+                    AND b.id = ?',[$empresaId, $idServicioPagar] );
 
             // return $datos;
             // return $request;
 
-            // return array('datos'=>$datos,'usuario'=>empresa::find(Auth::user()->empresa_id) );
+            // return array('datos'=>$datos,'usuario'=>Empresa::find(Auth::user()->empresa_id) );
 
             // return view('pagos.pagosVer',['datos'=>$datos[0]])->render();
 
-        $pdf = Pdf::loadView('pdf.pagoPDF',['datos'=>$datos[0],'empresa'=>empresa::find(Auth::user()->empresa_id)]);
+        $pdf = Pdf::loadView('pdf.pagoPDF',['datos'=>$datos[0],'empresa'=>Empresa::find(Auth::user()->empresa_id)]);
 
 
         if($request->tamañoPapel == '80MM'){
             //tamaño tiket 
             //tamaño A4 en vertical
             // $pdf->setPaper('A7', 'portrait');
-            $pdf->set_paper(array(0, 0, 226.772, 500), 'portrait');
+            $pdf->set_paper(array(0, 0, 226.772, 800), 'portrait');
         }
 
 
@@ -231,5 +420,309 @@ class PagosController extends Controller
     public function destroy(Pagos $pagos)
     {
         //
+    }
+
+    /**
+     * Generar preferencia de pago para un servicio específico usando el SDK oficial de MercadoPago
+     */
+    public function generarPago(ServicioPagar $servicioPagar)
+    {
+        try {
+            $usuario = Auth::user();
+            if ($servicioPagar->cliente->dni !== $usuario->dni) {
+                return redirect()->back()->with('error', 'No tienes permiso para pagar este servicio.');
+            }
+
+            if ($servicioPagar->estado !== 'impago') {
+                return redirect()->back()->with('error', 'Este servicio ya ha sido pagado.');
+            }
+
+            $servicioPagar->load(['servicio.empresa', 'cliente']);
+            $empresa = $servicioPagar->servicio->empresa;
+
+            if (empty($empresa->MP_ACCESS_TOKEN)) {
+                \Log::error('Empresa sin credenciales MercadoPago', [
+                    'empresa_id' => $empresa->id,
+                    'servicio_pagar_id' => $servicioPagar->id
+                ]);
+                return redirect()->back()->with('error', 'La empresa no tiene configuradas las credenciales de MercadoPago.');
+            }
+
+            // Configurar el SDK oficial
+            \MercadoPago\MercadoPagoConfig::setAccessToken($empresa->MP_ACCESS_TOKEN);
+
+            $isSandbox = config('services.mercadopago.sandbox', true);
+            $baseUrl = config('app.env') === 'local' ? 'https://prepositionally-vacciniaceous-irving.ngrok-free.dev' : config('app.url');
+            $successUrl = $baseUrl . "/pago/success/" . $servicioPagar->id;
+            $failureUrl = $baseUrl . "/pago/failure/" . $servicioPagar->id;
+            $pendingUrl = $baseUrl . "/pago/pending/" . $servicioPagar->id;
+            $webhookUrl = $baseUrl . "/mercadopago/webhook";
+
+            $items = [
+                [
+                    "title" => $servicioPagar->servicio->nombre,
+                    "quantity" => (int) $servicioPagar->cantidad,
+                    "unit_price" => (float) $servicioPagar->precio
+                ]
+            ];
+
+            $preferenceData = [
+                "items" => $items,
+                "external_reference" => 'servicio_pagar_' . $servicioPagar->id,
+                "back_urls" => [
+                    "success" => $successUrl,
+                    "failure" => $failureUrl,
+                    "pending" => $pendingUrl
+                ],
+                "auto_return" => "approved",
+                "notification_url" => $webhookUrl,
+            ];
+
+            $client = new \MercadoPago\Client\Preference\PreferenceClient();
+            $preference = $client->create($preferenceData);
+
+            if ($preference->id) {
+                $servicioPagar->update([
+                    'mp_preference_id' => $preference->id
+                ]);
+
+                $checkoutUrl = $isSandbox
+                    ? ($preference->sandbox_init_point ?? $preference->init_point)
+                    : $preference->init_point;
+
+                if (!$checkoutUrl) {
+                    \Log::error('No se pudo obtener URL de checkout', [
+                        'preference_id' => $preference->id,
+                        'init_point' => $preference->init_point ?? null,
+                        'sandbox_init_point' => $preference->sandbox_init_point ?? null
+                    ]);
+                    return redirect()->back()->with('error', 'Error al obtener la URL de pago.');
+                }
+
+                return redirect($checkoutUrl);
+            } else {
+                \Log::error('Error al crear preferencia: Sin ID de preferencia');
+                return redirect()->back()->with('error', 'Error al crear la preferencia de pago. Intenta nuevamente.');
+            }
+
+        } catch (\MercadoPago\Exceptions\MPApiException $e) {
+            \Log::error('Error de API MercadoPago: ' . $e->getMessage(), [
+                'servicio_pagar_id' => $servicioPagar->id,
+                'status_code' => $e->getApiResponse()->getStatusCode(),
+                'api_response' => $e->getApiResponse()->getContent(),
+                'error_trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()->with('error', 'Error de la API de MercadoPago: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            \Log::error('Error al generar pago con SDK MercadoPago: ' . $e->getMessage(), [
+                'servicio_pagar_id' => $servicioPagar->id,
+                'usuario_id' => Auth::id(),
+                'error' => $e->getTraceAsString()
+            ]);
+            return redirect()->back()->with('error', 'Error interno al procesar el pago. Intenta nuevamente.');
+        }
+    }
+
+    /**
+     * Obtener información detallada de un pago usando el SDK oficial de MercadoPago
+     */
+    public function obtenerInfoPago(string $paymentId)
+    {
+        try {
+            // Configurar el SDK (puedes usar las credenciales por defecto o configurarlas dinámicamente)
+            $accessToken = config('services.mercadopago.access_token');
+            if (!$accessToken) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Credenciales de MercadoPago no configuradas'
+                ], 500);
+            }
+
+            MercadoPagoConfig::setAccessToken($accessToken);
+            MercadoPagoConfig::setRuntimeEnviroment(
+                config('services.mercadopago.sandbox', true) 
+                    ? MercadoPagoConfig::LOCAL 
+                    : MercadoPagoConfig::SERVER
+            );
+
+            // Usar el cliente de pagos del SDK moderno
+            $paymentClient = new \MercadoPago\Client\Payment\PaymentClient();
+            $payment = $paymentClient->get($paymentId);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'id' => $payment->id,
+                    'status' => $payment->status,
+                    'status_detail' => $payment->status_detail,
+                    'transaction_amount' => $payment->transaction_amount,
+                    'currency_id' => $payment->currency_id,
+                    'external_reference' => $payment->external_reference,
+                    'date_created' => $payment->date_created,
+                    'date_approved' => $payment->date_approved,
+                    'payer' => $payment->payer,
+                    'payment_method_id' => $payment->payment_method_id,
+                    'payment_type_id' => $payment->payment_type_id
+                ]
+            ]);
+
+        } catch (MPApiException $e) {
+            \Log::error('Error de API MercadoPago obteniendo pago', [
+                'payment_id' => $paymentId,
+                'status_code' => $e->getApiResponse()->getStatusCode(),
+                'api_response' => $e->getApiResponse()->getContent()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error de la API de MercadoPago: ' . $e->getMessage()
+            ], $e->getApiResponse()->getStatusCode());
+
+        } catch (\Exception $e) {
+            \Log::error('Error obteniendo información de pago', [
+                'payment_id' => $paymentId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Error interno del servidor'
+            ], 500);
+        }
+    }
+
+    /**
+     * Callback de pago exitoso
+     */
+    public function pagoSuccess(ServicioPagar $servicioPagar, Request $request)
+    {
+        try {
+            // Obtener información del pago desde la URL
+            $payment_id = $request->get('payment_id');
+            $status = $request->get('status');
+            $external_reference = $request->get('external_reference');
+
+            \Log::info('Callback Success MercadoPago', [
+                'servicio_pagar_id' => $servicioPagar->id,
+                'payment_id' => $payment_id,
+                'status' => $status,
+                'external_reference' => $external_reference
+            ]);
+
+            $status_detail = null;
+
+            // Si tenemos payment_id, obtener información detallada usando el SDK moderno
+            if ($payment_id) {
+                try {
+                    // Configurar SDK
+                    $empresa = $servicioPagar->servicio->empresa;
+                    MercadoPagoConfig::setAccessToken($empresa->MP_ACCESS_TOKEN);
+                    MercadoPagoConfig::setRuntimeEnviroment(
+                        config('services.mercadopago.sandbox', true) 
+                            ? MercadoPagoConfig::LOCAL 
+                            : MercadoPagoConfig::SERVER
+                    );
+
+                    $paymentClient = new PaymentClient();
+                    $payment = $paymentClient->get($payment_id);
+                    $status = $payment->status;
+                    $status_detail = $payment->status_detail ?? null;
+
+                    \Log::info('Información detallada del pago obtenida', [
+                        'payment_id' => $payment_id,
+                        'status' => $status,
+                        'status_detail' => $status_detail,
+                        'transaction_amount' => $payment->transaction_amount ?? null
+                    ]);
+
+                } catch (MPApiException $e) {
+                    \Log::warning('No se pudo obtener información detallada del pago', [
+                        'payment_id' => $payment_id,
+                        'error' => $e->getMessage(),
+                        'status_code' => $e->getApiResponse()->getStatusCode()
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::warning('Error al obtener información del pago', [
+                        'payment_id' => $payment_id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Log automático si el pago fue rechazado
+            if ($status === 'rejected') {
+                \Log::error('Pago rechazado por MercadoPago', [
+                    'servicio_pagar_id' => $servicioPagar->id,
+                    'payment_id' => $payment_id,
+                    'status_detail' => $status_detail,
+                    'external_reference' => $external_reference
+                ]);
+                return redirect()->route('panel')->with('error', 'El pago fue rechazado. Motivo: ' . ($status_detail ?: 'desconocido'));
+            }
+
+            // Actualizar estado del servicio según el status
+            if ($status === 'approved') {
+                $servicioPagar->update([
+                    'estado' => 'pago',
+                    'mp_payment_id' => $payment_id
+                ]);
+
+                // Crear registro en la tabla pagos
+                // Buscar el id de forma de pago correspondiente a MercadoPago
+                $formaPagoId = \App\Models\FormaPago::where('nombre', 'like', '%mercadopago%')->value('id') ?? 1;
+                $idUsuarioPago = \App\Models\User::where('email','like', '%pago%')->value('id') ?? 1; // Ajustar según tu lógica
+                Pagos::create([
+                    'id_servicio_pagar' => $servicioPagar->id,
+                    'id_usuario' => $idUsuarioPago,
+                    'forma_pago' => $formaPagoId,
+                    'importe' => $servicioPagar->total,
+                    'comentario' => 'Pago procesado por MercadoPago. Payment ID: ' . $payment_id
+                ]);
+
+                return redirect()->route('panel')->with('success', 'Pago procesado exitosamente!');
+            } elseif ($status === 'pending') {
+                // Actualizar con estado pendiente
+                $servicioPagar->update([
+                    'mp_payment_id' => $payment_id
+                ]);
+
+                return redirect()->route('panel')->with('info', 'Tu pago está siendo procesado. Te notificaremos cuando esté confirmado.');
+            }
+
+            return redirect()->route('panel')->with('warning', 'El pago está siendo procesado.');
+
+        } catch (\Exception $e) {
+            \Log::error('Error en callback success: ' . $e->getMessage(), [
+                'servicio_pagar_id' => $servicioPagar->id,
+                'request_params' => $request->all()
+            ]);
+            return redirect()->route('panel')->with('error', 'Error al procesar el callback del pago.');
+        }
+    }
+
+    /**
+     * Callback de pago fallido
+     */
+    public function pagoFailure(ServicioPagar $servicioPagar, Request $request)
+    {
+        \Log::info('Callback Failure MercadoPago', [
+            'servicio_pagar_id' => $servicioPagar->id,
+            'request_params' => $request->all()
+        ]);
+
+        return redirect()->route('panel')->with('error', 'El pago no pudo ser procesado. Intenta nuevamente.');
+    }
+
+    /**
+     * Callback de pago pendiente
+     */
+    public function pagoPending(ServicioPagar $servicioPagar, Request $request)
+    {
+        \Log::info('Callback Pending MercadoPago', [
+            'servicio_pagar_id' => $servicioPagar->id,
+            'request_params' => $request->all()
+        ]);
+
+        return redirect()->route('panel')->with('info', 'Tu pago está siendo procesado. Te notificaremos cuando esté confirmado.');
     }
 }

@@ -50,6 +50,10 @@ class NuevoServicioPagarListener
 
         try {
 
+            if(empty($datos[0]->correoCliente)){
+                return;
+            }
+
             $correo = Mail::to($datos[0]->correoCliente)->send(new NotificacionCuotaMail($datos));
 
             

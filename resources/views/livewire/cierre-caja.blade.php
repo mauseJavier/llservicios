@@ -15,7 +15,7 @@
     @endif
 
     {{-- Estado actual de la caja --}}
-    <div class="card" style="padding: 20px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; background: #f8f9fa;">
+    <div class="card" style="padding: 20px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; background: #32408dff;">
         <h3>Estado Actual de la Caja</h3>
         
         @if($cajaActiva)
@@ -47,14 +47,14 @@
 
     {{-- Resumen de movimientos del día --}}
     @if(!empty($calculoCaja))
-        <div class="card" style="padding: 20px; margin-bottom: 20px; border: 1px solid #007BFF; border-radius: 8px; background: #f8f9ff;">
+        <div class="card" style="padding: 20px; margin-bottom: 20px; border: 1px solid #007BFF; border-radius: 8px; background: #32408dff;">
             <h3 style="color: #007BFF; margin-bottom: 20px;">
                 <i class="fas fa-calculator"></i> Resumen del Día - {{ $resumenDia['fecha'] ?? '' }}
             </h3>
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
                 {{-- Columna de Movimientos --}}
-                <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef;">
+                <div style="background: #000000ff; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef;">
                     <h4 style="color: #495057; margin-bottom: 15px; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">
                         📊 Movimientos del Día
                     </h4>
@@ -93,8 +93,8 @@
                 </div>
                 
                 {{-- Columna de Resultados --}}
-                <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef;">
-                    <h4 style="color: #495057; margin-bottom: 15px; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">
+                <div style="background: black; padding: 15px; border-radius: 8px; border: 1px solid #345c83ff;">
+                    <h4 style="color: #495057; margin-bottom: 15px; border-bottom: 2px solid #345c83ff; padding-bottom: 10px;">
                         💰 Resultado Final
                     </h4>
                     
@@ -122,7 +122,7 @@
 
     {{-- Botones de acción --}}
     @if(!$mostrarFormulario)
-        <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center;">
+        <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
             @if(!$cajaActiva)
                 <button wire:click="iniciarCaja" class="btn-success" style="background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer;">
                     <i class="fas fa-play"></i> Iniciar Caja
@@ -137,6 +137,11 @@
                 <i class="fas fa-sync-alt"></i> Actualizar Cálculos
             </button>
             
+            <button wire:click="toggleResumenEmpresa" class="btn-info" style="background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer;">
+                <i class="fas {{ $mostrarResumenEmpresa ? 'fa-eye-slash' : 'fa-building' }}"></i> 
+                {{ $mostrarResumenEmpresa ? 'Ocultar' : 'Ver' }} Resumen Empresa
+            </button>
+            
             <button wire:click="generarPdfA4" class="btn-secondary" style="background: #6f42c1; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer;">
                 <i class="fas fa-file-pdf"></i> PDF A4
             </button>
@@ -144,6 +149,148 @@
             <button wire:click="generarPdf80mm" class="btn-secondary" style="background: #fd7e14; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer;">
                 <i class="fas fa-receipt"></i> Ticket 80mm
             </button>
+        </div>
+    @endif
+
+    {{-- Resumen de todos los usuarios de la empresa --}}
+    @if($mostrarResumenEmpresa && !empty($resumenEmpresa))
+        <div class="card" style="padding: 20px; margin-bottom: 20px; border: 2px solid #007bff; border-radius: 8px; background: #1a2332;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="color: #007bff; margin: 0;">
+                    <i class="fas fa-building"></i> Resumen Empresa - {{ $resumenEmpresa['fecha'] ?? '' }}
+                </h3>
+                <button wire:click="cargarResumenEmpresa" style="background: #17a2b8; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                    <i class="fas fa-sync-alt"></i> Actualizar
+                </button>
+            </div>
+
+            {{-- Totales generales de la empresa --}}
+            <div style="background: #0d1520; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #28a745;">
+                <h4 style="color: #28a745; margin-bottom: 15px; text-align: center;">
+                    <i class="fas fa-chart-line"></i> TOTALES GENERALES DE LA EMPRESA
+                </h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div style="background: #1a2332; padding: 15px; border-radius: 6px; text-align: center; border: 1px solid #dc3545;">
+                        <div style="color: #dc3545; font-size: 14px; margin-bottom: 5px;">Total Inicios</div>
+                        <div style="color: white; font-size: 20px; font-weight: bold;">-${{ number_format($resumenEmpresa['totales']['inicio_caja'], 2, ',', '.') }}</div>
+                    </div>
+                    <div style="background: #1a2332; padding: 15px; border-radius: 6px; text-align: center; border: 1px solid #dc3545;">
+                        <div style="color: #dc3545; font-size: 14px; margin-bottom: 5px;">Total Pagos</div>
+                        <div style="color: white; font-size: 20px; font-weight: bold;">-${{ number_format($resumenEmpresa['totales']['total_pagos'], 2, ',', '.') }}</div>
+                    </div>
+                    <div style="background: #1a2332; padding: 15px; border-radius: 6px; text-align: center; border: 1px solid #28a745;">
+                        <div style="color: #28a745; font-size: 14px; margin-bottom: 5px;">Total Cierres</div>
+                        <div style="color: white; font-size: 20px; font-weight: bold;">+${{ number_format($resumenEmpresa['totales']['cierre_caja'], 2, ',', '.') }}</div>
+                    </div>
+                    <div style="background: #1a2332; padding: 15px; border-radius: 6px; text-align: center; border: 1px solid #28a745;">
+                        <div style="color: #28a745; font-size: 14px; margin-bottom: 5px;">Total Gastos</div>
+                        <div style="color: white; font-size: 20px; font-weight: bold;">+${{ number_format($resumenEmpresa['totales']['total_gastos'], 2, ',', '.') }}</div>
+                    </div>
+                    <div style="background: {{ $resumenEmpresa['totales']['calculo_final'] >= 0 ? '#155724' : '#721c24' }}; padding: 15px; border-radius: 6px; text-align: center; border: 2px solid {{ $resumenEmpresa['totales']['calculo_final'] >= 0 ? '#28a745' : '#dc3545' }}; grid-column: span 4;">
+                        <div style="color: white; font-size: 16px; margin-bottom: 5px; font-weight: bold;">
+                            {{ $resumenEmpresa['totales']['calculo_final'] >= 0 ? '✅ RESULTADO FINAL EMPRESA' : '❌ RESULTADO FINAL EMPRESA' }}
+                        </div>
+                        <div style="color: white; font-size: 28px; font-weight: bold;">${{ number_format($resumenEmpresa['totales']['calculo_final'], 2, ',', '.') }}</div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Tabla de usuarios --}}
+            @if(count($resumenEmpresa['usuarios']) > 0)
+                <div style="margin-top: 20px;">
+                    <h4 style="color: #6c757d; margin-bottom: 15px;">
+                        <i class="fas fa-users"></i> Detalle por Usuario ({{ $resumenEmpresa['cantidad_usuarios'] }} usuario(s) con movimientos)
+                    </h4>
+                    <div class="table-responsive" style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                            <thead>
+                                <tr style="background: #0d1520;">
+                                    <th style="padding: 12px; border: 1px solid #345c83; text-align: left; color: #17a2b8;">Usuario</th>
+                                    <th style="padding: 12px; border: 1px solid #345c83; text-align: center; color: #dc3545;">Inicios</th>
+                                    <th style="padding: 12px; border: 1px solid #345c83; text-align: center; color: #dc3545;">Pagos</th>
+                                    <th style="padding: 12px; border: 1px solid #345c83; text-align: center; color: #28a745;">Cierres</th>
+                                    <th style="padding: 12px; border: 1px solid #345c83; text-align: center; color: #28a745;">Gastos</th>
+                                    <th style="padding: 12px; border: 1px solid #345c83; text-align: center; color: #ffc107;">Resultado</th>
+                                    <th style="padding: 12px; border: 1px solid #345c83; text-align: center; color: #6c757d;">Movimientos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($resumenEmpresa['usuarios'] as $usuarioData)
+                                    <tr style="background: #1a2332;">
+                                        <td style="padding: 10px; border: 1px solid #345c83; font-weight: bold;">
+                                            <i class="fas fa-user"></i> {{ $usuarioData['usuario_nombre'] }}
+                                        </td>
+                                        <td style="padding: 10px; border: 1px solid #345c83; text-align: center;">
+                                            <div style="color: #dc3545; font-weight: bold;">-${{ number_format($usuarioData['inicio_caja'], 2, ',', '.') }}</div>
+                                            <small style="color: #6c757d;">({{ $usuarioData['cantidad_inicios'] }})</small>
+                                        </td>
+                                        <td style="padding: 10px; border: 1px solid #345c83; text-align: center;">
+                                            <div style="color: #dc3545; font-weight: bold;">-${{ number_format($usuarioData['total_pagos'], 2, ',', '.') }}</div>
+                                            <small style="color: #6c757d;">({{ $usuarioData['cantidad_pagos'] }})</small>
+                                        </td>
+                                        <td style="padding: 10px; border: 1px solid #345c83; text-align: center;">
+                                            <div style="color: #28a745; font-weight: bold;">+${{ number_format($usuarioData['cierre_caja'], 2, ',', '.') }}</div>
+                                            <small style="color: #6c757d;">({{ $usuarioData['cantidad_cierres'] }})</small>
+                                        </td>
+                                        <td style="padding: 10px; border: 1px solid #345c83; text-align: center;">
+                                            <div style="color: #28a745; font-weight: bold;">+${{ number_format($usuarioData['total_gastos'], 2, ',', '.') }}</div>
+                                            <small style="color: #6c757d;">({{ $usuarioData['cantidad_gastos'] }})</small>
+                                        </td>
+                                        <td style="padding: 10px; border: 1px solid #345c83; text-align: center; background: {{ $usuarioData['calculo_final'] >= 0 ? '#155724' : '#721c24' }};">
+                                            <div style="color: white; font-weight: bold; font-size: 15px;">
+                                                ${{ number_format($usuarioData['calculo_final'], 2, ',', '.') }}
+                                            </div>
+                                        </td>
+                                        <td style="padding: 10px; border: 1px solid #345c83; text-align: center;">
+                                            <small style="color: #6c757d;">
+                                                {{ $usuarioData['cantidad_inicios'] + $usuarioData['cantidad_cierres'] + $usuarioData['cantidad_pagos'] + $usuarioData['cantidad_gastos'] }} total
+                                            </small>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                            <tfoot style="background: #0d1520; font-weight: bold;">
+                                <tr>
+                                    <td style="padding: 12px; border: 1px solid #345c83; text-align: right;" colspan="1">
+                                        <strong style="color: #ffc107;">TOTALES:</strong>
+                                    </td>
+                                    <td style="padding: 12px; border: 1px solid #345c83; text-align: center; color: #dc3545;">
+                                        -${{ number_format($resumenEmpresa['totales']['inicio_caja'], 2, ',', '.') }}
+                                    </td>
+                                    <td style="padding: 12px; border: 1px solid #345c83; text-align: center; color: #dc3545;">
+                                        -${{ number_format($resumenEmpresa['totales']['total_pagos'], 2, ',', '.') }}
+                                    </td>
+                                    <td style="padding: 12px; border: 1px solid #345c83; text-align: center; color: #28a745;">
+                                        +${{ number_format($resumenEmpresa['totales']['cierre_caja'], 2, ',', '.') }}
+                                    </td>
+                                    <td style="padding: 12px; border: 1px solid #345c83; text-align: center; color: #28a745;">
+                                        +${{ number_format($resumenEmpresa['totales']['total_gastos'], 2, ',', '.') }}
+                                    </td>
+                                    <td style="padding: 12px; border: 1px solid #345c83; text-align: center; background: {{ $resumenEmpresa['totales']['calculo_final'] >= 0 ? '#28a745' : '#dc3545' }}; color: white; font-size: 16px;">
+                                        ${{ number_format($resumenEmpresa['totales']['calculo_final'], 2, ',', '.') }}
+                                    </td>
+                                    <td style="padding: 12px; border: 1px solid #345c83;"></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            @else
+                <p style="color: #6c757d; font-style: italic; text-align: center; padding: 20px;">
+                    No hay movimientos registrados para ningún usuario de la empresa en la fecha actual.
+                </p>
+            @endif
+
+            {{-- Leyenda --}}
+            <div style="margin-top: 20px; padding: 15px; background: #0d1520; border-radius: 8px; border: 1px solid #345c83;">
+                <h5 style="color: #6c757d; margin-bottom: 10px;"><i class="fas fa-info-circle"></i> Leyenda:</h5>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 13px; color: #adb5bd;">
+                    <div><span style="color: #dc3545;">●</span> Valores en rojo: Salidas de efectivo</div>
+                    <div><span style="color: #28a745;">●</span> Valores en verde: Entradas de efectivo</div>
+                    <div><span style="color: #6c757d;">●</span> Números entre paréntesis: Cantidad de movimientos</div>
+                    <div><span style="color: #ffc107;">●</span> Resultado: (-Inicios) + (-Pagos) + (Cierres) + (Gastos)</div>
+                </div>
+            </div>
         </div>
     @endif
 
