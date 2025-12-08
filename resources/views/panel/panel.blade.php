@@ -13,12 +13,12 @@
                 <p style="margin: 0;">Servicios Impagos</p>
                 <h4 style="margin: 0;">${{ number_format($serviciosImpagos->sum('total'), 2) }}</h4>
             </article>
-            <article style="background: transparent; color: rgb(117, 23, 23); text-align: center; border: 2px solid #ff6b6b; border-radius: 8px;">
+            <article style="background: transparent; color: rgb(117, 23, 23); text-align: center; border: 2px solid #b0ff6b; border-radius: 8px;">
                 <h3 style="margin: 0;">{{ $serviciosPagos->count() }}</h3>
                 <p style="margin: 0;">Servicios Pagos</p>
                 <h4 style="margin: 0;">${{ number_format($serviciosPagos->sum('total'), 2) }}</h4>
             </article>
-            <article style="background: transparent; color: rgb(117, 23, 23); text-align: center; border: 2px solid #ff6b6b; border-radius: 8px;">
+            <article style="background: transparent; color: rgb(117, 23, 23); text-align: center; border: 2px solid #6b9fff; border-radius: 8px;">
                 <h3 style="margin: 0;">{{ $serviciosImpagos->count() + $serviciosPagos->count() }}</h3>
                 <p style="margin: 0;">Total Servicios</p>
                 <h4 style="margin: 0;">
@@ -79,11 +79,13 @@
 
                         <select id="nombre_empresa" name="nombre_empresa" style="width: 100%;">
                             <option value="">Todo</option>
+                            @if ($empresas)
                             @foreach ($empresas as $empresa)
                                 <option value="{{ $empresa }}" {{ (isset($nombreEmpresa) && $nombreEmpresa == $empresa) ? 'selected' : '' }}>
                                     {{ $empresa }}
                                 </option>
                             @endforeach
+                            @endif
                         </select>
                     </div>
                     <div style="grid-column: 1 / -1; display: flex; gap: 10px; justify-content: center;">
@@ -162,7 +164,7 @@
             </article>
         @else
             <article
-                style="background: #d4edda; border: 2px solid #c3e6cb; color: #155724; text-align: center; padding: 30px;">
+                style="background: transparent; border: 2px solid #c3e6cb; color: #155724; text-align: center; padding: 30px;">
                 <h3 style="margin: 0;">✅ ¡Excelente! No tienes servicios pendientes de pago</h3>
             </article>
         @endif

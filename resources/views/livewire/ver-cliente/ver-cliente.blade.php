@@ -62,22 +62,28 @@
                             <td>{{ $cliente->domicilio }}</td>
     
                             <th>
-                                <strong>
-                                    <a href="{{ route('DetalleCliente', ['clienteId' => $cliente->id]) }}"
-                                        data-tooltip="Ver Detalle" style="margin-right: 10px;">
-                                        <i class="fas fa-eye"></i> Ver
-                                    </a>
-                                    <a href="{{ route('Cliente.edit', ['Cliente' => $cliente->id]) }}"
-                                        data-tooltip="Editar" style="margin-right: 10px;">
-                                        <i class="fas fa-edit"></i> Editar
-                                    </a>
-                                    <button 
-                                        wire:click="confirmarEliminarCliente({{ $cliente->id }})"
-                                        data-tooltip="Eliminar Cliente y sus Servicios"
-                                        style="background-color: #dc3545; border: none; cursor: pointer; padding: 0.3rem 0.6rem; border-radius: 3px; color: white;">
-                                        <i class="fas fa-trash"></i> Eliminar
-                                    </button>
-                                </strong>
+
+                                <div role="group">
+                                        <a role="button" href="{{ route('DetalleCliente', ['clienteId' => $cliente->id]) }}" style="background-color: transparent; cursor: pointer; padding: 0.3rem 0.6rem; border-radius: 3px; color: rgb(26, 47, 138);"
+                                    
+                                            data-tooltip="Ver Detalle" style="margin-right: 10px;">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a role="button" href="{{ route('Cliente.edit', ['Cliente' => $cliente->id]) }}" style="background-color: transparent; cursor: pointer; padding: 0.3rem 0.6rem; border-radius: 3px; color: white;"
+                                    
+                                            data-tooltip="Editar" style="margin-right: 10px;">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button 
+                                            wire:click="confirmarEliminarCliente({{ $cliente->id }})"
+                                            data-tooltip="Eliminar Cliente y sus Servicios"
+                                            style="background-color: #dc3545; border: none; cursor: pointer; padding: 0.3rem 0.6rem; border-radius: 3px; color: white;">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+
+                                </div>
+
+
                             </th>
     
     
