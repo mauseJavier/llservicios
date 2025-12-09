@@ -17,6 +17,8 @@ class PanelController extends Controller
 
         $usuario = Auth::user();
 
+        $empresas = null;
+
         //fecha inicio principio de mes y fecha fin fin de mes
         $conffechaInicio = Carbon::now()->startOfMonth()->toDateString();
         $conffechaFin = Carbon::now()->endOfMonth()->toDateString();
@@ -46,6 +48,10 @@ class PanelController extends Controller
                 ->filter()
                 ->values();
             // dd($empresas);
+
+            if($empresas){
+                $empresas = null;        
+            }
 
             // Debug: Ver la SQL generada
             // dd($queryImpagos->toSql(), $queryImpagos->getBindings());
