@@ -434,7 +434,7 @@ class ServicioPagarController extends Controller
                 
             }
     
-                return redirect()->route('ServiciosImpagos')
+                return redirect()->route('Grilla')
                 ->with('status', 'Pagado correcto.');
             
 

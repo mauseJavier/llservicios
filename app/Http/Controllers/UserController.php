@@ -33,6 +33,13 @@ class UserController extends Controller
             'correo' => 'required|unique:App\Models\User,email',
             'contraseña' => 'required',
             'dni' => 'required|unique:users,dni',
+        ], [
+            'nombre.required' => 'El nombre es obligatorio',
+            'correo.required' => 'El correo es obligatorio',
+            'correo.unique' => 'Este correo ya está registrado',
+            'contraseña.required' => 'La contraseña es obligatoria',
+            'dni.required' => 'El DNI es obligatorio',
+            'dni.unique' => 'Este DNI ya está registrado',
         ]);
 
         $user = new User;
