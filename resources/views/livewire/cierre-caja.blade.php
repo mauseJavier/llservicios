@@ -15,7 +15,7 @@
     @endif
 
     {{-- Estado actual de la caja --}}
-    <div class="card" style="padding: 20px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; background: #32408dff;">
+    <div class="card" style="padding: 20px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; background: transparent;">
         <h3>Estado Actual de la Caja</h3>
         
         @if($cajaActiva)
@@ -47,7 +47,7 @@
 
     {{-- Resumen de movimientos del día --}}
     @if(!empty($calculoCaja))
-        <div class="card" style="padding: 20px; margin-bottom: 20px; border: 1px solid #007BFF; border-radius: 8px; background: #32408dff;">
+        <div class="card" style="padding: 20px; margin-bottom: 20px; border: 1px solid #007BFF; border-radius: 8px; background: transparent;">
             <h3 style="color: #007BFF; margin-bottom: 20px;">
                 <i class="fas fa-calculator"></i> Resumen del Día - {{ $resumenDia['fecha'] ?? '' }}
             </h3>
