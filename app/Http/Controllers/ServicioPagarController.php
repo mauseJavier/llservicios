@@ -17,6 +17,10 @@ use App\Models\MercadoPagoPOS;
 use App\Models\MercadoPagoQROrder;
 
 
+use App\Jobs\EnviarComprobantePagoEmailJob;
+
+
+
 use App\Services\MercadoPago\MercadoPagoQRService;
 use Illuminate\Support\Str;
 
@@ -317,18 +321,27 @@ class ServicioPagarController extends Controller
                     'precio' => $nuevoPrecio,
                 ]);
                 
-                // Agregar información del ajuste al comentario
-                $tipoAjusteTexto = $request->tipoAjuste === 'descuento' ? 'Descuento' : 'Incremento';
-                $ajusteTexto = $request->ajusteTipo === 'porcentaje' 
-                    ? $request->valorAjuste . '%' 
-                    : '$' . $request->valorAjuste;
-                
-                $comentarioAjuste = "{$tipoAjusteTexto} aplicado: {$ajusteTexto} (Importe original: \${$importeOriginal}, Importe final: \${$importeFinal})";
-                
-                // Combinar con el comentario del usuario si existe
-                $comentarioFinal = $request->comentario 
-                    ? $request->comentario . ' | ' . $comentarioAjuste 
-                    : $comentarioAjuste;
+
+                //solo mostramos comentario cuando es descuento no cuando es un incremento
+                if($request->tipoAjuste === 'descuento'){
+                    
+                    // Agregar información del ajuste al comentario
+                    $tipoAjusteTexto = $request->tipoAjuste === 'descuento' ? 'Descuento' : 'Incremento';
+                    $ajusteTexto = $request->ajusteTipo === 'porcentaje' 
+                        ? $request->valorAjuste . '%' 
+                        : '$' . $request->valorAjuste;
+                    
+                    $comentarioAjuste = "{$tipoAjusteTexto} aplicado: {$ajusteTexto} (Importe original: \${$importeOriginal}, Importe final: \${$importeFinal})";
+                    
+                    // Combinar con el comentario del usuario si existe
+                    $comentarioFinal = $request->comentario 
+                        ? $request->comentario . ' | ' . $comentarioAjuste 
+                        : $comentarioAjuste;
+                }
+                else{
+                    $comentarioFinal = $request->comentario;
+                }
+
             } else {
                 $comentarioFinal = $request->comentario;
             }
@@ -423,6 +436,9 @@ class ServicioPagarController extends Controller
                 'tokenWS' => $empresa->tokenWS ?? null
             ];
             EnviarWhatsAppJob::dispatch($datos);
+
+            // Solo necesitas el ID del servicio pagado
+            EnviarComprobantePagoEmailJob::dispatch($servicioPagar->id);   
 
 
             if (isset( $request->comprobantePDF)){    
