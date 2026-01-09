@@ -13,6 +13,7 @@ use App\Models\Servicio;
 class GrillaDos extends Component
 {
     public $buscar = '';
+    public $year;
 
 
     // Paginación eliminada
@@ -20,6 +21,7 @@ class GrillaDos extends Component
     public function mount()
     {
         $this->buscar = '';
+        $this->year = date('Y'); // Año actual por defecto
     }
 
     public function getClientes()
@@ -33,25 +35,30 @@ class GrillaDos extends Component
             $clientes = DB::select('SELECT b.* FROM cliente_empresa a, clientes b WHERE a.cliente_id = b.id and a.empresa_id = ?', [$usuario->empresa_id]);
         }
 
-        $meses_completos = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        // Generar todos los periodos del año seleccionado (enero a diciembre)
+        $periodos_completos = [];
+        for ($mes = 1; $mes <= 12; $mes++) {
+            $periodos_completos[] = sprintf('%04d-%02d', $this->year, $mes);
+        }
 
         foreach ($clientes as $clave => $valor) {
             $servicios = Servicio::where('empresa_id', $usuario->empresa_id)
                 ->join('servicio_pagar', 'servicios.id', '=', 'servicio_pagar.servicio_id')
                 ->select(
-                    DB::raw("MONTHNAME(COALESCE(servicio_pagar.periodo_servicio, servicio_pagar.created_at)) AS mes_creado"),
+                    DB::raw("DATE_FORMAT(COALESCE(servicio_pagar.periodo_servicio, servicio_pagar.created_at), '%Y-%m') AS periodo"),
                     'servicio_pagar.estado as estado_pago',
                     DB::raw("SUM(servicio_pagar.precio * servicio_pagar.cantidad) as suma_precios")
                 )
                 ->where('servicio_pagar.cliente_id', $valor->id)
-                ->groupBy('mes_creado', 'estado_pago')
+                ->whereYear(DB::raw('COALESCE(servicio_pagar.periodo_servicio, servicio_pagar.created_at)'), $this->year)
+                ->groupBy('periodo', 'estado_pago')
                 ->orderBy(DB::raw('COALESCE(servicio_pagar.periodo_servicio, servicio_pagar.created_at)'), 'ASC')
                 ->get();
 
             $datos_completos = [];
-            foreach ($meses_completos as $mes) {
+            foreach ($periodos_completos as $periodo) {
                 $datos_completos[] = [
-                    'mes_creado' => $mes,
+                    'periodo' => $periodo,
                     'importe_pagado' => 0,
                     'importe_impago' => 0
                 ];
@@ -59,7 +66,7 @@ class GrillaDos extends Component
 
             foreach ($datos_completos as $index => $dc) {
                 foreach ($servicios as $servicio) {
-                    if ($servicio->mes_creado === $dc['mes_creado']) {
+                    if ($servicio->periodo === $dc['periodo']) {
                         if ($servicio->estado_pago === 'pago') {
                             $datos_completos[$index]['importe_pagado'] += $servicio->suma_precios;
                         } elseif ($servicio->estado_pago === 'impago') {
@@ -73,9 +80,9 @@ class GrillaDos extends Component
 
 
         $total = [];
-        foreach ($meses_completos as $mes) {
+        foreach ($periodos_completos as $periodo) {
             $total[] = [
-                "mes" => $mes,
+                "mes" => $periodo,
                 "pago" => 0,
                 "impago" => 0,
                 "total" => 0,
@@ -104,7 +111,8 @@ class GrillaDos extends Component
         return view('livewire.grilla-dos', [
             'clientes' => $clientes,
             'total' => $total,
-            'buscar' => $this->buscar
+            'buscar' => $this->buscar,
+            'year' => $this->year
         ])
         ->extends('principal.principal')
         ->section('body'); 

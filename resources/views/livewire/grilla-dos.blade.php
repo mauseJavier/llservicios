@@ -15,6 +15,11 @@
 
             {{-- <a href="{{route('NuevoCobro')}}" role="button" style="white-space: nowrap;">Agregar Servicio</a> --}}
             <input type="search" class="input" id="buscar" name="buscar" wire:model.live="buscar" placeholder="Buscar...">
+            <select wire:model.live="year" style="max-width: 150px;">
+                @for ($y = date('Y'); $y >= 2025; $y--)
+                    <option value="{{ $y }}">{{ $y }}</option>
+                @endfor
+            </select>
 
         </fieldset>
 
