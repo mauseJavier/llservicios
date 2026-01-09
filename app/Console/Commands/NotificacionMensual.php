@@ -123,29 +123,34 @@ class NotificacionMensual extends Command
 
             // Enviar WhatsApp si tiene teléfono
             if (!empty($datos['telefonoCliente'])) {
-                try {
-                    $mensajeWhatsApp = $this->generarMensajeWhatsApp($datos);
+
+
+                //no se enviara whatsapp por el momento para que no vaneen el numero de ws
+
+                
+                // try {
+                //     $mensajeWhatsApp = $this->generarMensajeWhatsApp($datos);
                     
-                    // Despachar Job para envío asíncrono
-                    $datos = [
-                        'phoneNumber' => $datos['telefonoCliente'],
-                        'message' => $mensajeWhatsApp,
-                        'type' => 'text',
-                        'additionalData' => [],
-                        'instanciaWS' => null,
-                        'tokenWS' => null
-                    ];
+                //     // Despachar Job para envío asíncrono
+                //     $datos = [
+                //         'phoneNumber' => $datos['telefonoCliente'],
+                //         'message' => $mensajeWhatsApp,
+                //         'type' => 'text',
+                //         'additionalData' => [],
+                //         'instanciaWS' => null,
+                //         'tokenWS' => null
+                //     ];
 
-                    Log::debug('Programando envío de WhatsApp', $datos);
+                //     Log::debug('Programando envío de WhatsApp', $datos);
 
-                    EnviarWhatsAppJob::dispatch($datos)->delay(now()->addSeconds(5 * $key)); // Espaciar envíos
+                //     EnviarWhatsAppJob::dispatch($datos)->delay(now()->addSeconds(5 * $key)); // Espaciar envíos
 
-                    $this->info("  ✅ WhatsApp programado para: {$datos['phoneNumber']}");
-                    $whatsappsEnviados++;
-                } catch (\Exception $e) {
-                    $this->error("  ❌ Error programando WhatsApp: " . $e->getMessage());
-                    $errores++;
-                }
+                //     $this->info("  ✅ WhatsApp programado para: {$datos['phoneNumber']}");
+                //     $whatsappsEnviados++;
+                // } catch (\Exception $e) {
+                //     $this->error("  ❌ Error programando WhatsApp: " . $e->getMessage());
+                //     $errores++;
+                // }
             } else {
                 $this->warn("  ⚠️  Cliente sin teléfono registrado");
             }

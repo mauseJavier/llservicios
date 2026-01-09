@@ -20,7 +20,10 @@ class Kernel extends ConsoleKernel
             // The environment is local
             // $schedule->command('app:cobrador-servicios')->everyMinute();
             // $schedule->command('app:notificacion-mensual')->everyMinute()->appendOutputTo(storage_path('logs/notificacionMensual.log'));
-            $schedule->command('app:cobrador-mensual')->everyMinute()->appendOutputTo(storage_path('logs/tareasMensualDesarrollo.log'));
+            // $schedule->command('app:cobrador-mensual')->everyMinute()->appendOutputTo(storage_path('logs/tareasMensualDesarrollo.log'));
+            
+            // Notificación WhatsApp cada minuto para desarrollo
+            // $schedule->command('app:notificacion-mensual-ws')->everyMinute()->appendOutputTo(storage_path('logs/notificacionMensualWS.log'));
 
             // agregar cobrador por minuto
             // $schedule->command('app:cobrador-minuto')->everyMinute()->appendOutputTo(storage_path('logs/tareasMinuto.log'));
@@ -38,6 +41,9 @@ class Kernel extends ConsoleKernel
 
             //NOTIFICACION MENSUAL SE EJECUTA 2 Y 7 A LAS 13 
             $schedule->command('app:notificacion-mensual')->twiceMonthly(2, 7, '13:00')->appendOutputTo(storage_path('logs/notificacionMensual.log'));
+            
+            //NOTIFICACION MENSUAL WHATSAPP SE EJECUTA 2 Y 7 A LAS 14:00
+            $schedule->command('app:notificacion-mensual-ws')->twiceMonthly(2, 7, '14:00')->appendOutputTo(storage_path('logs/notificacionMensualWS.log'));
 
         }
         
