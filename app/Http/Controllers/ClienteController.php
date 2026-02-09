@@ -10,6 +10,7 @@ use App\Models\Servicio;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Helpers\DniHelper;
 
 use Carbon\Carbon;
 
@@ -138,9 +139,12 @@ class ClienteController extends Controller
     {
         $usuario = Auth::user();
 
-        $cliente = DB::select('SELECT * FROM `clientes` WHERE dni = ?', [$request->dni]);
-        // Obtener la cantidad de filas seleccionadas
-        $cantidadFilas = count($cliente);
+        $dniNormalizado = DniHelper::extractDni($request->dni);
+        $cliente = Cliente::where(function($query) use ($dniNormalizado) {
+            $query->where('dni', $dniNormalizado)
+                  ->orWhere('dni', 'like', '%' . $dniNormalizado . '%');
+        })->get();
+        $cantidadFilas = $cliente->count();
         // return $cantidadFilas;
 
         if($cantidadFilas == 0 ){ //el cliente no exite en la base y se agrega 
@@ -256,10 +260,12 @@ class ClienteController extends Controller
     public function update(UpdateClienteRequest $request, Cliente $Cliente)
     {
 
-        // si existe un cliente con el mismo dni y distinto id
-        $clienteExistente = Cliente::where('dni', $request->dni)
-                                    ->where('id', '!=', $Cliente->id)
-                                    ->first();
+        // si existe un cliente con el mismo dni y distinto id (normalizando DNI/CUIT)
+        $dniNormalizado = DniHelper::extractDni($request->dni);
+        $clienteExistente = Cliente::where(function($query) use ($dniNormalizado) {
+            $query->where('dni', $dniNormalizado)
+                  ->orWhere('dni', 'like', '%' . $dniNormalizado . '%');
+        })->where('id', '!=', $Cliente->id)->first();
         if ($clienteExistente) {
             return redirect()->back()->withErrors(['dni' => 'El DNI ya está en uso por otro cliente.'])->withInput();
         }
@@ -299,8 +305,11 @@ class ClienteController extends Controller
         foreach ($clientes[0] as $value) {
             // echo $value['nombre'] . '<br>';
 
-
-            $clienteExiste = Cliente::where('dni', $value['dni'])->get();
+            $dniNormalizado = DniHelper::extractDni($value['dni']);
+            $clienteExiste = Cliente::where(function($query) use ($dniNormalizado) {
+                $query->where('dni', $dniNormalizado)
+                      ->orWhere('dni', 'like', '%' . $dniNormalizado . '%');
+            })->get();
 
             if (count($clienteExiste) > 0){
                 // return $clienteExiste;

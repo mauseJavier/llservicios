@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use App\Helpers\DniHelper;
 
 class ClienteApiController extends Controller
 {
@@ -42,11 +43,15 @@ class ClienteApiController extends Controller
                 ], 400);
             }
 
-            // Buscar el cliente
+            // Buscar el cliente (normalizando DNI/CUIT)
             $query = Cliente::query();
 
             if ($dni) {
-                $query->where('dni', $dni);
+                $dniNormalizado = DniHelper::extractDni($dni);
+                $query->where(function($q) use ($dniNormalizado) {
+                    $q->where('dni', $dniNormalizado)
+                      ->orWhere('dni', 'like', '%' . $dniNormalizado . '%');
+                });
             }
 
             if ($correo) {
@@ -216,8 +221,12 @@ class ClienteApiController extends Controller
                 'empresa_id' => 'required|integer|exists:empresas,id',
             ]);
 
-            // Verificar si ya existe un cliente con el mismo nombre
-            $clienteExistente = Cliente::where('dni', $validated['dni'])->first();
+            // Verificar si ya existe un cliente con el mismo DNI (normalizando DNI/CUIT)
+            $dniNormalizado = DniHelper::extractDni($validated['dni']);
+            $clienteExistente = Cliente::where(function($query) use ($dniNormalizado) {
+                $query->where('dni', $dniNormalizado)
+                      ->orWhere('dni', 'like', '%' . $dniNormalizado . '%');
+            })->first();
 
             if ($clienteExistente) {
                 // Cliente ya existe, verificar si ya está vinculado a la empresa
@@ -256,9 +265,13 @@ class ClienteApiController extends Controller
                 ], 200);
             }
 
-            // Validar DNI único solo si se proporciona y no existe el cliente
+            // Validar DNI único solo si se proporciona y no existe el cliente (normalizando DNI/CUIT)
             if (isset($validated['dni'])) {
-                $dniExistente = Cliente::where('dni', $validated['dni'])->first();
+                $dniNormalizado = DniHelper::extractDni($validated['dni']);
+                $dniExistente = Cliente::where(function($query) use ($dniNormalizado) {
+                    $query->where('dni', $dniNormalizado)
+                          ->orWhere('dni', 'like', '%' . $dniNormalizado . '%');
+                })->first();
                 if ($dniExistente) {
                     return response()->json([
                         'success' => false,

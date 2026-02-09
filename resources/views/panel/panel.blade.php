@@ -6,6 +6,18 @@
     <div class="container">
         <h1>Panel de Servicios</h1>
 
+        {{-- mostrar mensajes de éxito o error --}}
+        @if (session('success'))
+            <div style="background: #d4edda; color: #155724; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                {{ session('success') }}
+            </div>
+        @endif
+        @if (session('error'))
+            <div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 8px; margin-bottom: 20       px;">
+                {{ session('error') }}
+            </div>
+        @endif  
+
         {{-- Estadísticas resumidas --}}
         <div class="grid" style="margin-bottom: 20px;">
             <article style="background: transparent; color: rgb(117, 23, 23); text-align: center; border: 2px solid #ff6b6b; border-radius: 8px;">
@@ -120,13 +132,14 @@
                 @foreach ($serviciosImpagos as $s)
                     <article style="border: 2px solid #ff6b6b; border-radius: 8px;">
                         <header style="padding: 0; position: relative;">
-                            <img src="{{ $s->imagenServicio }}" alt="{{ $s->nombreServicio }}"
-                                style="width: 100%; height: 180px; object-fit: cover; border-radius: 6px 6px 0 0;">
+                            <img src="{{ $s->imagenServicio }}"
+                                style="width: 100%; height: 180px; object-fit: cover; border-radius: 6px 6px 0 0;
+                                @if ($s->imagenServicio == '') display: none; @endif">
                             <div style="position: absolute; top: 10px; right: 10px; background: #ff6b6b; color: rgb(117, 23, 23); padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 18px;">
                                 ${{ number_format($s->total, 2) }}
                             </div>
                         </header>
-                        <div style="padding: 16px;">
+                        <div style="padding: 16px; padding-top: 30px;">
                             <h3 style="margin: 0 0 12px 0; color: #356390;">{{ $s->nombreServicio }}</h3>
                             <p style="margin: 4px 0; color: #6c757d;"><strong>🏢 Empresa:</strong> {{ $s->nombreEmpresa }}</p>
                             <p style="margin: 4px 0; color: #6c757d;"><strong>📅 Fecha:</strong> {{ \Carbon\Carbon::parse($s->fechaCobro)->format('d/m/Y') }}</p>
@@ -145,14 +158,33 @@
                                 <span><strong>Precio U.:</strong> ${{ number_format($s->precioServicio, 2) }}</span>
                             </div>
                         </div>
-                        <footer style="padding: 16px; text-align: center; border-top: 1px solid #dee2e6;">
-                            <a href="{{ route('pago.generar', $s->servicio_id) }}" role="button"
-                                style="background: #28a745; width: 100%; margin: 0; padding: 12px 20px; font-size: 16px;">
-                                                                
-                                <img width="50%" src="https://i.postimg.cc/3rq4kqvt/MP-RGB-HANDSHAKE-color-horizontal.png" alt="">
 
-                            </a>
-                        </footer>
+                        @if (!empty($s->MP_PUBLIC_KEY))
+                            <footer style="padding: 16px; text-align: center; border-top: 1px solid #dee2e6;">
+                                <a href="{{ route('pago.generar', $s->servicio_id) }}" role="button"
+                                    style="background: #28a745; width: 100%; margin: 0; padding: 12px 20px; font-size: 16px;">
+                                                                    
+                                    <img width="50%" src="https://i.postimg.cc/3rq4kqvt/MP-RGB-HANDSHAKE-color-horizontal.png" alt="">
+
+                                </a>
+                            </footer>
+                            
+                        @else
+
+                                <footer style="padding: 16px; text-align: center; border-top: 1px solid #dee2e6;">
+                                    Alias Transferencia: <strong>{{ $s->aliasTranferencia ?? 'No disponible' }}</strong>
+                                    <div style="margin-top: 10px;">
+                                        <button type="button"
+                                            class="copy-alias-btn"
+                                            data-alias="{{ $s->aliasTranferencia }}"
+                                            style="background: #356390; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 14px;">
+                                            Copiar
+                                        </button>
+                                        <span class="copy-alias-feedback" style="margin-left: 8px; font-size: 12px; color: #6c757d;"></span>
+                                    </div>
+                                </footer>
+                            
+                        @endif
                     </article>
                 @endforeach
             </div>
@@ -233,3 +265,47 @@
     </div>
 
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.copy-alias-btn').forEach(function (btn) {
+                btn.addEventListener('click', async function () {
+                    var alias = (btn.getAttribute('data-alias') || '').trim();
+                    var feedback = btn.parentElement.querySelector('.copy-alias-feedback');
+
+                    if (!alias) {
+                        if (feedback) {
+                            feedback.textContent = 'No disponible';
+                        }
+                        return;
+                    }
+
+                    try {
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            await navigator.clipboard.writeText(alias);
+                        } else {
+                            var tempInput = document.createElement('input');
+                            tempInput.value = alias;
+                            document.body.appendChild(tempInput);
+                            tempInput.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(tempInput);
+                        }
+
+                        if (feedback) {
+                            feedback.textContent = 'Copiado';
+                            setTimeout(function () {
+                                feedback.textContent = '';
+                            }, 1500);
+                        }
+                    } catch (e) {
+                        if (feedback) {
+                            feedback.textContent = 'Error al copiar';
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+@endpush

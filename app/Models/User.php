@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Auth\Passwords\CanResetPassword;
 use Laravel\Sanctum\HasApiTokens;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,9 +17,9 @@ use App\Models\role;
 use App\Models\Empresa;
 
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable implements MustVerifyEmail, CanResetPasswordContract
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, CanResetPassword;
 
     /**
      * The attributes that are mass assignable.
@@ -30,7 +32,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'dni',
         'role_id',
-        'empresa_id'
+        'empresa_id',
+        'afip_punto_venta'
     ];
 
     /**
@@ -69,5 +72,16 @@ class User extends Authenticatable implements MustVerifyEmail
     public function mercadoPagoPOS(): HasMany
     {
         return $this->hasMany(\App\Models\MercadoPagoPOS::class, 'usuario_id', 'id');
+    }
+
+    /**
+     * Enviar la notificación de restablecimiento de contraseña.
+     *
+     * @param  string  $token
+     * @return void
+     */
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new \App\Notifications\ResetPasswordNotification($token));
     }
 }

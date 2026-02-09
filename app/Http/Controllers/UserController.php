@@ -9,6 +9,7 @@ use App\Models\Empresa;
 use App\Models\role;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use App\Services\AfipService;
 
 
 class UserController extends Controller
@@ -135,10 +136,26 @@ class UserController extends Controller
         $roles = role::all();
         $empresas = Empresa::all();
         $usuario = User::find($id->id);
+        $puntosVenta = [];
+        $puntosVentaError = null;
+
+        if ($usuario && $usuario->empresa_id) {
+            try {
+                $afipService = new AfipService($usuario->empresa_id);
+                $puntosVenta = $afipService->obtenerPuntosVenta() ?? [];
+            } catch (\Throwable $e) {
+                $puntosVentaError = $e->getMessage();
+            }
+        }
+
        return view('usuarios.edit',
-                    ['usuario'=>$usuario,
-                    'roles'=>$roles,
-                    'empresas'=>$empresas]
+                    [
+                        'usuario'=>$usuario,
+                        'roles'=>$roles,
+                        'empresas'=>$empresas,
+                        'puntosVenta'=>$puntosVenta,
+                        'puntosVentaError'=>$puntosVentaError
+                    ]
                     )->render();
     }
 
@@ -159,6 +176,26 @@ class UserController extends Controller
         // return $rol;
 
         return view('usuarios.miPerfil', ['empresa'=>$empresa, 'rol'=>$rol])->render();
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $validated = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ], [
+            'current_password.required' => 'La contraseña actual es obligatoria.',
+            'current_password.current_password' => 'La contraseña actual no es correcta.',
+            'password.required' => 'La nueva contraseña es obligatoria.',
+            'password.min' => 'La nueva contraseña debe tener al menos 8 caracteres.',
+            'password.confirmed' => 'La confirmación no coincide con la nueva contraseña.',
+        ]);
+
+        $user = Auth::user();
+        $user->password = Hash::make($validated['password']);
+        $user->save();
+
+        return back()->with('status', 'Contraseña actualizada correctamente.');
     }
 
 

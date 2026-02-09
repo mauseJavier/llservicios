@@ -94,7 +94,10 @@
 
         </div>
 
-
+        {{-- Controles de paginación --}}
+        <div style="margin-top: 1rem;">
+            {{ $clientes->links('vendor.pagination.custom') }}
+        </div>
 
     </div>
 

@@ -26,6 +26,7 @@ class UpdateempresaRequest extends FormRequest
             'cuit' => 'nullable|numeric|unique:empresas,cuit,' . $this->route('empresa')->id,
             'correo' => 'nullable|email|unique:empresas,correo,' . $this->route('empresa')->id,
             'logo' => 'nullable|url|max:255',
+            'aliasTranferencia' => 'nullable|string|max:255',
             'MP_ACCESS_TOKEN' => 'nullable|string|max:255',
             'MP_PUBLIC_KEY' => 'nullable|string|max:255',
             'MP_USER_ID' => 'nullable|string|max:255',

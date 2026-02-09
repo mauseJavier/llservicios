@@ -120,6 +120,14 @@
                 <p><strong>Servicio:</strong> {{ $datos['nombreServicio'] ?? 'Sin especificar' }}</p>
                 <p><strong>Cantidad:</strong> {{ $datos['cantidad'] ?? 1 }}</p>
                 <p><strong>Precio unitario:</strong> ${{ number_format($datos['precioUnitario'] ?? 0, 2) }}</p>
+                
+                @if(!empty($datos['forma_pago2']) && $datos['importe2'] > 0)
+                    <p><strong>Forma de pago 1:</strong> {{ $datos['forma_pago'] }} - ${{ number_format($datos['importe'] ?? 0, 2) }}</p>
+                    <p><strong>Forma de pago 2:</strong> {{ $datos['forma_pago2'] }} - ${{ number_format($datos['importe2'] ?? 0, 2) }}</p>
+                @else
+                    <p><strong>Forma de pago:</strong> {{ $datos['forma_pago'] ?? 'No especificada' }}</p>
+                @endif
+                
                 <p><strong>Fecha de pago:</strong> {{ $datos['fechaPago'] ?? date('d/m/Y H:i') }}</p>
                 @if(!empty($datos['mp_payment_id']))
                 <p><strong>ID de pago:</strong> {{ $datos['mp_payment_id'] }}</p>

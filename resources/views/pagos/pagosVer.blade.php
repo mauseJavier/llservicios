@@ -61,7 +61,23 @@
         
         <p>Usuario: {{$datos->nombreUsuario}}</p>
         <p>Fecha: {{\Carbon\Carbon::parse($datos->created_at)->format('d/m/Y H:i:s')}}</p>
-        <footer>
+
+        <article>
+
+            <a role="button" href="{{route('PagoPDF',[$datos->id_servicio_pagar])}}">Recibo A4</a>
+            <a role="button" href="{{route('PagoPDF',[$datos->id_servicio_pagar,'tamañoPapel'=>'80MM'])}}">Recibo 80mm</a>
+        </article>
+        
+        {{-- Componente de Facturación AFIP --}}
+        <hr>
+        @livewire('facturacion-afip', ['pagoId' => $datos->id])
+        <hr>
+
+        {{-- Envío de recibo/factura por WhatsApp --}}
+        @livewire('enviar-comprobantes-whatsapp', ['pagoId' => $datos->id, 'idServicioPagar' => $datos->id_servicio_pagar])
+        <hr>
+        
+        {{-- <footer>
             <form action="{{route('PagoPDF',[$datos->id_servicio_pagar])}}" method="">
                 @csrf
                 @method('POST')
@@ -79,7 +95,7 @@
             
             </form>
 
-        </footer>
+        </footer> --}}
       </article>
 
 

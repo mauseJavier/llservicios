@@ -51,6 +51,9 @@
       
         </form>
 
+        <div style="text-align: center; margin-top: 1rem;">
+          <a href="{{route('password.request')}}" style="font-size: 0.9rem;">¿Olvidaste tu contraseña?</a>
+        </div>
         
       </div>
 

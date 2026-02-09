@@ -291,8 +291,9 @@ class ServicioPagarController extends Controller
         $usuario = Auth::user();
         $empresa = Empresa::find($usuario->empresa_id);
         
-        // Obtener el servicio_pagar para actualizar el precio si hubo ajuste
-        $servicioPagar = ServicioPagar::findOrFail($request->idServicioPagar);
+        // Obtener el servicio_pagar con eager loading para evitar N+1 queries
+        $servicioPagar = ServicioPagar::with(['cliente', 'servicio'])
+            ->findOrFail($request->idServicioPagar);
 
         //si el servicioPagar esta en estado pago no se puede pagar de nuevo
         if ($servicioPagar->estado === 'pago') {
@@ -302,10 +303,16 @@ class ServicioPagarController extends Controller
 
         }
 
-        $cliente = Cliente::find($servicioPagar->cliente_id);
+        // Usar relación cargada en lugar de query adicional
+        $cliente = $servicioPagar->cliente;
+        $servicio = $servicioPagar->servicio;
 
-        $nombreFormaPago1 = FormaPago::find($request->formaPago)->nombre;
-        $nombreFormaPago2 = $request->formaPago2 ? FormaPago::find($request->formaPago2)->nombre : null;
+        // Cachear formas de pago en una sola query
+        $formasPagoIds = array_filter([$request->formaPago, $request->formaPago2]);
+        $formasPago = FormaPago::whereIn('id', $formasPagoIds)->get()->keyBy('id');
+        
+        $nombreFormaPago1 = $formasPago[$request->formaPago]->nombre ?? null;
+        $nombreFormaPago2 = $request->formaPago2 ? ($formasPago[$request->formaPago2]->nombre ?? null) : null;
         
         // Si se aplicó un ajuste, actualizar el precio en servicio_pagar
         if ($request->filled('aplicarAjuste') && $request->aplicarAjuste) {
@@ -349,14 +356,15 @@ class ServicioPagarController extends Controller
             $comentarioFinal = $request->comentario;
         }
         
-        // Actualizar el estado del servicio a pagado
-        DB::update('UPDATE servicio_pagar SET estado=?,updated_at=? WHERE  id = ?',
-                         ['pago',
-                        date('Y-m-d H:i:s'),
-                        $request->idServicioPagar]);
-
-
-
+        // Iniciar transacción para garantizar consistencia de datos
+        DB::beginTransaction();
+        
+        try {
+            // Actualizar el estado del servicio a pagado usando Eloquent (elimina query redundante)
+            $servicioPagar->update([
+                'estado' => 'pago',
+                'updated_at' => now()
+            ]);
 
             // Preparar datos del pago
             $pago = ['idServicioPagar'=>$request->idServicioPagar,
@@ -370,6 +378,20 @@ class ServicioPagarController extends Controller
             // dd($pago);
                      
             PagoServicioEvent::dispatch($pago);
+            
+            // Confirmar transacción
+            DB::commit();
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error al confirmar pago', [
+                'error' => $e->getMessage(),
+                'servicio_pagar_id' => $request->idServicioPagar
+            ]);
+            
+            return redirect()->back()
+                ->withErrors(['Error al procesar el pago: ' . $e->getMessage()]);
+        }
 
             // Aquí tengo que hacer una notificación
             ////////////////////////////////777
@@ -380,7 +402,7 @@ class ServicioPagarController extends Controller
             $mensaje = "Hola {$cliente->nombre},\n\n";
             $mensaje .= "Le informamos que hemos recibido su pago.\n";
             $mensaje .= "Detalles del pago:\n";
-            $mensaje .= "• Servicio: {$servicioPagar->servicio->nombre}\n";
+            $mensaje .= "• Servicio: {$servicio->nombre}\n";
 
             // Verificar si hay dos formas de pago
             if ($request->filled('formaPago2') && $request->importe2 > 0) {
@@ -406,10 +428,11 @@ class ServicioPagarController extends Controller
             
             EnviarWhatsAppJob::dispatch($datos);
 
+            // Preparar datos del PDF para envío asíncrono
             $datosPDF = [
                 'nombreCliente' => $cliente->nombre,
                 'dniCliente' => $cliente->dni,
-                'nombreServicio' => $servicioPagar->servicio->nombre,
+                'nombreServicio' => $servicio->nombre,
                 'nombreEmpresa' => $empresa->nombre,
                 'cantidad' => $servicioPagar->cantidad,
                 'precioUnitario' => $servicioPagar->precio,
@@ -422,23 +445,26 @@ class ServicioPagarController extends Controller
                 'logoEmpresa' => $empresa->logo,
             ];
 
+            // Enviar comprobante PDF de forma asíncrona para no bloquear el response
+            \App\Jobs\GenerarYEnviarComprobantePDFJob::dispatch(
+                $cliente->telefono,
+                $datosPDF,
+                $empresa->instanciaWS ?? null,
+                $empresa->tokenWS ?? null
+            );
 
-            $datos = [
-                'phoneNumber' => $cliente->telefono,
-                'message' => 'Comprobante de Pago adjunto.',
-                'type' => 'document',
-                'additionalData' => [
-                    'filename' => 'comprobante_pago.pdf',
-                    'caption' => 'Comprobante de Pago',
-                    'base64' => $this->GenerarComprobantePagoPDFBase64($datosPDF)   
-                ],
-                'instanciaWS' => $empresa->instanciaWS ?? null,
-                'tokenWS' => $empresa->tokenWS ?? null
+            // Preparar datos adicionales para el correo
+            $datosCorreo = [
+                'total' => floatval($request->importe1) + floatval($request->importe2 ?? 0),
+                'forma_pago' => $nombreFormaPago1,
+                'importe' => floatval($request->importe1),
+                'forma_pago2' => $nombreFormaPago2,
+                'importe2' => floatval($request->importe2 ?? 0),
+                'logoEmpresa' => $empresa->logo,
             ];
-            EnviarWhatsAppJob::dispatch($datos);
-
-            // Solo necesitas el ID del servicio pagado
-            EnviarComprobantePagoEmailJob::dispatch($servicioPagar->id);   
+            
+            // Enviar correo con los datos completos del pago
+            EnviarComprobantePagoEmailJob::dispatch($servicioPagar->id, $datosCorreo);   
 
 
             if (isset( $request->comprobantePDF)){    

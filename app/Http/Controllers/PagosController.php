@@ -18,6 +18,9 @@ use App\Models\ServicioPagar;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Helpers\DniHelper;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Writer\PngWriter;
 
 // Importar SDK oficial de MercadoPago
 use MercadoPago\MercadoPagoConfig;
@@ -368,6 +371,142 @@ class PagosController extends Controller
 
     }
 
+    /**
+     * Genera PDF de factura AFIP
+     */
+    public function facturaAfipPDF($pagoId, Request $request)
+    {
+        $empresaId = auth()->user()->empresa_id;
+
+        // Buscar el pago con sus relaciones
+        $pago = Pagos::with(['servicioPagar.cliente', 'servicioPagar.servicio'])
+            ->find($pagoId);
+
+        if (!$pago) {
+            abort(404, 'Pago no encontrado');
+        }
+
+        // Verificar que el pago tenga factura AFIP
+        if (!$pago->tieneFacturaAfip()) {
+            abort(400, 'Este pago no tiene factura AFIP generada');
+        }
+
+        // Obtener datos completos usando la misma query que pagoPDF
+        $datos = DB::select('SELECT
+                    a.*,
+                    b.id as idServicioPagar,
+                    c.name AS nombreUsuario,
+                    d.nombre AS Servicio,
+                    e.nombre AS Cliente,
+                    e.id as idCliente,
+                    f.nombre AS formaPago,
+                    f2.nombre AS formaPago2
+                FROM
+                    pagos a
+                    INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
+                    INNER JOIN users c ON a.id_usuario = c.id
+                    INNER JOIN servicios d ON b.servicio_id = d.id
+                    INNER JOIN clientes e ON b.cliente_id = e.id
+                    INNER JOIN forma_pagos f ON a.forma_pago = f.id
+                    LEFT JOIN forma_pagos f2 ON a.forma_pago2 = f2.id
+                    INNER JOIN cliente_empresa g ON e.id = g.cliente_id
+                WHERE
+                    g.empresa_id = ? 
+                    AND a.id = ?', [$empresaId, $pagoId]);
+
+        if (empty($datos)) {
+            abort(404, 'Datos del pago no encontrados');
+        }
+
+        $empresa = Empresa::find(Auth::user()->empresa_id);
+        $cliente = $pago->servicioPagar->cliente ?? null;
+
+        $qrBase64 = $this->generarQrAfipBase64ParaPdf($pago, $empresa, $cliente, $datos[0]);
+
+        
+        // Configurar tamaño de papel
+        if ($request->tamañoPapel == '80MM') {
+            // Generar PDF
+            $pdf = Pdf::loadView('pdf.facturaAfip80', [
+                'datos' => $datos[0],
+                'empresa' => $empresa,
+                'pago' => $pago,
+                'cliente' => $cliente,
+                'qrBase64' => $qrBase64
+            ]);
+            $pdf->set_paper(array(0, 0, 226.772, 800), 'portrait');
+        }else {
+            // Generar PDF con tamaño A4
+            $pdf = Pdf::loadView('pdf.facturaAfip', [
+                'datos' => $datos[0],
+                'empresa' => $empresa,
+                'pago' => $pago,
+                'cliente' => $cliente,
+                'qrBase64' => $qrBase64
+            ]);
+            $pdf->setPaper('A4', 'portrait');
+        }
+
+        $nombreArchivo = 'Factura_AFIP_' . $pago->afip_cae . '.pdf';
+        return $pdf->stream($nombreArchivo, ["Attachment" => false]);
+    }
+
+    /**
+     * Genera el QR AFIP en Base64 para el PDF de factura
+     */
+    private function generarQrAfipBase64ParaPdf($pago, $empresa, $cliente, $datos)
+    {
+        try {
+            $fechaEmision = \Carbon\Carbon::parse($pago->created_at)->format('Y-m-d');
+            $importeTotal = (float) (($datos->importe ?? 0) + ($datos->importe2 ?? 0));
+            $dniNormalizado = $cliente?->dni ? ($cliente->dni) : null;
+            $tipoDocRec = $dniNormalizado ? (strlen($dniNormalizado) === 11 ? 80 : 96) : null;
+
+            $qrPayload = [
+                'ver' => 1,
+                'fecha' => $fechaEmision,
+                'cuit' => (int) ($empresa->cuit ?? 0),
+                'ptoVta' => (int) ($pago->afip_punto_venta ?? 0),
+                'tipoCmp' => (int) ($pago->afip_tipo_comprobante ?? 0),
+                'nroCmp' => (int) ($pago->afip_numero_comprobante ?? 0),
+                'importe' => round($importeTotal, 2),
+                'moneda' => 'PES',
+                'ctz' => 1,
+                'tipoCodAut' => 'E',
+                'codAut' => (int) $pago->afip_cae,
+            ];
+
+            if(env('APP_ENV') === 'local') {
+
+                \Log::info('Generando QR AFIP', [
+                    'pago_id' => $pago->id,
+                    'qrPayload' => $qrPayload
+                ]);
+            }
+
+            if ($tipoDocRec && $dniNormalizado) {
+                $qrPayload['tipoDocRec'] = (int) $tipoDocRec;
+                $qrPayload['nroDocRec'] = (int) $dniNormalizado;
+            }
+
+            $qrJson = json_encode($qrPayload, JSON_UNESCAPED_SLASHES);
+            $qrBase64Data = base64_encode($qrJson);
+            $qrUrl = 'https://www.arca.gob.ar/fe/qr/?p=' . $qrBase64Data;
+
+            $writer = new PngWriter();
+            $qrCode = new QrCode($qrUrl);
+            $result = $writer->write($qrCode);
+
+            return $result->getDataUri();
+        } catch (\Exception $e) {
+            \Log::warning('No se pudo generar QR AFIP', [
+                'pago_id' => $pago->id ?? null,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
     public function ConfirmarPago (Request $request){
 
         return $request;
@@ -429,7 +568,8 @@ class PagosController extends Controller
     {
         try {
             $usuario = Auth::user();
-            if ($servicioPagar->cliente->dni !== $usuario->dni) {
+            // Comparar DNI normalizando CUIT/DNI
+            if (!DniHelper::compararDni($servicioPagar->cliente->dni, $usuario->dni)) {
                 return redirect()->back()->with('error', 'No tienes permiso para pagar este servicio.');
             }
 

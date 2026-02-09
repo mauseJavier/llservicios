@@ -41,6 +41,11 @@
             Cuit Empresa
             <input type="text" id="cuit" name="cuit" placeholder="Cuit" value="{{$empresa->cuit}}" required>
           </label>
+
+          <label for="aliasTranferencia">
+            Alias Transferencia
+            <input type="text" id="aliasTranferencia" name="aliasTranferencia" placeholder="Alias Transferencia" value="{{$empresa->aliasTranferencia}}">
+          </label>
       
         </div>
       

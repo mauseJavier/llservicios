@@ -9,6 +9,7 @@ use App\Models\Empresa;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use App\Helpers\DniHelper;
 
 class ImportarCliente extends Component
 {
@@ -138,11 +139,15 @@ class ImportarCliente extends Component
                 }
 
                 try {
-                    // Buscar cliente existente por DNI o nombre
+                    // Buscar cliente existente por DNI o nombre (normalizando DNI/CUIT)
                     $clienteExistente = null;
                     
                     if (!empty($datosCliente['dni'])) {
-                        $clienteExistente = Cliente::where('dni', $datosCliente['dni'])->first();
+                        $dniNormalizado = DniHelper::extractDni($datosCliente['dni']);
+                        $clienteExistente = Cliente::where(function($query) use ($dniNormalizado) {
+                            $query->where('dni', $dniNormalizado)
+                                  ->orWhere('dni', 'like', '%' . $dniNormalizado . '%');
+                        })->first();
                     }
                     
                     if (!$clienteExistente && !empty($datosCliente['nombre'])) {

@@ -62,11 +62,11 @@ class EnviarWhatsAppJob implements ShouldQueue
             'tokenWS' => $this->tokenWS ?? null,
         ]);
     
-        Log::info('WhatsApp Job - Iniciando envío', [
-            'phone' => $this->phoneNumber,
-            'type' => $this->type,
-            'attempt' => $this->attempts()
-        ]);
+        // Log::info('WhatsApp Job - Iniciando envío', [
+        //     'phone' => $this->phoneNumber,
+        //     'type' => $this->type,
+        //     'attempt' => $this->attempts()
+        // ]);
 
         try {
             $result = match($this->type) {
@@ -101,10 +101,10 @@ class EnviarWhatsAppJob implements ShouldQueue
             };
 
 
-            Log::info('WhatsApp Job - Mensaje enviado exitosamente', [
-                'phone' => $this->phoneNumber,
-                'type' => $this->type
-            ]);
+            // Log::info('WhatsApp Job - Mensaje enviado exitosamente', [
+            //     'phone' => $this->phoneNumber,
+            //     'type' => $this->type
+            // ]);
 
         } catch (\Exception $e) {
             Log::error('WhatsApp Job - Error en el envío', [

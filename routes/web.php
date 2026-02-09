@@ -16,6 +16,10 @@ use App\Http\Controllers\GrillaController;
 use App\Http\Controllers\ReciboSueldoController;
 use App\Http\Controllers\FormatoRegistroReciboController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\AfipController;
+
+// Password Reset Controller
+use App\Http\Controllers\PasswordResetController;
 
 // JOBS
 use App\Jobs\TutorialJob;
@@ -26,7 +30,7 @@ use App\Jobs\TutorialJob;
 
 // Rutas para MercadoPago
 use App\Http\Controllers\MercadoPago\MercadoPagoController;
-use App\Http\Controllers\MercadoPago\PaymentFormController;
+// use App\Http\Controllers\MercadoPago\PaymentFormController; // Controlador pendiente de crear
 use App\Http\Controllers\MercadoPago\MercadoPagoWebhookController;
 
 
@@ -148,6 +152,15 @@ Route::middleware('auth')->group(function () {
             Route::get('Pagos', [PagosController::class, 'index'])->name('Pagos');  
             Route::get('PagosVer/{idServicioPagar}', [PagosController::class, 'PagosVer'])->name('PagosVer');  
             Route::get('PagoPDF/{idServicioPagar}', [PagosController::class, 'pagoPDF'])->name('PagoPDF');
+            Route::get('FacturaAfipPDF/{pagoId}', [PagosController::class, 'facturaAfipPDF'])->name('FacturaAfipPDF');
+
+            //RUTAS PARA AFIP
+            Route::get('/afip', [AfipController::class, 'index'])->name('afip.index');
+            Route::post('/afip/subir-certificados', [AfipController::class, 'subirCertificados'])->name('afip.subir-certificados');
+            Route::post('/afip/generar-certificados', [AfipController::class, 'generarCertificados'])->name('afip.generar-certificados');
+            Route::get('/afip/certificados', \App\Livewire\AfipCertificados::class)->name('afip.certificados');
+            Route::get('/afip/puntos-venta/{empresaId}', [AfipController::class, 'obtenerPuntosVentaEmpresa'])
+                ->name('afip.puntos-venta.empresa');
 
             //RUTAS PARA LOS ADMIN DE RECIBOS 
             Route::post('/subirArchivoRecibos',[ReciboSueldoController::class, 'subirArchivoRecibos'])->name('subirArchivoRecibos'); 
@@ -195,6 +208,7 @@ Route::middleware('auth')->group(function () {
 
     // Route::view('/miPerfil', 'usuarios.miPerfil')->name('panel');
     Route::get('/miPerfil', [UserController::class, 'miPerfil'])->name('miPerfil'); 
+    Route::post('/miPerfil/password', [UserController::class, 'updatePassword'])->name('miPerfil.password');
 
 
     // Rutas de MercadoPago
@@ -202,9 +216,9 @@ Route::middleware('auth')->group(function () {
         // Ruta para crear preferencia de pago (API)
         Route::post('/create-preference', [MercadoPagoController::class, 'createPreference'])->name('mercadopago.create-preference');
         
-        // Formulario de demostración para pagos
-        Route::get('/payment-form', [PaymentFormController::class, 'show'])->name('mercadopago.payment-form');
-        Route::post('/payment-form', [PaymentFormController::class, 'processPayment'])->name('mercadopago.process-payment');
+        // Formulario de demostración para pagos (Controlador pendiente de crear)
+        // Route::get('/payment-form', [PaymentFormController::class, 'show'])->name('mercadopago.payment-form');
+        // Route::post('/payment-form', [PaymentFormController::class, 'processPayment'])->name('mercadopago.process-payment');
         
         // URLs de retorno después del pago
         Route::get('/success', [MercadoPagoController::class, 'success'])->name('mercadopago.success');
@@ -231,6 +245,27 @@ Route::get('/api-docs', function () {
     return view('api-docs');
 })->name('api.docs.view');
 
+// ============================================================
+// RECUPERACIÓN DE CONTRASEÑA (Password Reset)
+// ============================================================
+Route::middleware('guest')->group(function () {
+    // Mostrar formulario para solicitar enlace de restablecimiento
+    Route::get('/forgot-password', [PasswordResetController::class, 'showForgotForm'])
+        ->name('password.request');
+    
+    // Enviar enlace de restablecimiento al correo
+    Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])
+        ->name('password.email');
+    
+    // Mostrar formulario de restablecimiento con token
+    Route::get('/reset-password/{token}', [PasswordResetController::class, 'showResetForm'])
+        ->name('password.reset');
+    
+    // Procesar el restablecimiento de contraseña
+    Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])
+        ->name('password.update');
+});
+
 Route::get('/login', function () {
 
     if (Auth::check()) {
@@ -250,6 +285,26 @@ Route::get('/login', function () {
     
 })->name('login');
 
+Route::get('/loginUsuario', function () {
+
+    if (Auth::check()) {
+
+        // return Response::json([
+        //     'id' => Auth::user()->id,
+        //     'name' => Auth::user()->name,
+        //     'role' => 'user',
+        //     'isNew' => \Session::get('isNew', 0)
+        // ]);
+
+        // The user is logged in...
+        return redirect('panelServicios');
+    }else{
+        return view('login');
+    }
+    
+})->name('loginUsuario');
+
+
 
 Route::view('/registro', 'registro')->name('registro');
 Route::get('/logout', [UserController::class, 'logout'])->name('logout');
@@ -257,6 +312,10 @@ Route::get('/logout', [UserController::class, 'logout'])->name('logout');
 
 Route::post('/registrarUauario',[UserController::class,'registrarUsuario'])->name('registrarUsuario');
 Route::post('/loginUsuario',[UserController::class,'loginUsuario'])->name('loginUsuario');
+
+
+
+
 
 
 Route::get('/', function () {

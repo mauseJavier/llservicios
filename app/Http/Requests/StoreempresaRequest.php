@@ -26,6 +26,7 @@ class StoreempresaRequest extends FormRequest
             'cuit' => 'nullable|numeric|unique:empresas,cuit',
             'correo' => 'nullable|email|unique:empresas,correo',
             'logo' => 'nullable|url|max:255',
+            'aliasTranferencia' => 'nullable|string|max:255',
             'MP_ACCESS_TOKEN' => 'nullable|string|max:255',
             'MP_PUBLIC_KEY' => 'nullable|string|max:255',
             'MP_USER_ID' => 'nullable|string|max:255',

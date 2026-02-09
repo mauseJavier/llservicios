@@ -53,6 +53,9 @@
                 @if (Auth::User()->role->nombre == 'Super')
                   <li><a href="{{route('usuarios')}}">Usuarios</a></li>
                   <li><a href="{{route('empresas.index')}}">Empresas</a></li>
+                  <li>
+                    <a href="{{route('afip.certificados')}}">Arca</a>
+                  </li>
                 @endif
                 <li><a href="{{route('logout')}}" style="border-radius: 10px; background-color:red;" >Salir</a></li>
         

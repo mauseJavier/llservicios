@@ -389,7 +389,12 @@
                 </td>
                 <td>{{$e->nombreUsuario}}</td>
                 <th>                  
-                    <strong><a href="{{route('PagosVer',['idServicioPagar'=>$e->idServicioPagar])}}" data-tooltip="Ver Pago">Ver</a></strong>
+                    <strong><a href="{{route('PagosVer',['idServicioPagar'=>$e->idServicioPagar])}}" data-tooltip="Ver Pago">Detalle</a></strong>
+                    @if ( isset($e->afip_cae) && $e->afip_cae != null )
+                      
+                      <strong><a href="{{route('FacturaAfipPDF',['pagoId'=>$e->id])}}" data-tooltip="Ver Comprobante AFIP" target="_blank">Factura</a></strong>
+                        
+                    @endif
                 </th>
               </tr>
             @endforeach

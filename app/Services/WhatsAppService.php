@@ -38,10 +38,10 @@ class WhatsAppService
     public function sendTextMessage(string $phoneNumber, string $message, array $options = []): array
     {
         try {
-            Log::info('WhatsApp - Enviando mensaje de texto', [
-                'phone' => $phoneNumber,
-                'message_preview' => substr($message, 0, 50)
-            ]);
+            // Log::info('WhatsApp - Enviando mensaje de texto', [
+            //     'phone' => $phoneNumber,
+            //     'message_preview' => substr($message, 0, 50)
+            // ]);
 
             // Limpiar el número de teléfono (solo números)
             $phoneNumber = preg_replace('/[^0-9]/', '', $phoneNumber);
@@ -71,10 +71,10 @@ class WhatsAppService
             // Realizar la petición HTTP
             $response = $this->makeRequest('POST', '/message/sendText/' . $this->instanceId, $payload);
 
-            Log::info('WhatsApp - Mensaje enviado exitosamente', [
-                'phone' => $phoneNumber,
-                'response' => $response
-            ]);
+            // Log::info('WhatsApp - Mensaje enviado exitosamente', [
+            //     'phone' => $phoneNumber,
+            //     'response' => $response
+            // ]);
 
             return [
                 'success' => true,
@@ -110,11 +110,11 @@ class WhatsAppService
     public function sendDocument(string $phoneNumber, string $documentUrl, string $filename, ?string $caption = null, array $options = [], ?string $base64 = null): array
     {
         try {
-            Log::info('WhatsApp - Enviando documento', [
-                'phone' => $phoneNumber,
-                'filename' => $filename,
-                'document_url' => $documentUrl
-            ]);
+            // Log::info('WhatsApp - Enviando documento', [
+            //     'phone' => $phoneNumber,
+            //     'filename' => $filename,
+            //     'document_url' => $documentUrl
+            // ]);
 
             // Limpiar el número de teléfono
             $phoneNumber = preg_replace('/[^0-9]/', '', $phoneNumber);
@@ -140,11 +140,11 @@ class WhatsAppService
             // Realizar la petición HTTP
             $response = $this->makeRequest('POST', '/message/sendMedia/' . $this->instanceId, $payload);
 
-            Log::info('WhatsApp - Documento enviado exitosamente', [
-                'phone' => $phoneNumber,
-                'filename' => $filename,
-                'response' => $response
-            ]);
+            // Log::info('WhatsApp - Documento enviado exitosamente', [
+            //     'phone' => $phoneNumber,
+            //     'filename' => $filename,
+            //     'response' => $response
+            // ]);
 
             return [
                 'success' => true,

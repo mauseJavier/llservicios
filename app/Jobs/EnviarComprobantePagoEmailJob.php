@@ -83,11 +83,17 @@ class EnviarComprobantePagoEmailJob implements ShouldQueue
                 'mp_payment_id' => $servicioPagar->mp_payment_id ?? null,
             ];
 
+                
+            
+            
             // Si se proporcionaron datos adicionales, mezclarlos
             if ($this->datosPago && is_array($this->datosPago)) {
                 $datos = array_merge($datos, $this->datosPago);
             }
+            
+            \Log::info('Datos para el correo de comprobante de pago:', $datos);
 
+            
             // Enviar el correo con el comprobante PDF adjunto
             Mail::to($datos['correoCliente'])->send(new ComprobantePagoMail($datos));
 
