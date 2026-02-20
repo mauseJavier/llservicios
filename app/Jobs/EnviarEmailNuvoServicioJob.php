@@ -64,15 +64,18 @@ class EnviarEmailNuvoServicioJob implements ShouldQueue
 
             try {
 
-            // return (new NotificacionCuotaMail($datos))->render();
-            // use App\Mail\NotificacionCuotaMail;
-            // use Illuminate\Support\Facades\Mail;
-            if (isset($datos[0]->correoCliente)) {
-                Mail::to($datos[0]->correoCliente)->send(new NotificacionCuotaMail($datos));
-            }
+                // return (new NotificacionCuotaMail($datos))->render();
+                // use App\Mail\NotificacionCuotaMail;
+                // use Illuminate\Support\Facades\Mail;
+                if (isset($datos[0]->correoCliente) && $datos[0]->correoCliente != 'correo@correo.com') {
+                    Mail::to($datos[0]->correoCliente)->send(new NotificacionCuotaMail($datos));
+                }else {
+                    \Log::warning('No se envió el correo porque el cliente no tiene un correo válido: ' . $datos[0]->nombreCliente);    
+                }
 
             } catch (Exception $e) {
-            
+                // Log the exception or handle it as needed
+                \Log::error('Error sending email: ' . $e->getMessage());    
             }
 
     }

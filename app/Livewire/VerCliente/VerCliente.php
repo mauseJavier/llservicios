@@ -165,6 +165,7 @@ class VerCliente extends Component
         if ($this->buscarCliente) {
             $query->where(function($q) {
                 $q->where('nombre', 'like', '%' . $this->buscarCliente . '%')
+                    ->orWhere('titular', 'like', '%' . $this->buscarCliente . '%')
                     ->orWhere('correo', 'like', '%' . $this->buscarCliente . '%')
                     ->orWhere('telefono', 'like', '%' . $this->buscarCliente . '%')
                     ->orWhere('dni', 'like', '%' . $this->buscarCliente . '%')

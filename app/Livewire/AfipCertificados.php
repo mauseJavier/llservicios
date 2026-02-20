@@ -92,7 +92,7 @@ class AfipCertificados extends Component
         $this->empresaId = $this->empresa?->id;
 
         $this->username = $this->empresa?->cuit; 
-        $this->password = $this->empresa?->claveFiscal ?? '';
+        $this->password = $this->empresa?->clave_fiscal ?? '';
 
         $this->empresaSearch = '';
         $this->empresaResults = [];

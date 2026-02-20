@@ -46,7 +46,7 @@
                                 <th scope="col" style="text-align: right; min-width: 100px;">Octubre</th>
                                 <th scope="col" style="text-align: right; min-width: 100px;">Noviembre</th>
                                 <th scope="col" style="text-align: right; min-width: 100px;">Diciembre</th>
-                                <th scope="col" style="text-align: center; min-width: 100px;">Cliente</th>
+                                <th scope="col" style="text-align: center; min-width: 100px;">Titular</th>
 
                             </tr>
                         </thead>
@@ -70,7 +70,7 @@
                                         @endif
 
                                         <td style="text-align: center;">
-                                            <a  href="{{route('ServicioPagarBuscarCliente',['estado'=>'impago','buscar'=>$c->nombre])}}" data-tooltip="Ver Impagos">{{$c->nombre}}</a>
+                                            <a  href="{{route('ServicioPagarBuscarCliente',['estado'=>'impago','buscar'=>$c->nombre])}}" data-tooltip="Ver Impagos">{{$c->titular}}</a>
                                         </td>
                                     </tr>
                                 @endforeach

@@ -33,6 +33,12 @@
             Nombre Cliente
             <input type="text" id="nombre" name="nombre" placeholder="Nombre Cliente" value="{{old('nombre')}}" required>
           </label>
+
+          <label for="titular">
+            Titular Cliente <small>(Opcional).</small>
+            <input type="text" id="titular" name="titular" placeholder="Titular Cliente" value="{{old('titular')}}" >
+          </label>  
+
       
           <label for="dni">
             Dni Clinete

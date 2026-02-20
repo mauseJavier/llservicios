@@ -95,6 +95,17 @@
                                 <div><strong>{{ $pago->servicioPagar->cliente->nombre ?? 'N/A' }}</strong></div>
                             </div>
                             <div>
+                                <small>DNI Cliente</small>
+                                <div><strong>{{ $pago->servicioPagar->cliente->dni ?? 'N/A' }}</strong></div>
+                            </div>
+                        </div>
+                        
+                    </article>
+                    
+                    <article>
+                        <div class="grid">
+    
+                            <div>
                                 <small>Servicio</small>
                                 <div><strong>{{ $pago->servicioPagar->servicio->nombre ?? 'N/A' }}</strong></div>
                             </div>
@@ -106,7 +117,9 @@
                                 <small>Fecha</small>
                                 <div><strong>{{ \Carbon\Carbon::parse($pago->created_at)->format('d/m/Y H:i') }}</strong></div>
                             </div>
+    
                         </div>
+
                     </article>
 
                     {{-- Formulario de facturación --}}
@@ -118,6 +131,7 @@
                             @error('tipoComprobante') aria-invalid="true" @enderror
                             @if($loading) disabled @endif
                         >
+                            <option value="">Seleccionar...</option>
                             @foreach($tiposComprobantes as $codigo => $nombre)
                                 <option value="{{ $codigo }}">{{ $nombre }}</option>
                             @endforeach

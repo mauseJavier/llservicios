@@ -30,7 +30,7 @@ class GrillaDos extends Component
         $buscar = $this->buscar;
 
         if ($buscar) {
-            $clientes = DB::select('SELECT b.* FROM cliente_empresa a, clientes b WHERE a.cliente_id = b.id and a.empresa_id = ? and (b.nombre like ? or b.dni like ?)', [$usuario->empresa_id, "%" . $buscar . "%", "%" . $buscar . "%"]);
+            $clientes = DB::select('SELECT b.* FROM cliente_empresa a, clientes b WHERE a.cliente_id = b.id and a.empresa_id = ? and (b.nombre like ? or b.dni like ? or b.titular like ?)', [$usuario->empresa_id, "%" . $buscar . "%", "%" . $buscar . "%", "%" . $buscar . "%"]);
         } else {
             $clientes = DB::select('SELECT b.* FROM cliente_empresa a, clientes b WHERE a.cliente_id = b.id and a.empresa_id = ?', [$usuario->empresa_id]);
         }

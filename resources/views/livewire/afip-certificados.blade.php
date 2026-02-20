@@ -112,14 +112,18 @@
 
                     <div class="mb-3">
                         <label for="password" class="form-label">Clave Fiscal ARCA</label>
-                        <input
-                            type="password"
-                            id="password"
-                            wire:model.defer="password"
-                            class="form-control @error('password') is-invalid @enderror"
-                            placeholder="Clave Fiscal de ARCA"
-                            @if($loading) disabled @endif
-                        >
+                        <fieldset role="group">
+                            <input
+                                type="password"
+                                id="password"
+                                wire:model.live="password"
+                                class="form-control @error('password') is-invalid @enderror"
+                                placeholder="Clave Fiscal de ARCA"
+                                @if($loading) disabled @endif
+                            >
+                            <button id="verContraseña" type="button" class="btn btn-secondary" @if($loading) disabled @endif>Ver</button>
+
+                        </fieldset>
                         @error('password')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
@@ -140,3 +144,18 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const passwordInput = document.getElementById('password');
+        const toggleButton = document.getElementById('verContraseña');
+
+        if (!passwordInput || !toggleButton) return;
+
+        toggleButton.addEventListener('click', () => {
+            const showing = passwordInput.getAttribute('type') === 'text';
+            passwordInput.setAttribute('type', showing ? 'password' : 'text');
+            toggleButton.textContent = showing ? 'Ver' : 'Ocultar';
+        });
+    });
+</script>

@@ -36,17 +36,44 @@
             Nombre Empresa
             <input type="text" id="nombre" name="nombre" placeholder="Nombre Empresa" value="{{$empresa->nombre}}" required>
           </label>
+          
+          <label for="titular">
+            Titular de Empresa
+            <input type="text" id="titular" name="titular" placeholder="Titular" value="{{$empresa->titular}}">
+          </label>
       
           <label for="cuit">
             Cuit Empresa
             <input type="text" id="cuit" name="cuit" placeholder="Cuit" value="{{$empresa->cuit}}" required>
           </label>
 
+
+
+      
+        </div>
+
+        <div class="grid">
+
+          <label for="condicion_iva_id">
+            Condición frente al IVA
+            <select id="condicion_iva_id" name="condicion_iva_id" required>
+              <option value="1" {{ $empresa->condicion_iva_id == 1 ? 'selected' : '' }}>Responsable Inscripto</option>
+              <option value="6" {{ $empresa->condicion_iva_id == 6 ? 'selected' : '' }}>Monotributo</option>
+              <option value="5" {{ $empresa->condicion_iva_id == 5 ? 'selected' : '' }}>Consumidor Final</option>
+              <option value="4" {{ $empresa->condicion_iva_id == 4 ? 'selected' : '' }}>IVA Sujeto Exento</option>
+            </select>
+          </label>
+
           <label for="aliasTranferencia">
             Alias Transferencia
             <input type="text" id="aliasTranferencia" name="aliasTranferencia" placeholder="Alias Transferencia" value="{{$empresa->aliasTranferencia}}">
           </label>
-      
+
+          <label for="claveFiscal">
+            Clave Fiscal
+            <input type="text" id="claveFiscal" name="clave_fiscal" placeholder="Clave Fiscal" value="{{$empresa->clave_fiscal}}">
+          </label>
+
         </div>
       
         <!-- Markup example 2: input is after label -->

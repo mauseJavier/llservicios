@@ -168,6 +168,7 @@ class ClienteApiController extends Controller
                     'cliente' => [
                         'id' => $cliente->id,
                         'nombre' => $cliente->nombre,
+                        'titular' => $cliente->titular,
                         'dni' => $cliente->dni,
                         'correo' => $cliente->correo,
                         'telefono' => $cliente->telefono ?? null,
@@ -215,6 +216,7 @@ class ClienteApiController extends Controller
             $validated = $request->validate([
                 'nombre' => 'required|string|max:255',
                 'correo' => 'nullable|email|max:255',
+                'titular' => 'nullable|string|max:255',
                 'telefono' => 'nullable|string|max:255',
                 'dni' => 'nullable|integer',
                 'domicilio' => 'nullable|string|max:255',
@@ -248,9 +250,10 @@ class ClienteApiController extends Controller
                         'cliente' => [
                             'id' => $clienteExistente->id,
                             'nombre' => $clienteExistente->nombre,
+                            'titular' => $clienteExistente->titular,
                             'correo' => $clienteExistente->correo,
                             'telefono' => $clienteExistente->telefono,
-                            'dni' => $clienteExistente->dni,
+                            'dni' => $clienteExistente->dni,                            
                             'domicilio' => $clienteExistente->domicilio,
                             'created_at' => $clienteExistente->created_at,
                             'updated_at' => $clienteExistente->updated_at,
@@ -286,6 +289,7 @@ class ClienteApiController extends Controller
             // Crear el cliente
             $cliente = Cliente::create([
                 'nombre' => $validated['nombre'],
+                'titular' => $validated['titular'] ?? null,
                 'correo' => $validated['correo'] ?? null,
                 'telefono' => $validated['telefono'] ?? null,
                 'dni' => $validated['dni'] ?? null,
@@ -306,6 +310,7 @@ class ClienteApiController extends Controller
                     'cliente' => [
                         'id' => $cliente->id,
                         'nombre' => $cliente->nombre,
+                        'titular' => $cliente->titular,
                         'correo' => $cliente->correo,
                         'telefono' => $cliente->telefono,
                         'dni' => $cliente->dni,

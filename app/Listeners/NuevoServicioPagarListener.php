@@ -50,7 +50,7 @@ class NuevoServicioPagarListener
 
         try {
 
-            if(empty($datos[0]->correoCliente)){
+            if(empty($datos[0]->correoCliente) || $datos[0]->correoCliente == 'correo@correo.com'){
                 return;
             }
 

@@ -32,7 +32,7 @@ class AfipController extends Controller
             $tieneCertificados = false;
         }
 
-        $tiposComprobantes = AfipService::tiposComprobantesComunes();
+        $tiposComprobantes = AfipService::tiposComprobantesComunes($empresa?->condicion_iva_id);
 
         return view('afip.index', compact(
             'empresa',

@@ -17,7 +17,13 @@ class Empresa extends Model
     protected $table = 'empresas';
     protected $guarded = [];
 
-    // protected $fillable = ['*'];
+    protected $fillable = [
+        'nombre',
+        'cuit',
+        'correo',
+        'logo',
+        'condicion_iva_id',
+    ];
     
     public function users(): HasMany
     {

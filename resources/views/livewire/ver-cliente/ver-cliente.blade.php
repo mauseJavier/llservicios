@@ -44,6 +44,7 @@
                 <thead>
                     <tr>
                         <th>Nombre</th>
+                        <th>Titular</th>
                         <th>Correo</th>
                         <th>Teléfono</th>
                         <th>DNI</th>
@@ -55,6 +56,7 @@
                     @foreach ($clientes as $cliente)
                         <tr>
                             <td>{{ $cliente->nombre }}</td>
+                            <td>{{ $cliente->titular }}</td>
                             <td>{{ $cliente->correo }}</td>
                             <td><a href="https://wa.me/+54{{ $cliente->telefono }}" target="_blank"
                                     rel="noopener noreferrer">{{ $cliente->telefono }}</a></td>

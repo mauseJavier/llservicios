@@ -19,7 +19,7 @@ class FacturacionAfip extends Component
     // Propiedades del modal
     public $showFacturarModal = false;
     public $puntoVenta = 1;
-    public $tipoComprobante = 6;
+    public $tipoComprobante = null;
     public $condicionIvaReceptorId = 5;
     public $tipoDocumentoReceptor = null;
     
@@ -64,8 +64,9 @@ class FacturacionAfip extends Component
         $this->verificarCertificados();
         
         // Cargar configuración por defecto
-        $this->puntoVenta = config('afip.default_punto_venta', 1);
-        $this->tipoComprobante = config('afip.default_tipo_comprobante', 6);
+        $user = Auth::user();
+        $this->puntoVenta = $user?->afip_punto_venta ?? config('afip.default_punto_venta', 1);
+        // $this->tipoComprobante = config('afip.default_tipo_comprobante', 6);
         $this->condicionIvaReceptorId = $this->pago?->servicioPagar?->cliente?->condicion_iva_id
             ?? config('afip.default_condicion_iva_receptor', 5);
         $this->tipoDocumentoReceptor = $this->pago?->servicioPagar?->cliente?->tipo_documento_id
@@ -160,6 +161,36 @@ class FacturacionAfip extends Component
     }
 
     /**
+     * Validar compatibilidad entre tipo de comprobante y condición IVA
+     * 
+     * @throws Exception
+     */
+    protected function validarCompatibilidadComprobanteIVA()
+    {
+        // Tipos de comprobante A (requieren que el receptor sea Responsable Inscripto)
+        $tiposA = [1, 2, 3, 4]; // Factura A, Nota Débito A, Nota Crédito A, Recibo A
+        
+        // Tipos de comprobante B (requieren consumidor final o monotributista)
+        $tiposB = [6, 7, 8, 9]; // Factura B, Nota Débito B, Nota Crédito B, Recibo B
+        
+        // Tipos de comprobante C (exportación o casos especiales)
+        $tiposC = [11, 12, 13]; // Factura C, Nota Débito C, Nota Crédito C
+        
+        // Condiciones IVA que requieren Factura A
+        $requierenFacturaA = [1, 6]; // Responsable Inscripto, Monotributo
+        
+        // Validación: Si el receptor es Responsable Inscripto, debe ser factura A
+        if (in_array($this->condicionIvaReceptorId, $requierenFacturaA) && !in_array($this->tipoComprobante, $tiposA)) {
+            throw new Exception('Para un Responsable Inscripto o Monotributista debe emitirse Factura A');
+        }
+        
+        // Validación: Si es Consumidor Final (5), no puede ser factura A
+        if ($this->condicionIvaReceptorId == 5 && in_array($this->tipoComprobante, $tiposA)) {
+            throw new Exception('Para un Consumidor Final no se puede emitir Factura A. Use Factura B o C');
+        }
+    }
+
+    /**
      * Generar factura AFIP
      */
     public function generarFactura()
@@ -179,6 +210,9 @@ class FacturacionAfip extends Component
                 throw new Exception('Este pago ya tiene una factura AFIP');
             }
 
+            // Validar compatibilidad entre tipo de comprobante y condición IVA
+            $this->validarCompatibilidadComprobanteIVA();
+
             // Crear servicio AFIP
             $afipService = new AfipService($this->empresa->id);
             
@@ -192,7 +226,7 @@ class FacturacionAfip extends Component
             );
 
             if (!$resultado['success']) {
-                throw new Exception($resultado['message'] ?? 'Error al generar factura');
+                throw new Exception($resultado['error'] ?? 'Error al generar factura');
             }
 
             // Actualizar pago con datos de AFIP
@@ -229,7 +263,8 @@ class FacturacionAfip extends Component
             $this->dispatch('factura-generada', url: $this->urlPdfFactura);
             
         } catch (Exception $e) {
-            $this->errorMessage = 'Error al generar factura: ' . $e->getMessage();
+
+            $this->errorMessage = 'Error al generar factura: ' .  $e->getMessage();
             Log::error('Error generando factura AFIP', [
                 'pago_id' => $this->pagoId,
                 'error' => $e->getMessage(),
@@ -268,7 +303,7 @@ class FacturacionAfip extends Component
 
     public function render()
     {
-        $tiposComprobantes = AfipService::tiposComprobantesComunes();
+        $tiposComprobantes = AfipService::tiposComprobantesComunes($this->empresa?->condicion_iva_id);
         $tiposContribuyentes = AfipService::tiposContribuyentes();
 
         $tiposDocumentosComunes = AfipService::tiposDocumentosComunes();

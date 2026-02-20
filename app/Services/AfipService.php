@@ -111,8 +111,8 @@ class AfipService
                 $facturaData['FchVtoPago'] = $data['FchVtoPago'] ?? date('Ymd', strtotime('+10 days'));
             }
 
-            // Si tiene IVA, agregar el detalle
-            if ($data['ImpIVA'] > 0 && isset($data['Iva'])) {
+            // Si tiene IVA, agregar el detalle (solo para comprobantes que discriminan IVA)
+            if (isset($data['Iva']) && $data['ImpIVA'] > 0) {
                 $facturaData['Iva'] = $data['Iva'];
             }
 
@@ -144,6 +144,8 @@ class AfipService
             ];
 
         } catch (Exception $e) {
+
+            
             Log::error('Error al crear factura AFIP', [
                 'empresa_id' => $this->empresa->id,
                 'error' => $e->getMessage(),
@@ -300,10 +302,34 @@ class AfipService
         $docTipo = $tipoDocumentoReceptor ?? (strlen($dniNormalizado) === 11 ? 80 : 96); // 80=CUIT, 96=DNI
         $docNro = $dniNormalizado ?? 0;
 
-        // Calcular montos (asumiendo IVA 21%)
+        // Calcular montos según el tipo de comprobante
         $impTotal = $pago->importe;
-        $impNeto = round($impTotal / 1.21, 2);
-        $impIva = $impTotal - $impNeto;
+        
+        // Determinar si el tipo de comprobante discrimina IVA
+        // Tipos A y B (1,2,3,4,6,7,8,9) discriminan IVA
+        // Tipos C (11,12,13,15) NO discriminan IVA
+        $tiposConIVA = [1, 2, 3, 4, 6, 7, 8, 9];
+        $tiposSinIVA = [11, 12, 13, 15];
+        
+        $discriminaIVA = in_array($tipoComprobante, $tiposConIVA);
+        
+        if ($discriminaIVA) {
+            // Factura A o B: Calcular IVA (asumiendo 21%)
+            $impNeto = round($impTotal / 1.21, 2);
+            $impIva = $impTotal - $impNeto;
+            $ivaArray = [
+                [
+                    'Id' => 5, // 21%
+                    'BaseImp' => $normalizeImporte($impNeto),
+                    'Importe' => $normalizeImporte($impIva)
+                ]
+            ];
+        } else {
+            // Factura C: No discriminar IVA
+            $impNeto = $impTotal;
+            $impIva = 0;
+            $ivaArray = null; // No enviar array de IVA para tipo C
+        }
 
         $facturaData = [
             'PtoVta' => $puntoVenta,
@@ -322,14 +348,12 @@ class AfipService
             'CondicionIVAReceptorId' => $condicionIvaReceptorId
                 ?? $pago->servicioPagar->cliente->condicion_iva_id
                 ?? 5, // 5=Consumidor Final
-            'Iva' => [
-                [
-                    'Id' => 5, // 21%
-                    'BaseImp' => $normalizeImporte($impNeto),
-                    'Importe' => $normalizeImporte($impIva)
-                ]
-            ]
         ];
+        
+        // Solo agregar array de IVA si el comprobante lo requiere
+        if ($ivaArray !== null) {
+            $facturaData['Iva'] = $ivaArray;
+        }
  
 
         return $this->crearFactura($facturaData);
@@ -513,10 +537,13 @@ class AfipService
 
     /**
      * Tipos de comprobantes más comunes
+     * 
+     * @param int|null $condicionIvaId Condición IVA de la empresa (1=Responsable Inscripto, 6=Monotributo, etc.)
+     * @return array Lista filtrada de tipos de comprobantes disponibles según la condición IVA
      */
-    public static function tiposComprobantesComunes()
+    public static function tiposComprobantesComunes($condicionIvaId = null)
     {
-        return [
+        $todosLosComprobantes = [
             1 => 'Factura A',
             6 => 'Factura B',
             11 => 'Factura C',
@@ -530,6 +557,36 @@ class AfipService
             9 => 'Recibo B',
             15 => 'Recibo C'
         ];
+
+        // Si no se especifica condición IVA, devolver todos
+        if ($condicionIvaId === null) {
+            return $todosLosComprobantes;
+        }
+
+        // Filtrar según condición IVA de la empresa
+        switch ($condicionIvaId) {
+            case 1: // Responsable Inscripto
+                // Puede emitir Facturas A, Notas de Crédito A, Notas de Débito A, Recibos A
+                return array_intersect_key($todosLosComprobantes, array_flip([1, 3, 2, 4,6,7,8,9]));
+            
+            case 6: // Monotributo
+            case 13: // Monotributista Social
+            case 16: // Monotributo Trabajador Independiente Promovido
+                // Puede emitir Facturas B/C, Notas de Crédito B/C, Notas de Débito B/C, Recibos B/C
+                return array_intersect_key($todosLosComprobantes, array_flip([ 11, 13,  12, 15]));
+            
+            case 4: // IVA Sujeto Exento
+            case 5: // Consumidor Final (generalmente no emite, pero si lo hace son B o C)
+            case 7: // Sujeto No Categorizado
+            case 10: // IVA Liberado
+            case 15: // IVA No Alcanzado
+                // Puede emitir Facturas B/C, Notas de Crédito B/C, Notas de Débito B/C, Recibos B/C
+                return array_intersect_key($todosLosComprobantes, array_flip([6, 11, 8, 13, 7, 12, 9, 15]));
+            
+            default:
+                // Por defecto, devolver todos los comprobantes
+                return $todosLosComprobantes;
+        }
     }
 
     /**

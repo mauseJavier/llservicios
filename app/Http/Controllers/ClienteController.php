@@ -150,6 +150,7 @@ class ClienteController extends Controller
         if($cantidadFilas == 0 ){ //el cliente no exite en la base y se agrega 
 
             $id = Cliente::create(['nombre'=>$request->nombre,
+                                'titular'=>$request->titular ?? null,
                                 'dni'=>$request->dni,
                                 'correo'=>$request->correo ?? null,
                                 'domicilio'=>$request->domicilio,
@@ -271,6 +272,7 @@ class ClienteController extends Controller
         }
         
         $Cliente->update(['nombre'=>$request->nombre,
+                            'titular'=>$request->titular ?? null,
                             'dni'=>$request->dni,
                             'correo'=>$request->correo,
                             'domicilio'=>$request->domicilio,
