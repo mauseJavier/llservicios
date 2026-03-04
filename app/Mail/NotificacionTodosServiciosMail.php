@@ -30,8 +30,8 @@ class NotificacionTodosServiciosMail extends Mailable
     {
         return new Envelope(
             
-            subject: 'Notificacion De Servicios Impagos',
-            from: new Address('notificacion@llservicios.ar', 'Notificacion LLServicios.ar'),
+            subject: 'Notificacion De Servicios',
+            // from: new Address('notificacion@llservicios.ar', 'Notificacion LLServicios.ar'),
         );
     }
 

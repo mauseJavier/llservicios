@@ -68,14 +68,32 @@ class EnviarEmailNuvoServicioJob implements ShouldQueue
                 // use App\Mail\NotificacionCuotaMail;
                 // use Illuminate\Support\Facades\Mail;
                 if (isset($datos[0]->correoCliente) && $datos[0]->correoCliente != 'correo@correo.com') {
-                    Mail::to($datos[0]->correoCliente)->send(new NotificacionCuotaMail($datos));
+                    $emailEnviado = false;
+                    
+                    // Intenta primero con SMTP
+                    try {
+                        Mail::mailer('smtp')->to($datos[0]->correoCliente)->send(new NotificacionCuotaMail($datos));
+                        \Log::info('Email enviado vía SMTP a: ' . $datos[0]->correoCliente);
+                        $emailEnviado = true;
+                    } catch (\Exception $e) {
+                        \Log::warning('Fallo SMTP: ' . $e->getMessage());
+                        
+                        // Si SMTP falla, intenta con secundario
+                        try {
+                            Mail::mailer('secundario')->to($datos[0]->correoCliente)->send(new NotificacionCuotaMail($datos));
+                            \Log::info('Email enviado vía secundario a: ' . $datos[0]->correoCliente);
+                            $emailEnviado = true;
+                        } catch (\Exception $e2) {
+                            \Log::error('Error en ambos mailers - SMTP: ' . $e->getMessage() . ' | Secundario: ' . $e2->getMessage());
+                        }
+                    }
                 }else {
                     \Log::warning('No se envió el correo porque el cliente no tiene un correo válido: ' . $datos[0]->nombreCliente);    
                 }
 
             } catch (Exception $e) {
                 // Log the exception or handle it as needed
-                \Log::error('Error sending email: ' . $e->getMessage());    
+                \Log::error('Error general en envío de email: ' . $e->getMessage());    
             }
 
     }

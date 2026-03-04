@@ -817,9 +817,10 @@ class ServicioPagarController extends Controller
 
                 // Enviar WhatsApp
         // EnviarWhatsAppNuevoServicioJob::dispatch($id, $instanciaWS, $tokenWS);
-        \App\Jobs\EnviarWhatsAppNuevoServicioJob::dispatch($id, $empresa->instanciaWS, $empresa->tokenWS);
+        // \App\Jobs\EnviarWhatsAppNuevoServicioJob::dispatch($id, $empresa->instanciaWS, $empresa->tokenWS);
 
-
+    
+        // este metodo envia wharsapp y correo al cliente avisando que se le ha generado un nuevo servicio a pagar, con los detalles del servicio y un link para pagar (si el servicio tiene linkPago)
         // use App\Events\NuevoServicioPagarEvent;
         NuevoServicioPagarEvent::dispatch($id);
 

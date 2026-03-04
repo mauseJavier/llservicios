@@ -86,6 +86,7 @@
                     <th>Cantidad</th>
                     <th>Precio</th>
                     <th>Total</th>
+                    <th>Alias Transferencia</th>
                 </tr>
             </thead>
             <tbody>
@@ -98,6 +99,7 @@
                     <td>{{$item->cantidad}}</td>
                     <td>${{$item->precio}}</td>
                     <td>${{$item->total}}</td>
+                    <td>{{$item->aliasTransferencia}}</td>
                 </tr>
                 @endforeach
 

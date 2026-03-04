@@ -33,6 +33,8 @@ class UpdateempresaRequest extends FormRequest
             'MP_USER_ID' => 'nullable|string|max:255',
             'client_secret' => 'nullable|string|max:255',
             'client_id' => 'nullable|string|max:255',
+            'instanciaWS' => 'nullable|string|max:255',
+            'tokenWS' => 'nullable|string|max:255',
         ];
     }
 }

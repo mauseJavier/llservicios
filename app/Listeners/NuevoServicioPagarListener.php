@@ -3,15 +3,10 @@
 namespace App\Listeners;
 
 use App\Events\NuevoServicioPagarEvent;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Queue\InteractsWithQueue;
-
-use App\Mail\NotificacionCuotaMail;
-use Illuminate\Support\Facades\Mail;
-
-use Illuminate\Support\Facades\Storage;
+use App\Jobs\EnviarEmailNuvoServicioJob;
+use App\Jobs\EnviarWhatsAppNuevoServicioJob;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Carbon;
 
 class NuevoServicioPagarListener
 {
@@ -28,62 +23,88 @@ class NuevoServicioPagarListener
      */
     public function handle(object $event): void
     {
-        $datos = DB::select('SELECT
-                                b.nombre AS nombreCliente,
-                                c.nombre AS nombreServicio,
-                                a.cantidad AS cantidadServicio,
-                                a.precio AS precioServicio,
-                                a.created_at AS fechaServicio,
-                                b.correo as correoCliente
-                            FROM
-                                servicio_pagar a,
-                                clientes b,
-                                servicios c
-                            WHERE
-                                a.cliente_id = b.id AND a.servicio_id = c.id AND a.id = ?', [$event->idServicioPagar]);
-
-
-        $datos[0]->fechaServicio =  Carbon::parse($datos[0]->fechaServicio)->format('d-m-Y');
-
-        // return $datos;
-
-
         try {
+            // Obtener datos del servicio
+            $datos = DB::select('SELECT
+                                    b.id AS clienteId,
+                                    b.nombre AS nombreCliente,
+                                    b.telefono AS telefonoCliente,
+                                    b.correo as correoCliente,
+                                    c.nombre AS nombreServicio,
+                                    a.cantidad AS cantidadServicio,
+                                    a.precio AS precioServicio,
+                                    a.created_at AS fechaServicio,
+                                    d.nombre AS nombreEmpresa
+                                FROM
+                                    servicio_pagar a,
+                                    clientes b,
+                                    servicios c,
+                                    empresas d
+                                WHERE
+                                    a.cliente_id = b.id 
+                                    AND a.servicio_id = c.id 
+                                    AND c.empresa_id = d.id
+                                    AND a.id = ?', [$event->idServicioPagar]);
 
-            if(empty($datos[0]->correoCliente) || $datos[0]->correoCliente == 'correo@correo.com'){
+            // Validar que se encontraron datos
+            if (empty($datos)) {
+                \Log::warning('NuevoServicioPagarListener - No se encontraron datos', [
+                    'idServicioPagar' => $event->idServicioPagar
+                ]);
                 return;
             }
 
-            $correo = Mail::to($datos[0]->correoCliente)->send(new NotificacionCuotaMail($datos));
+            // Validar correo válido
+            if (empty($datos[0]->correoCliente) || $datos[0]->correoCliente == 'correo@correo.com') {
+                \Log::info('NuevoServicioPagarListener - Cliente sin correo válido', [
+                    'idServicioPagar' => $event->idServicioPagar
+                ]);
+                return;
+            }
 
-            
-            $rutaArchivo = 'pruebaMail.txt';
-                    $texto = json_encode($datos);
+            // Despachar Job de Email con cola
+            EnviarEmailNuvoServicioJob::dispatch($event->idServicioPagar);
+            \Log::info('Email encolado', [
+                'idServicioPagar' => $event->idServicioPagar,
+                'correoCliente' => $datos[0]->correoCliente
+            ]);
 
-                    if (Storage::exists($rutaArchivo)) {
-                        // El archivo existe
-                        // echo "El archivo existe.";
+            // Despachar Job de WhatsApp si el cliente tiene teléfono
+            if (!empty($datos[0]->telefonoCliente)) {
+                // Obtener el servicio_id del servicio_pagar (2 queries simples para evitar error de MariaDB con LIMIT en IN subquery)
+                $servicioPagar = DB::table('servicio_pagar')
+                    ->where('id', $event->idServicioPagar)
+                    ->first(['servicio_id']);
 
-                                //EDITANDO EL ARCHIVO
+                if ($servicioPagar) {
+                    // Obtener la empresa usando el servicio_id
+                    $empresaId = DB::table('servicios')
+                        ->where('id', $servicioPagar->servicio_id)
+                        ->value('empresa_id');
 
-                    $contenidoActual = Storage::get($rutaArchivo);
-                    $contenidoEditado = $contenidoActual . "\n" . $texto;
-                    Storage::put($rutaArchivo, $contenidoEditado);
+                    if ($empresaId) {
+                        $empresa = \App\Models\Empresa::find($empresaId);
 
-                    } else {
-                        // El archivo no existe
-
-                        Storage::disk('local')->put($rutaArchivo,$texto);
-
+                        if ($empresa && $empresa->instanciaWS && $empresa->tokenWS) {
+                            EnviarWhatsAppNuevoServicioJob::dispatch(
+                                $event->idServicioPagar,
+                                $empresa->instanciaWS,
+                                $empresa->tokenWS
+                            );
+                            \Log::info('WhatsApp encolado', [
+                                'idServicioPagar' => $event->idServicioPagar,
+                                'telefonoCliente' => $datos[0]->telefonoCliente
+                            ]);
+                        }
                     }
+                }
+            }
 
-
-                    
-
-        } catch (Exception $e) {
-        
+        } catch (\Exception $e) {
+            \Log::error('Error en NuevoServicioPagarListener: ' . $e->getMessage(), [
+                'idServicioPagar' => $event->idServicioPagar ?? 'unknown',
+                'exception' => $e
+            ]);
         }
-
-
     }
 }

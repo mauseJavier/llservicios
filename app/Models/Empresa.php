@@ -17,13 +17,15 @@ class Empresa extends Model
     protected $table = 'empresas';
     protected $guarded = [];
 
-    protected $fillable = [
-        'nombre',
-        'cuit',
-        'correo',
-        'logo',
-        'condicion_iva_id',
-    ];
+    // protected $fillable = [
+    //     'nombre',
+    //     'cuit',
+    //     'correo',
+    //     'logo',
+    //     'condicion_iva_id',
+    //     'instanciaWS',
+    //     'tokenWS'
+    // ];
     
     public function users(): HasMany
     {

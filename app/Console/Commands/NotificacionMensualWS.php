@@ -239,9 +239,10 @@ class NotificacionMensualWS extends Command
      */
     private function generarMensajeWhatsApp(array $datos): string
     {
-        $mensaje = "⚠️ *RECORDATORIO DE SERVICIOS IMPAGOS*\n\n";
+        
         $mensaje .= "Hola *{$datos['nombreCliente']}*,\n\n";
-        $mensaje .= "Te recordamos que tienes *{$datos['cantidad']}* servicio(s) pendiente(s) de pago:\n\n";
+        $mensaje .= "Ya están disponibles tus servicios para su pago.\n\n";
+        $mensaje .= "Cantidad: *{$datos['cantidad']}* servicio(s):\n\n";
         
         foreach ($datos['servicios'] as $servicio) {
             $mensaje .= "📋 *{$servicio->nombreServicio}*\n";
@@ -252,7 +253,7 @@ class NotificacionMensualWS extends Command
         }
         
         $mensaje .= "━━━━━━━━━━━━━━━━━━━━━\n";
-        $mensaje .= "*TOTAL ADEUDADO: \$" . number_format($datos['total'], 2) . "*\n";
+        $mensaje .= "*TOTAL: \$" . number_format($datos['total'], 2) . "*\n";
         $mensaje .= "━━━━━━━━━━━━━━━━━━━━━\n\n";
 
         $mensaje .= "Realice el pago del servicio en la plataforma: " . env('APP_URL') . ".\n\n"; 

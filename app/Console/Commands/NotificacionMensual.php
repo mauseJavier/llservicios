@@ -81,7 +81,8 @@ class NotificacionMensual extends Command
                                                 a.precio * a.cantidad AS total,
                                                 a.created_at as fecha,
                                                 c.nombre AS nombreEmpresa,
-                                                c.id AS empresa_id
+                                                c.id AS empresa_id,
+                                                c.aliasTranferencia AS aliasTransferencia
                                             FROM
                                                 servicio_pagar a,
                                                 servicios b,
@@ -111,12 +112,29 @@ class NotificacionMensual extends Command
             if (empty($datos['correoCliente'])) {
                 $this->warn("  ⚠️  Cliente sin correo registrado");
             } else {
+                $emailEnviado = false;
+                
+                // Intenta primero con SMTP
                 try {
-                    Mail::to($datos['correoCliente'])->send(new NotificacionTodosServiciosMail($datos));
-                    $this->info("  ✅ Email enviado a: {$datos['correoCliente']}");
-                    $emailsEnviados++;
+                    Mail::mailer('smtp')->to($datos['correoCliente'])->send(new NotificacionTodosServiciosMail($datos));
+                    $this->info("  ✅ Email enviado vía SMTP: {$datos['correoCliente']}");
+                    $emailEnviado = true;
                 } catch (\Exception $e) {
-                    $this->error("  ❌ Error enviando email: " . $e->getMessage());
+                    $this->warn("  ⚠️  Fallo SMTP: " . $e->getMessage());
+                    
+                    // Si SMTP falla, intenta con secundario
+                    try {
+                        Mail::mailer('secundario')->to($datos['correoCliente'])->send(new NotificacionTodosServiciosMail($datos));
+                        $this->info("  ✅ Email enviado vía secundario: {$datos['correoCliente']}");
+                        $emailEnviado = true;
+                    } catch (\Exception $e2) {
+                        $this->error("  ❌ Error en ambos mailers - SMTP: " . $e->getMessage() . " | Secundario: " . $e2->getMessage());
+                    }
+                }
+                
+                if ($emailEnviado) {
+                    $emailsEnviados++;
+                } else {
                     $errores++;
                 }
             }

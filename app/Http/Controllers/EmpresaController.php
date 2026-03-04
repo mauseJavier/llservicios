@@ -117,7 +117,7 @@ class EmpresaController extends Controller
     {
         //
         // return response()->json([
-        //     'request' => $request->nombre,
+        //     'request' => $request->all(),
         //     'empresa' => $empresa,
         // ]);
 

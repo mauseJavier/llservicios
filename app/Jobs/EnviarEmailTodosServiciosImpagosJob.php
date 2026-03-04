@@ -30,6 +30,24 @@ class EnviarEmailTodosServiciosImpagosJob implements ShouldQueue
      */
     public function handle(): void
     {
-        Mail::to($this->correo)->send(new NotificacionTodosServiciosMail($this->datos));
+        $emailEnviado = false;
+        
+        // Intenta primero con SMTP
+        try {
+            Mail::mailer('smtp')->to($this->correo)->send(new NotificacionTodosServiciosMail($this->datos));
+            \Log::info('Email enviado vía SMTP a: ' . $this->correo);
+            $emailEnviado = true;
+        } catch (\Exception $e) {
+            \Log::warning('Fallo SMTP: ' . $e->getMessage());
+            
+            // Si SMTP falla, intenta con secundario
+            try {
+                Mail::mailer('secundario')->to($this->correo)->send(new NotificacionTodosServiciosMail($this->datos));
+                \Log::info('Email enviado vía secundario a: ' . $this->correo);
+                $emailEnviado = true;
+            } catch (\Exception $e2) {
+                \Log::error('Error en ambos mailers - SMTP: ' . $e->getMessage() . ' | Secundario: ' . $e2->getMessage());
+            }
+        }
     }
 }
