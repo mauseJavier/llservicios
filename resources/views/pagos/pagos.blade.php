@@ -283,6 +283,95 @@
 
   <hr>
 
+  {{-- Resumen de Facturación AFIP --}}
+  <div class="resumen-pagos">
+    <h2>🧾 Resumen de Facturación AFIP</h2>
+    
+    @if($resumenFacturacion['total']->cantidad > 0)
+      <div class="resumen-cards">
+        {{-- Pagos Facturados --}}
+        <div class="resumen-card" style="border-left: 4px solid #4caf50; padding-left: 0.5rem; margin-bottom: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <strong style="font-size: 1.1rem;">✅ Facturados con AFIP</strong>
+          </div>
+          <div class="total" style="color: #4caf50;">${{ number_format($resumenFacturacion['facturados']->total, 2) }}</div>
+          <div class="cantidad">{{ $resumenFacturacion['facturados']->cantidad }} pagos</div>
+          <div class="promedio">Promedio: ${{ number_format($resumenFacturacion['facturados']->promedio, 2) }}</div>
+          <div class="porcentaje">
+            {{ $resumenFacturacion['total']->total > 0 ? number_format(($resumenFacturacion['facturados']->total / $resumenFacturacion['total']->total) * 100, 1) : 0 }}% del total
+          </div>
+        </div>
+        <hr>
+        
+        {{-- Pagos No Facturados --}}
+        <div class="resumen-card" style="border-left: 4px solid #ff9800; padding-left: 0.5rem; margin-bottom: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <strong style="font-size: 1.1rem;">⚠️ Sin Facturar</strong>
+          </div>
+          <div class="total" style="color: #ff9800;">${{ number_format($resumenFacturacion['noFacturados']->total, 2) }}</div>
+          <div class="cantidad">{{ $resumenFacturacion['noFacturados']->cantidad }} pagos</div>
+          <div class="promedio">Promedio: ${{ number_format($resumenFacturacion['noFacturados']->promedio, 2) }}</div>
+          <div class="porcentaje">
+            {{ $resumenFacturacion['total']->total > 0 ? number_format(($resumenFacturacion['noFacturados']->total / $resumenFacturacion['total']->total) * 100, 1) : 0 }}% del total
+          </div>
+        </div>
+      </div>
+
+      {{-- Tabla detallada --}}
+      <div class="resumen-tabla">
+        <h3>📊 Comparativa de Facturación</h3>
+        <figure>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Estado</th>
+                <th scope="col">Cantidad</th>
+                <th scope="col">Total</th>
+                <th scope="col">Promedio</th>
+                <th scope="col">Porcentaje</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>✅ Facturados</strong></td>
+                <td>{{ $resumenFacturacion['facturados']->cantidad }}</td>
+                <td>${{ number_format($resumenFacturacion['facturados']->total, 2) }}</td>
+                <td>${{ number_format($resumenFacturacion['facturados']->promedio, 2) }}</td>
+                <td>
+                  {{ $resumenFacturacion['total']->total > 0 ? number_format(($resumenFacturacion['facturados']->total / $resumenFacturacion['total']->total) * 100, 1) : 0 }}%
+                  <div class="porcentaje-bar" style="width: {{ $resumenFacturacion['total']->total > 0 ? ($resumenFacturacion['facturados']->total / $resumenFacturacion['total']->total) * 100 : 0 }}px; background-color: #4caf50;"></div>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>⚠️ Sin Facturar</strong></td>
+                <td>{{ $resumenFacturacion['noFacturados']->cantidad }}</td>
+                <td>${{ number_format($resumenFacturacion['noFacturados']->total, 2) }}</td>
+                <td>${{ number_format($resumenFacturacion['noFacturados']->promedio, 2) }}</td>
+                <td>
+                  {{ $resumenFacturacion['total']->total > 0 ? number_format(($resumenFacturacion['noFacturados']->total / $resumenFacturacion['total']->total) * 100, 1) : 0 }}%
+                  <div class="porcentaje-bar" style="width: {{ $resumenFacturacion['total']->total > 0 ? ($resumenFacturacion['noFacturados']->total / $resumenFacturacion['total']->total) * 100 : 0 }}px; background-color: #ff9800;"></div>
+                </td>
+              </tr>
+              <tr class="total-row">
+                <td><strong>TOTAL GENERAL</strong></td>
+                <td><strong>{{ $resumenFacturacion['total']->cantidad }}</strong></td>
+                <td><strong>${{ number_format($resumenFacturacion['total']->total, 2) }}</strong></td>
+                <td><strong>${{ number_format($resumenFacturacion['total']->total / max($resumenFacturacion['total']->cantidad, 1), 2) }}</strong></td>
+                <td><strong>100%</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </figure>
+      </div>
+    @else
+      <div style="text-align: center; padding: 2rem;">
+        <p>📊 No hay pagos registrados para mostrar estadísticas de facturación</p>
+      </div>
+    @endif
+  </div>
+
+  <hr>
+
   <h2>Detalle de Pagos</h2>
 
   @if(isset($buscar) && $buscar)

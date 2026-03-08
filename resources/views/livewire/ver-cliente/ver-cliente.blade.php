@@ -55,7 +55,13 @@
                 <tbody>
                     @foreach ($clientes as $cliente)
                         <tr>
-                            <td>{{ $cliente->nombre }}</td>
+                            <td>
+                                <a role="button" href="{{ route('DetalleCliente', ['clienteId' => $cliente->id]) }}" style="background-color: transparent; cursor: pointer; padding: 0.3rem 0.6rem; border-radius: 3px; color: rgb(170, 172, 183);"
+                            
+                                    data-tooltip="Ver Detalle" style="margin-right: 10px;">
+                                    <i class="fas fa-eye"></i> {{ $cliente->nombre }}
+                                </a>
+                            </td>
                             <td>{{ $cliente->titular }}</td>
                             <td>{{ $cliente->correo }}</td>
                             <td><a href="https://wa.me/+54{{ $cliente->telefono }}" target="_blank"

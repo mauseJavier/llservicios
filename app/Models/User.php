@@ -75,6 +75,14 @@ class User extends Authenticatable implements MustVerifyEmail, CanResetPasswordC
     }
 
     /**
+     * Relación con los pagos registrados por el usuario
+     */
+    public function pagos(): HasMany
+    {
+        return $this->hasMany(\App\Models\Pagos::class, 'id_usuario', 'id');
+    }
+
+    /**
      * Enviar la notificación de restablecimiento de contraseña.
      *
      * @param  string  $token

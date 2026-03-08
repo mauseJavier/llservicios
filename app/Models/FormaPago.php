@@ -18,4 +18,20 @@ class FormaPago extends Model
     {
         return $this->hasMany(Expense::class, 'forma_pago_id');
     }
+
+    /**
+     * Relación con Pagos (forma_pago principal)
+     */
+    public function pagos()
+    {
+        return $this->hasMany(Pagos::class, 'forma_pago');
+    }
+
+    /**
+     * Relación con Pagos (forma_pago secundaria)
+     */
+    public function pagosSecundarios()
+    {
+        return $this->hasMany(Pagos::class, 'forma_pago2');
+    }
 }

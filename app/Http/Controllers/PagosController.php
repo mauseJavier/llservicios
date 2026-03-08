@@ -58,7 +58,8 @@ class PagosController extends Controller
         
         // Añadir filtro por empresa del usuario autenticado
         $empresaId = auth()->user()->empresa_id;
-        $parametros[] = $empresaId;
+        $parametros[] = $empresaId; // este parametro es g.empresa_id en la consulta empresas
+        $parametros[] = $empresaId;// este parametro es c.empresa_id en la consulta usuarios
         
         if ($fechaInicio) {
             $condicionFecha .= ' AND DATE(a.created_at) >= ?';
@@ -86,107 +87,135 @@ class PagosController extends Controller
             $parametros[] = $usuarioId;
         }
 
-        $datos = DB::select('SELECT
-                                    a.*,
-                                    b.id as idServicioPagar,
-                                    c.name AS nombreUsuario,
-                                    d.nombre AS Servicio,
-                                    e.nombre AS Cliente,
-                                    e.id as idCliente,
-                                    f.nombre AS formaPago,
-                                    f2.nombre AS formaPago2
-                                FROM
-                                    pagos a
-                                    INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
-                                    INNER JOIN users c ON a.id_usuario = c.id
-                                    INNER JOIN servicios d ON b.servicio_id = d.id
-                                    INNER JOIN clientes e ON b.cliente_id = e.id
-                                    INNER JOIN forma_pagos f ON a.forma_pago = f.id
-                                    LEFT JOIN forma_pagos f2 ON a.forma_pago2 = f2.id
-                                    INNER JOIN cliente_empresa g ON e.id = g.cliente_id
-                                WHERE
-                                    g.empresa_id = ?' . $condicionFecha . $condicionBusqueda . $condicionUsuario, $parametros);
+        // Consulta con Eloquent usando relaciones
+        $query = Pagos::query()
+            ->with([
+                'servicioPagar.cliente.empresas',
+                'servicioPagar.servicio',
+                'usuario',
+                'formaPago',
+                'formaPago2'
+            ])
+            // FILTRO 1: Filtrar por empresa del servicio (CRÍTICO para multi-tenant)
+            ->whereHas('servicioPagar.servicio', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 2: Filtrar por empresa del cliente
+            ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 3: Filtrar por empresa del usuario
+            ->whereHas('usuario', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            });
 
-        // Obtener resumen de pagos por forma de pago con filtros de fecha y empresa
-        // Necesitamos filtros separados para el resumen ya que la estructura de la consulta es diferente
-        $condicionFechaResumen = '';
-        $parametrosResumen = [];
-        
+        // Aplicar filtro de fecha inicio
         if ($fechaInicio) {
-            $condicionFechaResumen .= ' AND DATE(a.created_at) >= ?';
-            $parametrosResumen[] = $fechaInicio;
+            $query->whereDate('created_at', '>=', $fechaInicio);
         }
-        
+
+        // Aplicar filtro de fecha fin
         if ($fechaFin) {
-            $condicionFechaResumen .= ' AND DATE(a.created_at) <= ?';
-            $parametrosResumen[] = $fechaFin;
+            $query->whereDate('created_at', '<=', $fechaFin);
         }
-        
-        $condicionFechaResumen .= ' AND g.empresa_id = ?';
-        $parametrosResumen[] = $empresaId;
 
-        // Añadir condición de búsqueda al resumen también
-        $condicionBusquedaResumen = '';
+        // Aplicar búsqueda por cliente
         if ($buscar) {
-            $condicionBusquedaResumen = ' AND (e.nombre LIKE ? OR e.correo LIKE ? OR e.dni LIKE ?)';
-            $parametrosResumen[] = '%' . $buscar . '%';
-            $parametrosResumen[] = '%' . $buscar . '%';
-            $parametrosResumen[] = '%' . $buscar . '%';
+            $query->whereHas('servicioPagar.cliente', function($q) use ($buscar) {
+                $q->where('nombre', 'LIKE', "%{$buscar}%")
+                  ->orWhere('correo', 'LIKE', "%{$buscar}%")
+                  ->orWhere('dni', 'LIKE', "%{$buscar}%");
+            });
         }
 
-        // Añadir filtro por usuario al resumen
-        $condicionUsuarioResumen = '';
+        // Aplicar filtro por usuario
         if ($usuarioId) {
-            $condicionUsuarioResumen = ' AND a.id_usuario = ?';
-            $parametrosResumen[] = $usuarioId;
+            $query->where('id_usuario', $usuarioId);
         }
 
-        // Duplicar parámetros para el UNION ALL (segunda consulta usa los mismos filtros)
-        $parametrosResumenCompletos = array_merge($parametrosResumen, $parametrosResumen);
+        // Obtener resultados y mapear para agregar campos calculados
+        $datos = $query->get()->map(function($pago) {
+            $pago->idServicioPagar = $pago->servicioPagar->id ?? null;
+            $pago->nombreUsuario = $pago->usuario->name ?? null;
+            $pago->Servicio = $pago->servicioPagar->servicio->nombre ?? null;
+            $pago->Cliente = $pago->servicioPagar->cliente->nombre ?? null;
+            $pago->idCliente = $pago->servicioPagar->cliente->id ?? null;
+            $pago->formaPago = $pago->formaPago->nombre ?? null;
+            $pago->formaPago2 = $pago->formaPago2->nombre ?? null;
+            return $pago;
+        });
 
-        $resumenPagosRaw = DB::select('SELECT
-                                        f.nombre AS formaPago,
-                                        COUNT(a.id) AS cantidadPagos,
-                                        SUM(a.importe) AS totalImporte
-                                    FROM
-                                        pagos a
-                                        INNER JOIN forma_pagos f ON a.forma_pago = f.id
-                                        INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
-                                        INNER JOIN clientes e ON b.cliente_id = e.id
-                                        INNER JOIN cliente_empresa g ON e.id = g.cliente_id
-                                    WHERE 1=1' . $condicionFechaResumen . $condicionBusquedaResumen . $condicionUsuarioResumen . '
-                                    GROUP BY
-                                        f.id, f.nombre
-                                    
-                                    UNION ALL
-                                    
-                                    SELECT
-                                        f2.nombre AS formaPago,
-                                        COUNT(a.id) AS cantidadPagos,
-                                        SUM(a.importe2) AS totalImporte
-                                    FROM
-                                        pagos a
-                                        INNER JOIN forma_pagos f2 ON a.forma_pago2 = f2.id
-                                        INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
-                                        INNER JOIN clientes e ON b.cliente_id = e.id
-                                        INNER JOIN cliente_empresa g ON e.id = g.cliente_id
-                                    WHERE a.forma_pago2 IS NOT NULL' . $condicionFechaResumen . $condicionBusquedaResumen . $condicionUsuarioResumen . '
-                                    GROUP BY
-                                        f2.id, f2.nombre', $parametrosResumenCompletos);
+        // Obtener resumen de pagos por forma de pago usando Eloquent
+        $queryResumen = Pagos::query()
+            ->with(['formaPago', 'servicioPagar.servicio', 'servicioPagar.cliente.empresas', 'usuario'])
+            // FILTRO 1: Filtrar por empresa del servicio
+            ->whereHas('servicioPagar.servicio', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 2: Filtrar por empresa del cliente
+            ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 3: Filtrar por empresa del usuario
+            ->whereHas('usuario', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            });
 
-        // Agrupar y sumar los resultados por forma de pago
+        // Aplicar filtros de fecha
+        if ($fechaInicio) {
+            $queryResumen->whereDate('created_at', '>=', $fechaInicio);
+        }
+        if ($fechaFin) {
+            $queryResumen->whereDate('created_at', '<=', $fechaFin);
+        }
+
+        // Aplicar búsqueda por cliente
+        if ($buscar) {
+            $queryResumen->whereHas('servicioPagar.cliente', function($q) use ($buscar) {
+                $q->where('nombre', 'LIKE', "%{$buscar}%")
+                  ->orWhere('correo', 'LIKE', "%{$buscar}%")
+                  ->orWhere('dni', 'LIKE', "%{$buscar}%");
+            });
+        }
+
+        // Aplicar filtro por usuario
+        if ($usuarioId) {
+            $queryResumen->where('id_usuario', $usuarioId);
+        }
+
+        // Obtener pagos y agrupar por forma de pago (incluyendo forma_pago y forma_pago2)
+        $pagosParaResumen = $queryResumen->get();
+        
         $resumenAgrupado = [];
-        foreach ($resumenPagosRaw as $resumen) {
-            $formaPago = $resumen->formaPago;
-            if (!isset($resumenAgrupado[$formaPago])) {
-                $resumenAgrupado[$formaPago] = (object)[
-                    'formaPago' => $formaPago,
-                    'cantidadPagos' => 0,
-                    'totalImporte' => 0
-                ];
+        
+        foreach ($pagosParaResumen as $pago) {
+            // Sumar importe de forma_pago principal
+            if ($pago->formaPago) {
+                $nombreFormaPago = $pago->formaPago->nombre;
+                if (!isset($resumenAgrupado[$nombreFormaPago])) {
+                    $resumenAgrupado[$nombreFormaPago] = (object)[
+                        'formaPago' => $nombreFormaPago,
+                        'cantidadPagos' => 0,
+                        'totalImporte' => 0
+                    ];
+                }
+                $resumenAgrupado[$nombreFormaPago]->cantidadPagos++;
+                $resumenAgrupado[$nombreFormaPago]->totalImporte += $pago->importe;
             }
-            $resumenAgrupado[$formaPago]->cantidadPagos += $resumen->cantidadPagos;
-            $resumenAgrupado[$formaPago]->totalImporte += $resumen->totalImporte;
+            
+            // Sumar importe de forma_pago2 si existe
+            if ($pago->formaPago2 && $pago->importe2) {
+                $nombreFormaPago2 = $pago->formaPago2->nombre;
+                if (!isset($resumenAgrupado[$nombreFormaPago2])) {
+                    $resumenAgrupado[$nombreFormaPago2] = (object)[
+                        'formaPago' => $nombreFormaPago2,
+                        'cantidadPagos' => 0,
+                        'totalImporte' => 0
+                    ];
+                }
+                $resumenAgrupado[$nombreFormaPago2]->cantidadPagos++;
+                $resumenAgrupado[$nombreFormaPago2]->totalImporte += $pago->importe2;
+            }
         }
 
         // Convertir a array y ordenar por totalImporte descendente
@@ -195,58 +224,143 @@ class PagosController extends Controller
             return $b->totalImporte <=> $a->totalImporte;
         });
 
-        // Obtener resumen por usuario que realizó el cobro
-        $condicionUsuarioResumenPorUsuario = '';
-        $parametrosResumenPorUsuario = [];
-        
+        // Obtener resumen por usuario que realizó el cobro usando Eloquent
+        $queryResumenUsuario = Pagos::query()
+            ->with(['usuario', 'servicioPagar.cliente.empresas', 'servicioPagar.servicio'])
+            ->select(
+                'id_usuario',
+                DB::raw('COUNT(DISTINCT id) as cantidadPagos'),
+                DB::raw('SUM(importe) as totalImporte1'),
+                DB::raw('SUM(COALESCE(importe2, 0)) as totalImporte2'),
+                DB::raw('SUM(importe + COALESCE(importe2, 0)) as totalImporte')
+            )
+            // FILTRO 1: Filtrar por empresa del servicio (CRÍTICO para multi-tenant)
+            ->whereHas('servicioPagar.servicio', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 2: Filtrar por empresa del cliente
+            ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 3: Filtrar por empresa del usuario
+            ->whereHas('usuario', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            });
+
+        // Aplicar filtro de fecha inicio
         if ($fechaInicio) {
-            $condicionUsuarioResumenPorUsuario .= ' AND DATE(a.created_at) >= ?';
-            $parametrosResumenPorUsuario[] = $fechaInicio;
+            $queryResumenUsuario->whereDate('created_at', '>=', $fechaInicio);
         }
-        
+
+        // Aplicar filtro de fecha fin
         if ($fechaFin) {
-            $condicionUsuarioResumenPorUsuario .= ' AND DATE(a.created_at) <= ?';
-            $parametrosResumenPorUsuario[] = $fechaFin;
+            $queryResumenUsuario->whereDate('created_at', '<=', $fechaFin);
         }
-        
-        $condicionUsuarioResumenPorUsuario .= ' AND g.empresa_id = ?';
-        $parametrosResumenPorUsuario[] = $empresaId;
 
-        // Añadir condición de búsqueda
+        // Aplicar búsqueda por cliente
         if ($buscar) {
-            $condicionUsuarioResumenPorUsuario .= ' AND (e.nombre LIKE ? OR e.correo LIKE ? OR e.dni LIKE ?)';
-            $parametrosResumenPorUsuario[] = '%' . $buscar . '%';
-            $parametrosResumenPorUsuario[] = '%' . $buscar . '%';
-            $parametrosResumenPorUsuario[] = '%' . $buscar . '%';
+            $queryResumenUsuario->whereHas('servicioPagar.cliente', function($q) use ($buscar) {
+                $q->where('nombre', 'LIKE', "%{$buscar}%")
+                  ->orWhere('correo', 'LIKE', "%{$buscar}%")
+                  ->orWhere('dni', 'LIKE', "%{$buscar}%");
+            });
         }
 
-        // Añadir filtro por usuario
+        // Aplicar filtro por usuario
         if ($usuarioId) {
-            $condicionUsuarioResumenPorUsuario .= ' AND a.id_usuario = ?';
-            $parametrosResumenPorUsuario[] = $usuarioId;
+            $queryResumenUsuario->where('id_usuario', $usuarioId);
         }
 
-        // Consulta para resumen por usuario - suma importe1 + importe2
-        $resumenPorUsuarioRaw = DB::select('SELECT
-                                        c.id as usuarioId,
-                                        c.name AS nombreUsuario,
-                                        COUNT(DISTINCT a.id) AS cantidadPagos,
-                                        SUM(a.importe) AS totalImporte1,
-                                        SUM(COALESCE(a.importe2, 0)) AS totalImporte2,
-                                        SUM(a.importe + COALESCE(a.importe2, 0)) AS totalImporte
-                                    FROM
-                                        pagos a
-                                        INNER JOIN users c ON a.id_usuario = c.id
-                                        INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
-                                        INNER JOIN clientes e ON b.cliente_id = e.id
-                                        INNER JOIN cliente_empresa g ON e.id = g.cliente_id
-                                    WHERE 1=1' . $condicionUsuarioResumenPorUsuario . '
-                                    GROUP BY
-                                        c.id, c.name
-                                    ORDER BY
-                                        totalImporte DESC', $parametrosResumenPorUsuario);
+        $resumenPorUsuario = $queryResumenUsuario
+            ->groupBy('id_usuario')
+            ->orderByDesc(DB::raw('SUM(importe + COALESCE(importe2, 0))'))
+            ->get()
+            ->map(function($resumen) {
+                return (object)[
+                    'usuarioId' => $resumen->id_usuario,
+                    'nombreUsuario' => $resumen->usuario->name ?? 'Desconocido',
+                    'cantidadPagos' => $resumen->cantidadPagos,
+                    'totalImporte1' => $resumen->totalImporte1,
+                    'totalImporte2' => $resumen->totalImporte2,
+                    'totalImporte' => $resumen->totalImporte
+                ];
+            });
 
-        $resumenPorUsuario = $resumenPorUsuarioRaw;
+        // Obtener resumen de facturación AFIP (facturados vs no facturados)
+        $queryResumenFacturacion = Pagos::query()
+            ->with(['servicioPagar.servicio', 'servicioPagar.cliente.empresas', 'usuario'])
+            // FILTRO 1: Filtrar por empresa del servicio
+            ->whereHas('servicioPagar.servicio', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 2: Filtrar por empresa del cliente
+            ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 3: Filtrar por empresa del usuario
+            ->whereHas('usuario', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            });
+
+        // Aplicar filtros de fecha
+        if ($fechaInicio) {
+            $queryResumenFacturacion->whereDate('created_at', '>=', $fechaInicio);
+        }
+        if ($fechaFin) {
+            $queryResumenFacturacion->whereDate('created_at', '<=', $fechaFin);
+        }
+
+        // Aplicar búsqueda por cliente
+        if ($buscar) {
+            $queryResumenFacturacion->whereHas('servicioPagar.cliente', function($q) use ($buscar) {
+                $q->where('nombre', 'LIKE', "%{$buscar}%")
+                  ->orWhere('correo', 'LIKE', "%{$buscar}%")
+                  ->orWhere('dni', 'LIKE', "%{$buscar}%");
+            });
+        }
+
+        // Aplicar filtro por usuario
+        if ($usuarioId) {
+            $queryResumenFacturacion->where('id_usuario', $usuarioId);
+        }
+
+        // Calcular totales facturados y no facturados
+        $pagosParaFacturacion = $queryResumenFacturacion->get();
+        
+        $facturados = $pagosParaFacturacion->filter(function($pago) {
+            return !empty($pago->afip_cae);
+        });
+        
+        $noFacturados = $pagosParaFacturacion->filter(function($pago) {
+            return empty($pago->afip_cae);
+        });
+
+        $resumenFacturacion = [
+            'facturados' => (object)[
+                'cantidad' => $facturados->count(),
+                'total' => $facturados->sum(function($pago) {
+                    return $pago->importe + ($pago->importe2 ?? 0);
+                }),
+                'promedio' => $facturados->count() > 0 
+                    ? $facturados->sum(function($pago) { return $pago->importe + ($pago->importe2 ?? 0); }) / $facturados->count() 
+                    : 0
+            ],
+            'noFacturados' => (object)[
+                'cantidad' => $noFacturados->count(),
+                'total' => $noFacturados->sum(function($pago) {
+                    return $pago->importe + ($pago->importe2 ?? 0);
+                }),
+                'promedio' => $noFacturados->count() > 0 
+                    ? $noFacturados->sum(function($pago) { return $pago->importe + ($pago->importe2 ?? 0); }) / $noFacturados->count() 
+                    : 0
+            ],
+            'total' => (object)[
+                'cantidad' => $pagosParaFacturacion->count(),
+                'total' => $pagosParaFacturacion->sum(function($pago) {
+                    return $pago->importe + ($pago->importe2 ?? 0);
+                })
+            ]
+        ];
 
         // return $datos;
 
@@ -284,77 +398,100 @@ class PagosController extends Controller
                 //agregar a los usuarios el usuario email like %pago% que es para todas las empresass
                 $usuarios->push(\App\Models\User::where('email', 'like', '%pago%')->first());
 
-                return view('pagos.pagos', compact('pagos', 'resumenPagos', 'resumenPorUsuario', 'fechaInicio', 'fechaFin', 'buscar', 'usuarios', 'usuarioId'))->render();
+                return view('pagos.pagos', compact('pagos', 'resumenPagos', 'resumenPorUsuario', 'resumenFacturacion', 'fechaInicio', 'fechaFin', 'buscar', 'usuarios', 'usuarioId'))->render();
     }
 
     public function PagosVer ($idServicioPagar){
 
-        // return $idServicioPagar;
-
         $empresaId = auth()->user()->empresa_id;
 
-        $datos = DB::select('SELECT
-                            a.*,
-                            b.id as idServicioPagar,
-                            c.name AS nombreUsuario,
-                            d.nombre AS Servicio,
-                            e.nombre AS Cliente,
-                            e.id as idCliente,
-                            f.nombre AS formaPago,
-                            f2.nombre AS formaPago2
-                        FROM
-                            pagos a
-                            INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
-                            INNER JOIN users c ON a.id_usuario = c.id
-                            INNER JOIN servicios d ON b.servicio_id = d.id
-                            INNER JOIN clientes e ON b.cliente_id = e.id
-                            INNER JOIN forma_pagos f ON a.forma_pago = f.id
-                            LEFT JOIN forma_pagos f2 ON a.forma_pago2 = f2.id
-                            INNER JOIN cliente_empresa g ON e.id = g.cliente_id
-                        WHERE
-                            g.empresa_id = ? 
-                            AND b.id = ?',[$empresaId, $idServicioPagar] );
-        
-        // return $datos;
+        // Consulta con Eloquent
+        $pago = Pagos::query()
+            ->with([
+                'servicioPagar.cliente.empresas',
+                'servicioPagar.servicio',
+                'usuario',
+                'formaPago',
+                'formaPago2'
+            ])
+            ->whereHas('servicioPagar', function($q) use ($idServicioPagar) {
+                $q->where('id', $idServicioPagar);
+            })
+            // FILTRO 1: Filtrar por empresa del servicio
+            ->whereHas('servicioPagar.servicio', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 2: Filtrar por empresa del cliente
+            ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 3: Filtrar por empresa del usuario
+            ->whereHas('usuario', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            })
+            ->first();
 
-        return view('pagos.pagosVer',['datos'=>$datos[0]])->render();
+        if (!$pago) {
+            abort(404, 'Pago no encontrado');
+        }
+
+        // Agregar campos calculados
+        $datos = $pago;
+        $datos->idServicioPagar = $pago->servicioPagar->id ?? null;
+        $datos->nombreUsuario = $pago->usuario->name ?? null;
+        $datos->Servicio = $pago->servicioPagar->servicio->nombre ?? null;
+        $datos->Cliente = $pago->servicioPagar->cliente->nombre ?? null;
+        $datos->idCliente = $pago->servicioPagar->cliente->id ?? null;
+        $datos->formaPago = $pago->formaPago->nombre ?? null;
+        $datos->formaPago2 = $pago->formaPago2->nombre ?? null;
+
+        return view('pagos.pagosVer',['datos'=>$datos])->render();
     }
 
     public function pagoPDF($idServicioPagar,Request $request){
-        // return view('pdf.ejemploPDF',)->render();
-
         $empresaId = auth()->user()->empresa_id;
 
-        $datos = DB::select('SELECT
-                    a.*,
-                    b.id as idServicioPagar,
-                    c.name AS nombreUsuario,
-                    d.nombre AS Servicio,
-                    e.nombre AS Cliente,
-                    e.id as idCliente,
-                    f.nombre AS formaPago,
-                    f2.nombre AS formaPago2
-                FROM
-                    pagos a
-                    INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
-                    INNER JOIN users c ON a.id_usuario = c.id
-                    INNER JOIN servicios d ON b.servicio_id = d.id
-                    INNER JOIN clientes e ON b.cliente_id = e.id
-                    INNER JOIN forma_pagos f ON a.forma_pago = f.id
-                    LEFT JOIN forma_pagos f2 ON a.forma_pago2 = f2.id
-                    INNER JOIN cliente_empresa g ON e.id = g.cliente_id
-                WHERE
-                    g.empresa_id = ? 
-                    AND b.id = ?',[$empresaId, $idServicioPagar] );
+        // Consulta con Eloquent
+        $pago = Pagos::query()
+            ->with([
+                'servicioPagar.cliente.empresas',
+                'servicioPagar.servicio',
+                'usuario',
+                'formaPago',
+                'formaPago2'
+            ])
+            ->whereHas('servicioPagar', function($q) use ($idServicioPagar) {
+                $q->where('id', $idServicioPagar);
+            })
+            // FILTRO 1: Filtrar por empresa del servicio
+            ->whereHas('servicioPagar.servicio', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 2: Filtrar por empresa del cliente
+            ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 3: Filtrar por empresa del usuario
+            ->whereHas('usuario', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            })
+            ->first();
 
-            // return $datos;
-            // return $request;
+        if (!$pago) {
+            abort(404, 'Pago no encontrado');
+        }
 
-            // return array('datos'=>$datos,'usuario'=>Empresa::find(Auth::user()->empresa_id) );
+        // Agregar campos calculados
+        $datos = $pago;
+        $datos->idServicioPagar = $pago->servicioPagar->id ?? null;
+        $datos->nombreUsuario = $pago->usuario->name ?? null;
+        $datos->Servicio = $pago->servicioPagar->servicio->nombre ?? null;
+        $datos->Cliente = $pago->servicioPagar->cliente->nombre ?? null;
+        $datos->idCliente = $pago->servicioPagar->cliente->id ?? null;
+        $datos->formaPago = $pago->formaPago->nombre ?? null;
+        $datos->formaPago2 = $pago->formaPago2->nombre ?? null;
 
-            // return view('pagos.pagosVer',['datos'=>$datos[0]])->render();
-
-        $pdf = Pdf::loadView('pdf.pagoPDF',['datos'=>$datos[0],'empresa'=>Empresa::find(Auth::user()->empresa_id)]);
+        $pdf = Pdf::loadView('pdf.pagoPDF',['datos'=>$datos,'empresa'=>Empresa::find(Auth::user()->empresa_id)]);
 
 
         if($request->tamañoPapel == '80MM'){
@@ -365,7 +502,7 @@ class PagosController extends Controller
         }
 
 
-        $nombreArchivo= $datos[0]->Cliente.' '.$datos[0]->Servicio.'.pdf';
+        $nombreArchivo= $datos->Cliente.' '.$datos->Servicio.'.pdf';
         return $pdf->stream($nombreArchivo, [ "Attachment" => true]);
         // return $pdf->download($nombreArchivo, [ "Attachment" => true]);
 
@@ -391,44 +528,55 @@ class PagosController extends Controller
             abort(400, 'Este pago no tiene factura AFIP generada');
         }
 
-        // Obtener datos completos usando la misma query que pagoPDF
-        $datos = DB::select('SELECT
-                    a.*,
-                    b.id as idServicioPagar,
-                    c.name AS nombreUsuario,
-                    d.nombre AS Servicio,
-                    e.nombre AS Cliente,
-                    e.id as idCliente,
-                    f.nombre AS formaPago,
-                    f2.nombre AS formaPago2
-                FROM
-                    pagos a
-                    INNER JOIN servicio_pagar b ON a.id_servicio_pagar = b.id
-                    INNER JOIN users c ON a.id_usuario = c.id
-                    INNER JOIN servicios d ON b.servicio_id = d.id
-                    INNER JOIN clientes e ON b.cliente_id = e.id
-                    INNER JOIN forma_pagos f ON a.forma_pago = f.id
-                    LEFT JOIN forma_pagos f2 ON a.forma_pago2 = f2.id
-                    INNER JOIN cliente_empresa g ON e.id = g.cliente_id
-                WHERE
-                    g.empresa_id = ? 
-                    AND a.id = ?', [$empresaId, $pagoId]);
+        // Recargar el pago con relaciones completas para el PDF
+        $pago = Pagos::query()
+            ->with([
+                'servicioPagar.cliente.empresas',
+                'servicioPagar.servicio',
+                'usuario',
+                'formaPago',
+                'formaPago2'
+            ])
+            ->where('id', $pagoId)
+            // FILTRO 1: Filtrar por empresa del servicio
+            ->whereHas('servicioPagar.servicio', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 2: Filtrar por empresa del cliente
+            ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 3: Filtrar por empresa del usuario
+            ->whereHas('usuario', function($q) use ($empresaId) {
+                $q->where('empresa_id', $empresaId);
+            })
+            ->first();
 
-        if (empty($datos)) {
+        if (!$pago) {
             abort(404, 'Datos del pago no encontrados');
         }
+
+        // Agregar campos calculados
+        $datos = $pago;
+        $datos->idServicioPagar = $pago->servicioPagar->id ?? null;
+        $datos->nombreUsuario = $pago->usuario->name ?? null;
+        $datos->Servicio = $pago->servicioPagar->servicio->nombre ?? null;
+        $datos->Cliente = $pago->servicioPagar->cliente->nombre ?? null;
+        $datos->idCliente = $pago->servicioPagar->cliente->id ?? null;
+        $datos->formaPago = $pago->formaPago->nombre ?? null;
+        $datos->formaPago2 = $pago->formaPago2->nombre ?? null;
 
         $empresa = Empresa::find(Auth::user()->empresa_id);
         $cliente = $pago->servicioPagar->cliente ?? null;
 
-        $qrBase64 = $this->generarQrAfipBase64ParaPdf($pago, $empresa, $cliente, $datos[0]);
+        $qrBase64 = $this->generarQrAfipBase64ParaPdf($pago, $empresa, $cliente, $datos);
 
         
         // Configurar tamaño de papel
         if ($request->tamañoPapel == '80MM') {
             // Generar PDF
             $pdf = Pdf::loadView('pdf.facturaAfip80', [
-                'datos' => $datos[0],
+                'datos' => $datos,
                 'empresa' => $empresa,
                 'pago' => $pago,
                 'cliente' => $cliente,
@@ -438,7 +586,7 @@ class PagosController extends Controller
         }else {
             // Generar PDF con tamaño A4
             $pdf = Pdf::loadView('pdf.facturaAfip', [
-                'datos' => $datos[0],
+                'datos' => $datos,
                 'empresa' => $empresa,
                 'pago' => $pago,
                 'cliente' => $cliente,
