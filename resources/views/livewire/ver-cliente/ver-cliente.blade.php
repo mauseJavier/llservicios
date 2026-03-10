@@ -56,11 +56,21 @@
                     @foreach ($clientes as $cliente)
                         <tr>
                             <td>
-                                <a role="button" href="{{ route('DetalleCliente', ['clienteId' => $cliente->id]) }}" style="background-color: transparent; cursor: pointer; padding: 0.3rem 0.6rem; border-radius: 3px; color: rgb(170, 172, 183);"
-                            
-                                    data-tooltip="Ver Detalle" style="margin-right: 10px;">
-                                    <i class="fas fa-eye"></i> {{ $cliente->nombre }}
-                                </a>
+                                @if (($cliente->servicios_vinculados_count ?? 0) > 0)
+                                    <a role="button" href="{{ route('DetalleCliente', ['clienteId' => $cliente->id]) }}" style="background-color: transparent; cursor: pointer; padding: 0.3rem 0.6rem; border-radius: 3px; color: rgb(170, 172, 183);"
+                                
+                                        data-tooltip="Ver Detalle" style="margin-right: 10px;">
+                                        <i class="fas fa-eye"></i> {{ $cliente->nombre }}
+                                    </a>
+                                @else
+                                    <a role="button" href="{{ route('DetalleCliente', ['clienteId' => $cliente->id]) }}" style="background-color: transparent; cursor: pointer; padding: 0.3rem 0.6rem; border-radius: 3px; color: rgb(228, 106, 106);"
+                                
+                                        data-tooltip="Ver Detalle" style="margin-right: 10px;">
+                                        <i class="fas fa-eye"></i> {{ $cliente->nombre }}
+                                    </a>
+                                @endif
+
+
                             </td>
                             <td>{{ $cliente->titular }}</td>
                             <td>{{ $cliente->correo }}</td>
@@ -72,11 +82,7 @@
                             <th>
 
                                 <div role="group">
-                                        <a role="button" href="{{ route('DetalleCliente', ['clienteId' => $cliente->id]) }}" style="background-color: transparent; cursor: pointer; padding: 0.3rem 0.6rem; border-radius: 3px; color: rgb(26, 47, 138);"
                                     
-                                            data-tooltip="Ver Detalle" style="margin-right: 10px;">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
                                         <a role="button" href="{{ route('Cliente.edit', ['Cliente' => $cliente->id]) }}" style="background-color: transparent; cursor: pointer; padding: 0.3rem 0.6rem; border-radius: 3px; color: white;"
                                     
                                             data-tooltip="Editar" style="margin-right: 10px;">

@@ -252,6 +252,17 @@ class ClienteController extends Controller
     {
         // return $Cliente;
 
+        // el cliente tiene que pertenecer a la empresa del usuario autenticado para poder editarlo
+        $empresaId = Auth::user()->empresa_id;
+        $clientePerteneceAEmpresa = DB::table('cliente_empresa')
+            ->where('cliente_id', $Cliente->id)
+            ->where('empresa_id', $empresaId)
+            ->exists();
+
+        if (!$clientePerteneceAEmpresa) {
+            abort(403, 'No tienes permiso para editar este cliente.');
+        }
+
         return view('clientes.Edit', compact('Cliente'))->render();
     }
 
@@ -263,12 +274,18 @@ class ClienteController extends Controller
 
         // si existe un cliente con el mismo dni y distinto id (normalizando DNI/CUIT)
         $dniNormalizado = DniHelper::extractDni($request->dni);
+
         $clienteExistente = Cliente::where(function($query) use ($dniNormalizado) {
             $query->where('dni', $dniNormalizado)
                   ->orWhere('dni', 'like', '%' . $dniNormalizado . '%');
         })->where('id', '!=', $Cliente->id)->first();
+
+        // dd($Cliente);
+        // dd($clienteExistente);
+
         if ($clienteExistente) {
-            return redirect()->back()->withErrors(['dni' => 'El DNI ya está en uso por otro cliente.'])->withInput();
+            // return redirect()->back()->withErrors(['dni' => 'El DNI ya está en uso por otro cliente.'])->withInput();
+            $mesaje = 'El DNI ya está en uso por otro cliente.';
         }
         
         $Cliente->update(['nombre'=>$request->nombre,
@@ -280,7 +297,7 @@ class ClienteController extends Controller
                         ]);
 
         return redirect()->route('Cliente.index')
-        ->with('status', 'Guardado correcto.');
+        ->with('status', 'Guardado correcto.' . (isset($mesaje) ? ' Sin embargo, ' . $mesaje : ''));
     }
 
     /**

@@ -283,16 +283,16 @@
 
   <hr>
 
-  {{-- Resumen de Facturación AFIP --}}
+  {{-- Resumen de Facturación ARCA --}}
   <div class="resumen-pagos">
-    <h2>🧾 Resumen de Facturación AFIP</h2>
+    <h2>🧾 Resumen de Facturación ARCA</h2>
     
     @if($resumenFacturacion['total']->cantidad > 0)
       <div class="resumen-cards">
         {{-- Pagos Facturados --}}
         <div class="resumen-card" style="border-left: 4px solid #4caf50; padding-left: 0.5rem; margin-bottom: 1rem;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <strong style="font-size: 1.1rem;">✅ Facturados con AFIP</strong>
+            <strong style="font-size: 1.1rem;">✅ Facturados con ARCA</strong>
           </div>
           <div class="total" style="color: #4caf50;">${{ number_format($resumenFacturacion['facturados']->total, 2) }}</div>
           <div class="cantidad">{{ $resumenFacturacion['facturados']->cantidad }} pagos</div>

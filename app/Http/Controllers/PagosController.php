@@ -133,8 +133,8 @@ class PagosController extends Controller
             $query->where('id_usuario', $usuarioId);
         }
 
-        // Obtener resultados y mapear para agregar campos calculados
-        $datos = $query->get()->map(function($pago) {
+        // Obtener resultados ordenados por fecha de pago descendente y mapear campos calculados
+        $datos = $query->orderByDesc('created_at')->get()->map(function($pago) {
             $pago->idServicioPagar = $pago->servicioPagar->id ?? null;
             $pago->nombreUsuario = $pago->usuario->name ?? null;
             $pago->Servicio = $pago->servicioPagar->servicio->nombre ?? null;
