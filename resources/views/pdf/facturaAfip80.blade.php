@@ -108,7 +108,7 @@
 							<td>1</td>
 							<td>{{ $datos->Servicio ?? '—' }}</td>
 							<td>{{ $datos->codigo ?? '—' }}</td>
-							<td>{{ number_format(($datos->importe ?? 0) + ($datos->importe2 ?? 0), 2, ',', '.') }}</td>
+							<td>{{ number_format(abs(($datos->importe ?? 0) + ($datos->importe2 ?? 0)), 2, ',', '.') }}</td>
 						</tr>
 					</table>
 				</div>
@@ -120,7 +120,7 @@
 					<table>
 						<tr>
 							<td>TOTAL</td>
-							<td>{{ number_format(($datos->importe ?? 0) + ($datos->importe2 ?? 0), 2, ',', '.') }}</td>
+							<td>{{ number_format(abs(($datos->importe ?? 0) + ($datos->importe2 ?? 0)), 2, ',', '.') }}</td>
 						</tr>
 					</table>
 				</div>

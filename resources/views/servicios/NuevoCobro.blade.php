@@ -60,7 +60,7 @@
                         <select id="cliente" name="cliente" required size="5" style="width: 100%;">
                         
                             @foreach ($clientes as $c)
-                                <option value="{{$c->id}}">{{$c->nombre}}</option>
+                                <option value="{{$c->id}}">{{$c->nombre}} {{$c->titular}}</option>
                             @endforeach
                         </select>
                 </div>

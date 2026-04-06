@@ -151,6 +151,7 @@ Route::middleware('auth')->group(function () {
             //RUTAS PARA LOS PAGOS 
             Route::get('Pagos', [PagosController::class, 'index'])->name('Pagos');  
             Route::get('PagosVer/{idServicioPagar}', [PagosController::class, 'PagosVer'])->name('PagosVer');  
+            Route::delete('Pagos/{pago}', [PagosController::class, 'destroy'])->name('pagos.destroy');
             Route::get('PagoPDF/{idServicioPagar}', [PagosController::class, 'pagoPDF'])->name('PagoPDF');
             Route::get('FacturaAfipPDF/{pagoId}', [PagosController::class, 'facturaAfipPDF'])->name('FacturaAfipPDF');
 

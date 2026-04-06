@@ -116,6 +116,10 @@ class AfipService
                 $facturaData['Iva'] = $data['Iva'];
             }
 
+            // Comprobantes asociados (requerido para Notas de Crédito/Débito)
+            if (isset($data['CbtesAsoc'])) {
+                $facturaData['CbtesAsoc'] = $data['CbtesAsoc'];
+            }
 
             if(env('APP_ENV') === 'local' ) {
                 Log::info('Creando factura AFIP desde pago', [
@@ -357,6 +361,90 @@ class AfipService
  
 
         return $this->crearFactura($facturaData);
+    }
+
+    /**
+     * Crear una Nota de Crédito AFIP a partir de un pago ya facturado
+     *
+     * Mapeo automático: Factura A (1) → NC A (3), Factura B (6) → NC B (8), Factura C (11) → NC C (13)
+     *
+     * @param \App\Models\Pagos $pagoOriginal Pago con CAE ya generado
+     * @return array Respuesta de AFIP con success, cae, numero_comprobante, tipo_comprobante
+     */
+    public function crearNotaCredito($pagoOriginal)
+    {
+        $normalizeImporte = static fn ($value) => round((float) $value, 2);
+
+        $mapaNc = [1 => 3, 6 => 8, 11 => 13];
+        $tipoOriginal = (int) $pagoOriginal->afip_tipo_comprobante;
+
+        if (!array_key_exists($tipoOriginal, $mapaNc)) {
+            return [
+                'success' => false,
+                'error'   => 'No se puede emitir NC para el tipo de comprobante ' . $tipoOriginal,
+            ];
+        }
+
+        $tipoNc     = $mapaNc[$tipoOriginal];
+        $puntoVenta = (int) $pagoOriginal->afip_punto_venta;
+        $impTotal   = $pagoOriginal->total; // importe + importe2
+
+        // Misma lógica IVA que crearFacturaDesdePago
+        $tiposConIVA  = [1, 2, 3, 4, 6, 7, 8, 9];
+        $discriminaIVA = in_array($tipoNc, $tiposConIVA);
+
+        if ($discriminaIVA) {
+            $impNeto  = round($impTotal / 1.21, 2);
+            $impIva   = $normalizeImporte($impTotal - $impNeto);
+            $ivaArray = [[
+                'Id'      => 5,
+                'BaseImp' => $normalizeImporte($impNeto),
+                'Importe' => $impIva,
+            ]];
+        } else {
+            $impNeto  = $impTotal;
+            $impIva   = 0;
+            $ivaArray = null;
+        }
+
+        $pagoOriginal->loadMissing('servicioPagar.cliente');
+        $dniNorm = $pagoOriginal->servicioPagar->cliente->dni ?? '0';
+        $docTipo = (strlen((string) $dniNorm) === 11) ? 80 : 96;
+
+        $facturaData = [
+            'PtoVta'                 => $puntoVenta,
+            'CbteTipo'               => $tipoNc,
+            'Concepto'               => 2, // Servicios
+            'DocTipo'                => $docTipo,
+            'DocNro'                 => $dniNorm,
+            'ImpTotal'               => $normalizeImporte($impTotal),
+            'ImpNeto'                => $normalizeImporte($impNeto),
+            'ImpIVA'                 => $normalizeImporte($impIva),
+            'ImpTotConc'             => 0,
+            'ImpOpEx'                => 0,
+            'ImpTrib'                => 0,
+            'MonId'                  => 'PES',
+            'MonCotiz'               => 1,
+            'CondicionIVAReceptorId' => $pagoOriginal->servicioPagar->cliente->condicion_iva_id ?? 5,
+            'CbtesAsoc'              => [[
+                'Tipo'   => $tipoOriginal,
+                'PtoVta' => $puntoVenta,
+                'Nro'    => (int) $pagoOriginal->afip_numero_comprobante,
+                'Cuit'   => (int) $this->empresa->cuit,
+            ]],
+        ];
+
+        if ($ivaArray !== null) {
+            $facturaData['Iva'] = $ivaArray;
+        }
+
+        $resultado = $this->crearFactura($facturaData);
+
+        if ($resultado['success']) {
+            $resultado['tipo_comprobante'] = $tipoNc;
+        }
+
+        return $resultado;
     }
 
     /**

@@ -218,10 +218,10 @@
                             <td>{{ $datos->Servicio ?? '—' }}</td>
                             <td>1,00</td>
                             <td>Unidad</td>
-                            <td>{{ number_format($datos->importe ?? 0, 2, ',', '.') }}</td>
+                            <td>{{ number_format(abs($datos->importe ?? 0), 2, ',', '.') }}</td>
                             <td>0,00</td>
                             <td>0,00</td>
-                            <td>{{ number_format(($datos->importe ?? 0) + ($datos->importe2 ?? 0), 2, ',', '.') }}</td>
+                            <td>{{ number_format(abs(($datos->importe ?? 0) + ($datos->importe2 ?? 0)), 2, ',', '.') }}</td>
                         </tr>
                     </table>
                 </div>
@@ -232,7 +232,7 @@
                 <table class="row-table">
                     <tr class="text-right">
                         <td class="w-83"><strong>Subtotal: $</strong></td>
-                        <td class="w-16"><strong>{{ number_format(($datos->importe ?? 0) + ($datos->importe2 ?? 0), 2, ',', '.') }}</strong></td>
+                        <td class="w-16"><strong>{{ number_format(abs(($datos->importe ?? 0) + ($datos->importe2 ?? 0)), 2, ',', '.') }}</strong></td>
                     </tr>
                     <tr class="text-right">
                         <td class="w-83"><strong>Importe Otros Tributos: $</strong></td>
@@ -240,7 +240,7 @@
                     </tr>
                     <tr class="text-right">
                         <td class="w-83"><strong>Importe total: $</strong></td>
-                        <td class="w-16"><strong>{{ number_format(($datos->importe ?? 0) + ($datos->importe2 ?? 0), 2, ',', '.') }}</strong></td>
+                        <td class="w-16"><strong>{{ number_format(abs(($datos->importe ?? 0) + ($datos->importe2 ?? 0)), 2, ',', '.') }}</strong></td>
                     </tr>
                 </table>
             </td>

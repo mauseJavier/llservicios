@@ -39,6 +39,13 @@
                         <small><strong>Facturado</strong></small>
                         <button wire:click="descargarFacturaPDF">Ver Factura PDF</button>
                         <button wire:click="descargarFacturaPDF80" class="secondary">Factura PDF 80mm</button>
+                        @if($pago->notaCredito)
+                            <small style="color:#d32f2f;"><strong>NC emitida</strong></small>
+                        @elseif($certificadosValidos)
+                            <button wire:click="openNcModal" style="background:#d32f2f; border-color:#d32f2f;">
+                                Generar Nota de Crédito
+                            </button>
+                        @endif
                     </div>
                 @else
                     {{-- Botón para facturar --}}
@@ -73,6 +80,35 @@
                     <div><strong>{{ str_pad($pago->afip_punto_venta, 5, '0', STR_PAD_LEFT) }}-{{ str_pad($pago->afip_numero_comprobante, 8, '0', STR_PAD_LEFT) }}</strong></div>
                 </div>
             </div>
+
+            {{-- Información de Nota de Crédito si fue emitida --}}
+            @if($pago->notaCredito)
+                <div style="background:#464343; padding:10px; border-radius:5px; margin-top:10px;">
+                    <strong style="color:#d32f2f;">Nota de Crédito emitida</strong>
+                    <div class="grid" style="margin-top:8px;">
+                        <div>
+                            <small>Tipo NC</small>
+                            <div><strong>{{ $pago->notaCredito->tipo_comprobante_nombre }}</strong></div>
+                        </div>
+                        <div>
+                            <small>CAE NC</small>
+                            <div><strong>{{ $pago->notaCredito->afip_cae }}</strong></div>
+                        </div>
+                        <div>
+                            <small>Número NC</small>
+                            <div><strong>{{ str_pad($pago->notaCredito->afip_punto_venta, 5, '0', STR_PAD_LEFT) }}-{{ str_pad($pago->notaCredito->afip_numero_comprobante, 8, '0', STR_PAD_LEFT) }}</strong></div>
+                        </div>
+                        <div>
+                            <small>Ver NC PDF</small>
+                            <div>
+                                <a role="button" href="{{ route('FacturaAfipPDF', ['pagoId' => $pago->notaCredito->id]) }}" target="_blank" class="secondary" style="padding:4px 10px; font-size:0.85em;">
+                                    PDF NC
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
         @endif
     </article>
 
@@ -220,6 +256,65 @@
     @endif
 
     {{-- Script para abrir PDF automáticamente --}}
+    {{-- Modal de Nota de Crédito --}}
+    @if($showNcModal)
+        <dialog open>
+            <article>
+                <header>
+                    <strong>Generar Nota de Crédito AFIP</strong>
+                    <button type="button" class="secondary" wire:click="cerrarNcModal">Cerrar</button>
+                </header>
+
+                @if($pago)
+                    <article>
+                        <p>Se generará una <strong>Nota de Crédito</strong> que anula la siguiente factura:</p>
+                        <div class="grid">
+                            <div>
+                                <small>Comprobante Original</small>
+                                <div><strong>{{ $pago->tipo_comprobante_nombre }}</strong></div>
+                            </div>
+                            <div>
+                                <small>CAE Original</small>
+                                <div><strong>{{ $pago->afip_cae }}</strong></div>
+                            </div>
+                            <div>
+                                <small>Número</small>
+                                <div><strong>{{ str_pad($pago->afip_punto_venta, 5, '0', STR_PAD_LEFT) }}-{{ str_pad($pago->afip_numero_comprobante, 8, '0', STR_PAD_LEFT) }}</strong></div>
+                            </div>
+                            <div>
+                                <small>Importe a acreditar</small>
+                                <div><strong>${{ number_format($pago->total, 2) }}</strong></div>
+                            </div>
+                        </div>
+                        <p style="background:#fff3f3; color:#8a1f1f; padding:10px; border-radius:5px; margin-top:10px;">
+                            <strong>⚠ Atención:</strong> Esta acción genera una Nota de Crédito en AFIP
+                            por el total facturado, crea un movimiento negativo en la tabla de pagos
+                            y revierte el servicio a estado <strong>IMPAGO</strong>.
+                        </p>
+
+                        @if($errorMessage)
+                            <article>
+                                <header><strong>Error</strong></header>
+                                <p>{{ $errorMessage }}</p>
+                            </article>
+                        @endif
+                    </article>
+                @endif
+
+                <footer>
+                    <button type="button" class="secondary" wire:click="cerrarNcModal" @if($loading) disabled @endif>
+                        Cancelar
+                    </button>
+                    <button type="button" wire:click="generarNotaCredito"
+                            style="background:#d32f2f; border-color:#d32f2f;"
+                            @if($loading) disabled @endif>
+                        @if($loading) Generando... @else Confirmar y Generar NC @endif
+                    </button>
+                </footer>
+            </article>
+        </dialog>
+    @endif
+
     <script>
         document.addEventListener('livewire:init', () => {
             Livewire.on('factura-generada', (event) => {

@@ -13,6 +13,14 @@ use Illuminate\Support\Facades\Log;
 
 class MercadoPagoWebhookController extends Controller
 {
+    private const USUARIO_PAGO_ONLINE_EMAIL = 'pago.online@example.com';
+
+    private function resolverUsuarioSistemaId(): int
+    {
+        $idUsuarioPago = \App\Models\User::where('email', self::USUARIO_PAGO_ONLINE_EMAIL)->value('id');
+        return $idUsuarioPago ? (int) $idUsuarioPago : 0;
+    }
+
     /**
      * Manejar notificaciones de webhook de MercadoPago
      */
@@ -127,6 +135,17 @@ class MercadoPagoWebhookController extends Controller
                     $formaPago = \App\Models\FormaPago::where('nombre', 'MercadoPago')->first();
                     $formaPagoId = $formaPago ? $formaPago->id : 1; // fallback a 1 si no existe
 
+                    $montoBruto = (float) ($payment->transaction_amount ?? 0);
+                    $montoNeto = (float) ($payment->transaction_details->net_received_amount ?? $montoBruto);
+                    $comision = $montoBruto - $montoNeto;
+                    $comentario = sprintf(
+                        'Webhook MP ID:%s Bruto:%.2f Neto:%.2f Comision:%.2f',
+                        $paymentId,
+                        $montoBruto,
+                        $montoNeto,
+                        $comision
+                    );
+
                     // Crear registro en la tabla pagos si no existe, usando firstOrCreate para evitar duplicados
                     $pago = Pagos::firstOrCreate(
                         [
@@ -134,9 +153,9 @@ class MercadoPagoWebhookController extends Controller
                             'forma_pago' => $formaPagoId
                         ],
                         [
-                            'id_usuario' => \App\Models\User::where('email','like', '%pago%')->value('id') ?? 1, // Ajustar según tu lógica
-                            'importe' => $payment->transaction_amount,
-                            'comentario' => 'Pago confirmado via webhook. Payment ID: ' . $paymentId
+                            'id_usuario' => $this->resolverUsuarioSistemaId(),
+                            'importe' => $montoNeto,
+                            'comentario' => $comentario
                         ]
                     );
 

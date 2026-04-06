@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Pagos extends Model
 {
@@ -42,6 +43,14 @@ class Pagos extends Model
     public function formaPago2(): BelongsTo
     {
         return $this->belongsTo(FormaPago::class, 'forma_pago2');
+    }
+
+    /**
+     * Nota de Crédito emitida a partir de este pago (si existe)
+     */
+    public function notaCredito(): HasOne
+    {
+        return $this->hasOne(Pagos::class, 'afip_nc_de_pago_id');
     }
 
     /**

@@ -76,6 +76,34 @@
         {{-- Envío de recibo/factura por WhatsApp --}}
         @livewire('enviar-comprobantes-whatsapp', ['pagoId' => $datos->id, 'idServicioPagar' => $datos->id_servicio_pagar])
         <hr>
+
+        <article>
+            <h5 style="color: #d32f2f;">Zona de peligro</h5>
+            <p>Eliminar este pago revierte el servicio relacionado al estado <strong>IMPAGO</strong>.</p>
+
+            @if(!in_array(auth()->user()->role_id, [2, 3]))
+                <p style="background: #fff0f0; color: #8a1f1f; padding: 10px; border-radius: 5px;">
+                    No tienes permisos para eliminar pagos. Solo Admin o Super.
+                </p>
+            @elseif($datos->afip_cae)
+                <p style="background: #fff0f0; color: #8a1f1f; padding: 10px; border-radius: 5px;">
+                    No puedes eliminar este pago porque tiene factura AFIP (CAE: {{$datos->afip_cae}}).
+                </p>
+            @else
+                <form method="POST" action="{{route('pagos.destroy', ['pago' => $datos->id])}}" style="display: inline;">
+                    @csrf
+                    @method('DELETE')
+                    <button
+                        type="submit"
+                        style="background: #d32f2f; border: none; color: white; padding: 10px 16px; border-radius: 6px; cursor: pointer;"
+                        onclick="return confirm('¿Estás seguro de eliminar este pago? El servicio volverá a estado IMPAGO.');"
+                    >
+                        Eliminar pago
+                    </button>
+                </form>
+            @endif
+        </article>
+        <hr>
         
         {{-- <footer>
             <form action="{{route('PagoPDF',[$datos->id_servicio_pagar])}}" method="">

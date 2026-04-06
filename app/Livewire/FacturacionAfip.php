@@ -7,6 +7,7 @@ use App\Models\Pagos;
 use App\Models\Empresa;
 use App\Services\AfipService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
 
@@ -37,6 +38,9 @@ class FacturacionAfip extends Component
     // Datos de factura generada
     public $facturaGenerada = false;
     public $urlPdfFactura = '';
+
+    // Modal Nota de Crédito
+    public $showNcModal = false;
 
     protected $rules = [
         'puntoVenta' => 'required|integer|min:1',
@@ -78,7 +82,7 @@ class FacturacionAfip extends Component
      */
     public function cargarPago()
     {
-        $this->pago = Pagos::with(['servicioPagar.cliente', 'servicioPagar.servicio', 'usuario', 'formaPago', 'formaPago2'])
+        $this->pago = Pagos::with(['servicioPagar.cliente', 'servicioPagar.servicio', 'usuario', 'formaPago', 'formaPago2', 'notaCredito'])
             ->find($this->pagoId);
             
         if (!$this->pago) {
@@ -158,6 +162,111 @@ class FacturacionAfip extends Component
     {
         $this->showFacturarModal = false;
         $this->errorMessage = '';
+    }
+
+    /**
+     * Abrir modal de Nota de Crédito
+     */
+    public function openNcModal()
+    {
+        if (!$this->certificadosValidos) {
+            $this->errorMessage = 'No se puede emitir NC. ' . $this->certificadosError;
+            return;
+        }
+
+        if (!$this->pago->tieneFacturaAfip()) {
+            $this->errorMessage = 'El pago no tiene factura AFIP';
+            return;
+        }
+
+        if ($this->pago->notaCredito) {
+            $this->errorMessage = 'Este pago ya tiene una Nota de Crédito generada';
+            return;
+        }
+
+        $this->showNcModal = true;
+        $this->errorMessage = '';
+        $this->successMessage = '';
+    }
+
+    /**
+     * Cerrar modal de Nota de Crédito
+     */
+    public function cerrarNcModal()
+    {
+        $this->showNcModal = false;
+        $this->errorMessage = '';
+    }
+
+    /**
+     * Generar Nota de Crédito AFIP para el pago actual
+     */
+    public function generarNotaCredito()
+    {
+        $this->loading = true;
+        $this->errorMessage = '';
+        $this->successMessage = '';
+
+        try {
+            if (!$this->certificadosValidos) {
+                throw new Exception('Certificados AFIP no válidos');
+            }
+
+            if (!$this->pago->tieneFacturaAfip()) {
+                throw new Exception('El pago no tiene factura AFIP');
+            }
+
+            if ($this->pago->notaCredito) {
+                throw new Exception('Este pago ya tiene una Nota de Crédito generada');
+            }
+
+            $afipService = new AfipService($this->empresa->id);
+            $resultado = $afipService->crearNotaCredito($this->pago);
+
+            if (!$resultado['success']) {
+                throw new Exception($resultado['error'] ?? 'Error al generar Nota de Crédito');
+            }
+
+            DB::transaction(function () use ($resultado) {
+                // Crear fila NC en pagos con importe negativo
+                Pagos::create([
+                    'id_servicio_pagar'        => $this->pago->id_servicio_pagar,
+                    'id_usuario'               => Auth::id(),
+                    'forma_pago'               => $this->pago->forma_pago,
+                    'importe'                  => -1 * abs($this->pago->total),
+                    'comentario'               => 'Nota de Crédito AFIP - CAE: ' . $resultado['cae'],
+                    'afip_cae'                 => $resultado['cae'],
+                    'afip_cae_vencimiento'     => $resultado['cae_vencimiento'],
+                    'afip_numero_comprobante'  => $resultado['numero_comprobante'],
+                    'afip_tipo_comprobante'    => $resultado['tipo_comprobante'],
+                    'afip_punto_venta'         => $this->pago->afip_punto_venta,
+                    'afip_nc_de_pago_id'       => $this->pago->id,
+                ]);
+
+                // Revertir el servicio a impago
+                $this->pago->servicioPagar->update(['estado' => 'impago']);
+            });
+
+            $this->cargarPago();
+            $this->showNcModal = false;
+            $this->successMessage = '¡Nota de Crédito generada! CAE: ' . $resultado['cae'] . '. El servicio volvió a estado IMPAGO.';
+
+            Log::info('Nota de Crédito AFIP generada', [
+                'pago_id'    => $this->pagoId,
+                'cae_nc'     => $resultado['cae'],
+                'tipo_nc'    => $resultado['tipo_comprobante'],
+            ]);
+
+        } catch (Exception $e) {
+            $this->errorMessage = 'Error al generar Nota de Crédito: ' . $e->getMessage();
+            Log::error('Error generando Nota de Crédito AFIP', [
+                'pago_id' => $this->pagoId,
+                'error'   => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+        } finally {
+            $this->loading = false;
+        }
     }
 
     /**

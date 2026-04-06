@@ -37,6 +37,14 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class PagosController extends Controller
 {
+    private const USUARIO_PAGO_ONLINE_EMAIL = 'pago.online@example.com';
+
+    private function resolverUsuarioSistemaId(): int
+    {
+        $idUsuarioPago = \App\Models\User::where('email', self::USUARIO_PAGO_ONLINE_EMAIL)->value('id');
+        return $idUsuarioPago ? (int) $idUsuarioPago : 0;
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -103,10 +111,6 @@ class PagosController extends Controller
             // FILTRO 2: Filtrar por empresa del cliente
             ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
                 $q->where('empresa_id', $empresaId);
-            })
-            // FILTRO 3: Filtrar por empresa del usuario
-            ->whereHas('usuario', function($q) use ($empresaId) {
-                $q->where('empresa_id', $empresaId);
             });
 
         // Aplicar filtro de fecha inicio
@@ -133,15 +137,36 @@ class PagosController extends Controller
             $query->where('id_usuario', $usuarioId);
         }
 
+        $tiposFacturaAfip = [1, 6, 11];
+        $tiposNotaCreditoAfip = [3, 8, 13];
+
         // Obtener resultados ordenados por fecha de pago descendente y mapear campos calculados
-        $datos = $query->orderByDesc('created_at')->get()->map(function($pago) {
+        $datos = $query->orderByDesc('created_at')->get()->map(function($pago) use ($tiposFacturaAfip, $tiposNotaCreditoAfip) {
+            $tipoComprobante = (int) ($pago->afip_tipo_comprobante ?? 0);
+
             $pago->idServicioPagar = $pago->servicioPagar->id ?? null;
-            $pago->nombreUsuario = $pago->usuario->name ?? null;
+            $pago->nombreUsuario = $pago->usuario->name ?? ((int) $pago->id_usuario === 0 ? 'Pago Online' : 'Desconocido');
             $pago->Servicio = $pago->servicioPagar->servicio->nombre ?? null;
             $pago->Cliente = $pago->servicioPagar->cliente->nombre ?? null;
             $pago->idCliente = $pago->servicioPagar->cliente->id ?? null;
             $pago->formaPago = $pago->formaPago->nombre ?? null;
             $pago->formaPago2 = $pago->formaPago2->nombre ?? null;
+            $pago->tipoComprobanteResumen = 'Sin AFIP';
+            $pago->tipoComprobanteColor = '#757575';
+
+            if (!empty($pago->afip_cae)) {
+                if (in_array($tipoComprobante, $tiposNotaCreditoAfip, true)) {
+                    $pago->tipoComprobanteResumen = 'Nota de Crédito';
+                    $pago->tipoComprobanteColor = '#d32f2f';
+                } elseif (in_array($tipoComprobante, $tiposFacturaAfip, true)) {
+                    $pago->tipoComprobanteResumen = 'Factura';
+                    $pago->tipoComprobanteColor = '#2e7d32';
+                } else {
+                    $pago->tipoComprobanteResumen = $pago->tipo_comprobante_nombre;
+                    $pago->tipoComprobanteColor = '#1565c0';
+                }
+            }
+
             return $pago;
         });
 
@@ -154,10 +179,6 @@ class PagosController extends Controller
             })
             // FILTRO 2: Filtrar por empresa del cliente
             ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
-                $q->where('empresa_id', $empresaId);
-            })
-            // FILTRO 3: Filtrar por empresa del usuario
-            ->whereHas('usuario', function($q) use ($empresaId) {
                 $q->where('empresa_id', $empresaId);
             });
 
@@ -241,10 +262,6 @@ class PagosController extends Controller
             // FILTRO 2: Filtrar por empresa del cliente
             ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
                 $q->where('empresa_id', $empresaId);
-            })
-            // FILTRO 3: Filtrar por empresa del usuario
-            ->whereHas('usuario', function($q) use ($empresaId) {
-                $q->where('empresa_id', $empresaId);
             });
 
         // Aplicar filtro de fecha inicio
@@ -278,7 +295,7 @@ class PagosController extends Controller
             ->map(function($resumen) {
                 return (object)[
                     'usuarioId' => $resumen->id_usuario,
-                    'nombreUsuario' => $resumen->usuario->name ?? 'Desconocido',
+                    'nombreUsuario' => $resumen->usuario->name ?? ((int) $resumen->id_usuario === 0 ? 'Pago Online' : 'Desconocido'),
                     'cantidadPagos' => $resumen->cantidadPagos,
                     'totalImporte1' => $resumen->totalImporte1,
                     'totalImporte2' => $resumen->totalImporte2,
@@ -295,10 +312,6 @@ class PagosController extends Controller
             })
             // FILTRO 2: Filtrar por empresa del cliente
             ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
-                $q->where('empresa_id', $empresaId);
-            })
-            // FILTRO 3: Filtrar por empresa del usuario
-            ->whereHas('usuario', function($q) use ($empresaId) {
                 $q->where('empresa_id', $empresaId);
             });
 
@@ -324,41 +337,66 @@ class PagosController extends Controller
             $queryResumenFacturacion->where('id_usuario', $usuarioId);
         }
 
-        // Calcular totales facturados y no facturados
+        // Calcular totales de facturas, notas de credito y no facturados
         $pagosParaFacturacion = $queryResumenFacturacion->get();
-        
-        $facturados = $pagosParaFacturacion->filter(function($pago) {
-            return !empty($pago->afip_cae);
+
+        $sumarTotales = function ($coleccion) {
+            return $coleccion->sum(function($pago) {
+                return $pago->importe + ($pago->importe2 ?? 0);
+            });
+        };
+
+        $facturas = $pagosParaFacturacion->filter(function($pago) use ($tiposFacturaAfip) {
+            return !empty($pago->afip_cae) && in_array((int) ($pago->afip_tipo_comprobante ?? 0), $tiposFacturaAfip, true);
         });
-        
+
+        $notasCredito = $pagosParaFacturacion->filter(function($pago) use ($tiposNotaCreditoAfip) {
+            return !empty($pago->afip_cae) && in_array((int) ($pago->afip_tipo_comprobante ?? 0), $tiposNotaCreditoAfip, true);
+        });
+
         $noFacturados = $pagosParaFacturacion->filter(function($pago) {
             return empty($pago->afip_cae);
         });
 
+        $totalFacturas = $sumarTotales($facturas);
+        $totalNotasCredito = $sumarTotales($notasCredito);
+        $totalNoFacturados = $sumarTotales($noFacturados);
+        $totalNeto = $sumarTotales($pagosParaFacturacion);
+        $basePorcentajeFacturacion = $totalFacturas + abs($totalNotasCredito) + $totalNoFacturados;
+
         $resumenFacturacion = [
-            'facturados' => (object)[
-                'cantidad' => $facturados->count(),
-                'total' => $facturados->sum(function($pago) {
-                    return $pago->importe + ($pago->importe2 ?? 0);
-                }),
-                'promedio' => $facturados->count() > 0 
-                    ? $facturados->sum(function($pago) { return $pago->importe + ($pago->importe2 ?? 0); }) / $facturados->count() 
+            'facturas' => (object)[
+                'cantidad' => $facturas->count(),
+                'total' => $totalFacturas,
+                'promedio' => $facturas->count() > 0
+                    ? $totalFacturas / $facturas->count()
+                    : 0
+            ],
+            'notasCredito' => (object)[
+                'cantidad' => $notasCredito->count(),
+                'total' => $totalNotasCredito,
+                'promedio' => $notasCredito->count() > 0
+                    ? $totalNotasCredito / $notasCredito->count()
                     : 0
             ],
             'noFacturados' => (object)[
                 'cantidad' => $noFacturados->count(),
-                'total' => $noFacturados->sum(function($pago) {
-                    return $pago->importe + ($pago->importe2 ?? 0);
-                }),
-                'promedio' => $noFacturados->count() > 0 
-                    ? $noFacturados->sum(function($pago) { return $pago->importe + ($pago->importe2 ?? 0); }) / $noFacturados->count() 
+                'total' => $totalNoFacturados,
+                'promedio' => $noFacturados->count() > 0
+                    ? $totalNoFacturados / $noFacturados->count()
+                    : 0
+            ],
+            'neto' => (object)[
+                'cantidad' => $pagosParaFacturacion->count(),
+                'total' => $totalNeto,
+                'promedio' => $pagosParaFacturacion->count() > 0
+                    ? $totalNeto / $pagosParaFacturacion->count()
                     : 0
             ],
             'total' => (object)[
                 'cantidad' => $pagosParaFacturacion->count(),
-                'total' => $pagosParaFacturacion->sum(function($pago) {
-                    return $pago->importe + ($pago->importe2 ?? 0);
-                })
+                'total' => $totalNeto,
+                'basePorcentaje' => $basePorcentajeFacturacion
             ]
         ];
 
@@ -396,7 +434,10 @@ class PagosController extends Controller
             
 
                 //agregar a los usuarios el usuario email like %pago% que es para todas las empresass
-                $usuarios->push(\App\Models\User::where('email', 'like', '%pago%')->first());
+                $usuarioPagoOnline = \App\Models\User::where('email', self::USUARIO_PAGO_ONLINE_EMAIL)->first();
+                if ($usuarioPagoOnline && !$usuarios->contains('id', $usuarioPagoOnline->id)) {
+                    $usuarios->push($usuarioPagoOnline);
+                }
 
                 return view('pagos.pagos', compact('pagos', 'resumenPagos', 'resumenPorUsuario', 'resumenFacturacion', 'fechaInicio', 'fechaFin', 'buscar', 'usuarios', 'usuarioId'))->render();
     }
@@ -417,16 +458,13 @@ class PagosController extends Controller
             ->whereHas('servicioPagar', function($q) use ($idServicioPagar) {
                 $q->where('id', $idServicioPagar);
             })
+            ->whereNull('afip_nc_de_pago_id')
             // FILTRO 1: Filtrar por empresa del servicio
             ->whereHas('servicioPagar.servicio', function($q) use ($empresaId) {
                 $q->where('empresa_id', $empresaId);
             })
             // FILTRO 2: Filtrar por empresa del cliente
             ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
-                $q->where('empresa_id', $empresaId);
-            })
-            // FILTRO 3: Filtrar por empresa del usuario
-            ->whereHas('usuario', function($q) use ($empresaId) {
                 $q->where('empresa_id', $empresaId);
             })
             ->first();
@@ -438,7 +476,7 @@ class PagosController extends Controller
         // Agregar campos calculados
         $datos = $pago;
         $datos->idServicioPagar = $pago->servicioPagar->id ?? null;
-        $datos->nombreUsuario = $pago->usuario->name ?? null;
+        $datos->nombreUsuario = $pago->usuario->name ?? ((int) $pago->id_usuario === 0 ? 'Pago Online' : 'Desconocido');
         $datos->Servicio = $pago->servicioPagar->servicio->nombre ?? null;
         $datos->Cliente = $pago->servicioPagar->cliente->nombre ?? null;
         $datos->idCliente = $pago->servicioPagar->cliente->id ?? null;
@@ -463,16 +501,13 @@ class PagosController extends Controller
             ->whereHas('servicioPagar', function($q) use ($idServicioPagar) {
                 $q->where('id', $idServicioPagar);
             })
+            ->whereNull('afip_nc_de_pago_id')
             // FILTRO 1: Filtrar por empresa del servicio
             ->whereHas('servicioPagar.servicio', function($q) use ($empresaId) {
                 $q->where('empresa_id', $empresaId);
             })
             // FILTRO 2: Filtrar por empresa del cliente
             ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
-                $q->where('empresa_id', $empresaId);
-            })
-            // FILTRO 3: Filtrar por empresa del usuario
-            ->whereHas('usuario', function($q) use ($empresaId) {
                 $q->where('empresa_id', $empresaId);
             })
             ->first();
@@ -484,7 +519,7 @@ class PagosController extends Controller
         // Agregar campos calculados
         $datos = $pago;
         $datos->idServicioPagar = $pago->servicioPagar->id ?? null;
-        $datos->nombreUsuario = $pago->usuario->name ?? null;
+        $datos->nombreUsuario = $pago->usuario->name ?? ((int) $pago->id_usuario === 0 ? 'Pago Online' : 'Desconocido');
         $datos->Servicio = $pago->servicioPagar->servicio->nombre ?? null;
         $datos->Cliente = $pago->servicioPagar->cliente->nombre ?? null;
         $datos->idCliente = $pago->servicioPagar->cliente->id ?? null;
@@ -546,10 +581,6 @@ class PagosController extends Controller
             ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
                 $q->where('empresa_id', $empresaId);
             })
-            // FILTRO 3: Filtrar por empresa del usuario
-            ->whereHas('usuario', function($q) use ($empresaId) {
-                $q->where('empresa_id', $empresaId);
-            })
             ->first();
 
         if (!$pago) {
@@ -559,7 +590,7 @@ class PagosController extends Controller
         // Agregar campos calculados
         $datos = $pago;
         $datos->idServicioPagar = $pago->servicioPagar->id ?? null;
-        $datos->nombreUsuario = $pago->usuario->name ?? null;
+        $datos->nombreUsuario = $pago->usuario->name ?? ((int) $pago->id_usuario === 0 ? 'Pago Online' : 'Desconocido');
         $datos->Servicio = $pago->servicioPagar->servicio->nombre ?? null;
         $datos->Cliente = $pago->servicioPagar->cliente->nombre ?? null;
         $datos->idCliente = $pago->servicioPagar->cliente->id ?? null;
@@ -704,9 +735,76 @@ class PagosController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Pagos $pagos)
+    public function destroy(Pagos $pago)
     {
-        //
+        try {
+            $usuario = Auth::user();
+
+            // Solo Admin (2) o Super (3) pueden eliminar pagos
+            if (!in_array($usuario->role_id, [2, 3])) {
+                return redirect()->back()
+                    ->withErrors(['No tienes permisos para eliminar pagos. Solo usuarios Admin o Super pueden hacerlo.']);
+            }
+
+            $pago->load(['servicioPagar.servicio']);
+            $servicioPagar = $pago->servicioPagar;
+
+            if (!$servicioPagar) {
+                return redirect()->back()
+                    ->withErrors(['El pago no tiene un servicio relacionado o ya no existe.']);
+            }
+
+            if (!$servicioPagar->servicio) {
+                return redirect()->back()
+                    ->withErrors(['No se pudo determinar la empresa del servicio asociado al pago.']);
+            }
+
+            // Multi-tenant: validar que el pago pertenezca a la empresa del usuario
+            if ((int) $servicioPagar->servicio->empresa_id !== (int) $usuario->empresa_id) {
+                return redirect()->back()
+                    ->withErrors(['No puedes eliminar pagos de otra empresa.']);
+            }
+
+            // Regla AFIP: si hay CAE, no permitir eliminar
+            if ($pago->tieneFacturaAfip()) {
+                return redirect()->back()
+                    ->withErrors(['No se puede eliminar este pago porque tiene factura AFIP (CAE: ' . $pago->afip_cae . ').']);
+            }
+
+            DB::transaction(function () use ($pago, $servicioPagar, $usuario) {
+                $servicioPagar->update([
+                    'estado' => 'impago',
+                ]);
+
+                $pagoId = $pago->id;
+                $servicioPagarId = $servicioPagar->id;
+
+                $pago->delete();
+
+                \Log::info('Pago eliminado y servicio revertido a impago', [
+                    'usuario_id' => $usuario->id,
+                    'usuario_nombre' => $usuario->name,
+                    'role_id' => $usuario->role_id,
+                    'empresa_id' => $usuario->empresa_id,
+                    'pago_id' => $pagoId,
+                    'servicio_pagar_id' => $servicioPagarId,
+                    'fecha_eliminacion' => now(),
+                ]);
+            });
+
+            return redirect()->route('Pagos')
+                ->with('status', 'Pago eliminado correctamente. El servicio fue revertido a IMPAGO.');
+        } catch (\Exception $e) {
+            \Log::error('Error al eliminar pago', [
+                'usuario_id' => Auth::id(),
+                'pago_id' => $pago->id ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return redirect()->back()
+                ->withErrors(['Error al eliminar el pago: ' . $e->getMessage()]);
+        }
     }
 
     /**
@@ -958,13 +1056,23 @@ class PagosController extends Controller
                 // Crear registro en la tabla pagos
                 // Buscar el id de forma de pago correspondiente a MercadoPago
                 $formaPagoId = \App\Models\FormaPago::where('nombre', 'like', '%mercadopago%')->value('id') ?? 1;
-                $idUsuarioPago = \App\Models\User::where('email','like', '%pago%')->value('id') ?? 1; // Ajustar según tu lógica
+                $idUsuarioPago = $this->resolverUsuarioSistemaId();
+                $montoBruto = (float) ($payment->transaction_amount ?? $servicioPagar->total);
+                $montoNeto = (float) ($payment->transaction_details->net_received_amount ?? $montoBruto);
+                $comision = $montoBruto - $montoNeto;
+                $comentario = sprintf(
+                    'Callback MP ID:%s Bruto:%.2f Neto:%.2f Comision:%.2f',
+                    $payment_id,
+                    $montoBruto,
+                    $montoNeto,
+                    $comision
+                );
                 Pagos::create([
                     'id_servicio_pagar' => $servicioPagar->id,
                     'id_usuario' => $idUsuarioPago,
                     'forma_pago' => $formaPagoId,
-                    'importe' => $servicioPagar->total,
-                    'comentario' => 'Pago procesado por MercadoPago. Payment ID: ' . $payment_id
+                    'importe' => $montoNeto,
+                    'comentario' => $comentario
                 ]);
 
                 return redirect()->route('panel')->with('success', 'Pago procesado exitosamente!');
