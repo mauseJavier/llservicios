@@ -276,25 +276,29 @@ class FacturacionAfip extends Component
      */
     protected function validarCompatibilidadComprobanteIVA()
     {
-        // Tipos de comprobante A (requieren que el receptor sea Responsable Inscripto)
         $tiposA = [1, 2, 3, 4]; // Factura A, Nota Débito A, Nota Crédito A, Recibo A
-        
-        // Tipos de comprobante B (requieren consumidor final o monotributista)
         $tiposB = [6, 7, 8, 9]; // Factura B, Nota Débito B, Nota Crédito B, Recibo B
-        
-        // Tipos de comprobante C (exportación o casos especiales)
         $tiposC = [11, 12, 13]; // Factura C, Nota Débito C, Nota Crédito C
-        
-        // Condiciones IVA que requieren Factura A
-        $requierenFacturaA = [1, 6]; // Responsable Inscripto, Monotributo
-        
-        // Validación: Si el receptor es Responsable Inscripto, debe ser factura A
-        if (in_array($this->condicionIvaReceptorId, $requierenFacturaA) && !in_array($this->tipoComprobante, $tiposA)) {
-            throw new Exception('Para un Responsable Inscripto o Monotributista debe emitirse Factura A');
+
+        // Castear a int para evitar fallos de comparación estricta con valores string de Livewire
+        $tipoComprobante      = (int) $this->tipoComprobante;
+        $condicionIvaEmisor   = (int) ($this->empresa?->condicion_iva_id ?? 0);
+        $condicionIvaReceptor = (int) $this->condicionIvaReceptorId;
+        $emisoresMonotributo  = [6, 13, 16];
+        $requierenFacturaA    = [1, 6];
+
+        // Si el emisor es monotributista, debe emitir comprobantes C.
+        if (in_array($condicionIvaEmisor, $emisoresMonotributo, true) && !in_array($tipoComprobante, $tiposC, true)) {
+            throw new Exception('Para un emisor Monotributista debe emitirse comprobante C');
         }
-        
-        // Validación: Si es Consumidor Final (5), no puede ser factura A
-        if ($this->condicionIvaReceptorId == 5 && in_array($this->tipoComprobante, $tiposA)) {
+
+        // Si el emisor es Responsable Inscripto y el receptor también (RI o Monotributo), debe ser Factura A.
+        if ($condicionIvaEmisor === 1 && in_array($condicionIvaReceptor, $requierenFacturaA, true) && !in_array($tipoComprobante, $tiposA, true)) {
+            throw new Exception('Para emisor Responsable Inscripto y receptor Responsable Inscripto/Monotributo debe emitirse Factura A');
+        }
+
+        // Consumidor Final no puede recibir Factura A.
+        if ($condicionIvaReceptor === 5 && in_array($tipoComprobante, $tiposA, true)) {
             throw new Exception('Para un Consumidor Final no se puede emitir Factura A. Use Factura B o C');
         }
     }

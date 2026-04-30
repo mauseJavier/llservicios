@@ -161,7 +161,7 @@
                         </td>
                     </tr>
                 </table>
-                <p><strong>Fecha de Emisión:</strong> {{ \Carbon\Carbon::parse($pago->created_at)->format('d/m/Y') }}</p>
+                <p><strong>Fecha de Emisión:</strong> {{ \Carbon\Carbon::parse($pago->updated_at)->format('d/m/Y') }}</p>
                 <p><strong>CUIT:</strong> {{ $empresa->cuit }}</p>
                 @if($empresa->ingresos_brutos)
                     <p><strong>Ingresos Brutos:</strong> {{ $empresa->ingresos_brutos }}</p>
@@ -175,8 +175,8 @@
             <td colspan="3">
                 <table class="row-table">
                     <tr>
-                        <td class="w-33"><strong>Período Facturado Desde:</strong> {{ \Carbon\Carbon::parse($pago->created_at)->format('d/m/Y') }}</td>
-                        <td class="w-25"><strong>Hasta:</strong> {{ \Carbon\Carbon::parse($pago->created_at)->format('d/m/Y') }}</td>
+                        <td class="w-33"><strong>Período Facturado Desde:</strong> {{ \Carbon\Carbon::parse($pago->updated_at)->format('d/m/Y') }}</td>
+                        <td class="w-25"><strong>Hasta:</strong> {{ \Carbon\Carbon::parse($pago->updated_at)->format('d/m/Y') }}</td>
                         <td class="w-41"><strong>Fecha de Vto. para el pago:</strong> {{ \Carbon\Carbon::parse($pago->afip_cae_vencimiento)->format('d/m/Y') }}</td>
                     </tr>
                 </table>

@@ -87,7 +87,7 @@
 				<p class="text-center">COD {{ str_pad($pago->afip_tipo_comprobante ?? 0, 2, '0', STR_PAD_LEFT) }}</p>
 				<p>P.V: {{ str_pad($pago->afip_punto_venta ?? 0, 4, '0', STR_PAD_LEFT) }}</p>
 				<p>Nro: {{ str_pad($pago->afip_numero_comprobante ?? 0, 8, '0', STR_PAD_LEFT) }}</p>
-				<p>Fecha: {{ \Carbon\Carbon::parse($pago->created_at)->format('d/m/Y') }}</p>
+				<p>Fecha: {{ \Carbon\Carbon::parse($pago->updated_at)->format('d/m/Y') }}</p>
 				<p>Concepto: {{ $datos->concepto ?? 'Servicios' }}</p>
 			</td>
 		</tr>

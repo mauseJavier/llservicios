@@ -244,7 +244,7 @@ class EnviarComprobantesWhatsapp extends Component
     private function generarQrAfipBase64ParaPdf($pago, $empresa, $cliente, $datos): ?string
     {
         try {
-            $fechaEmision = \Carbon\Carbon::parse($pago->created_at)->format('Y-m-d');
+            $fechaEmision = \Carbon\Carbon::parse($pago->updated_at)->format('Y-m-d');
             $importeTotal = (float) (($datos->importe ?? 0) + ($datos->importe2 ?? 0));
             $dniNormalizado = $cliente?->dni ? ($cliente->dni) : null;
             $tipoDocRec = $dniNormalizado ? (strlen($dniNormalizado) === 11 ? 80 : 96) : null;
