@@ -59,15 +59,91 @@ class AfipService
                 continue;
             }
 
-            $certPath = storage_path('app/public/' . $cuitCandidate . '/cert.crt');
-            $keyPath = storage_path('app/public/' . $cuitCandidate . '/key.key');
+            $certPath = $this->resolveConfiguredCredentialPath(
+                'arca.cert_path_pattern',
+                storage_path('app/public/%s/cert.crt'),
+                $cuitCandidate
+            );
+
+            $keyPath = $this->resolveConfiguredCredentialPath(
+                'arca.key_path_pattern',
+                storage_path('app/public/%s/key.key'),
+                $cuitCandidate
+            );
+
+            // Log para verificar las rutas que se están intentando usar
+            Log::info('Verificando certificados en:', ['certPath' => $certPath, 'keyPath' => $keyPath]);
 
             if (file_exists($certPath) && file_exists($keyPath)) {
+                // Validar que los archivos no estén vacíos
+                if (trim((string) @file_get_contents($certPath)) === '') {
+                    throw new Exception('El archivo cert.crt está vacío: ' . $certPath);
+                }
+
+                if (trim((string) @file_get_contents($keyPath)) === '') {
+                    throw new Exception('El archivo key.key está vacío: ' . $keyPath);
+                }
+
                 return [$certPath, $keyPath];
+            }
+
+            // Log si los archivos no existen
+            if (!file_exists($certPath)) {
+                Log::warning('El archivo cert.crt no existe en la ruta esperada', ['path' => $certPath]);
+            }
+
+            if (!file_exists($keyPath)) {
+                Log::warning('El archivo key.key no existe en la ruta esperada', ['path' => $keyPath]);
             }
         }
 
         throw new Exception('Certificados ARCA no encontrados para CUIT ' . $this->empresa->cuit);
+    }
+
+    /**
+     * Resuelve una ruta de credencial desde config/env y la devuelve absoluta.
+     */
+    protected function resolveConfiguredCredentialPath(string $configKey, string $defaultPattern, string $cuit): string
+    {
+        $pattern = (string) config($configKey, $defaultPattern);
+        $resolved = str_contains($pattern, '%s') ? sprintf($pattern, $cuit) : $pattern;
+
+        return $this->toAbsolutePath($resolved);
+    }
+
+    /**
+     * Convierte una ruta relativa del proyecto a ruta absoluta.
+     */
+    protected function toAbsolutePath(string $path): string
+    {
+        if ($path === '') {
+            return $path;
+        }
+
+        if (str_starts_with($path, '/')) {
+            return $path;
+        }
+
+        // Soporte para rutas tipo C:\... en entornos Windows.
+        if (preg_match('/^[A-Za-z]:[\\\\\/]/', $path) === 1) {
+            return $path;
+        }
+
+        return base_path($path);
+    }
+
+    /**
+     * Resuelve el path del CSR usando la misma base configurada para key_path_pattern.
+     */
+    protected function resolveConfiguredCsrPath(string $cuit): string
+    {
+        $keyPath = $this->resolveConfiguredCredentialPath(
+            'arca.key_path_pattern',
+            storage_path('app/public/%s/key.key'),
+            $cuit
+        );
+
+        return dirname($keyPath) . DIRECTORY_SEPARATOR . 'request.csr';
     }
 
     /**
@@ -81,19 +157,40 @@ class AfipService
             return;
         }
 
-        $targetDir = storage_path('app/public/' . $cuitNormalized);
-        $targetCertPath = $targetDir . '/cert.crt';
-        $targetKeyPath = $targetDir . '/key.key';
+        $targetCertPath = $this->resolveConfiguredCredentialPath(
+            'arca.cert_path_pattern',
+            storage_path('app/public/%s/cert.crt'),
+            $cuitNormalized
+        );
 
-        if (!is_dir($targetDir)) {
-            @mkdir($targetDir, 0775, true);
+        $targetKeyPath = $this->resolveConfiguredCredentialPath(
+            'arca.key_path_pattern',
+            storage_path('app/public/%s/key.key'),
+            $cuitNormalized
+        );
+
+        $targetCertDir = dirname($targetCertPath);
+        $targetKeyDir = dirname($targetKeyPath);
+
+        if (!is_dir($targetCertDir)) {
+            @mkdir($targetCertDir, 0775, true);
         }
 
-        if (realpath($sourceCertPath) !== realpath($targetCertPath) && is_readable($sourceCertPath)) {
+        if (!is_dir($targetKeyDir)) {
+            @mkdir($targetKeyDir, 0775, true);
+        }
+
+        $sourceCertRealPath = realpath($sourceCertPath) ?: $sourceCertPath;
+        $targetCertRealPath = realpath($targetCertPath) ?: $targetCertPath;
+
+        if ($sourceCertRealPath !== $targetCertRealPath && is_readable($sourceCertPath)) {
             @copy($sourceCertPath, $targetCertPath);
         }
 
-        if (realpath($sourceKeyPath) !== realpath($targetKeyPath) && is_readable($sourceKeyPath)) {
+        $sourceKeyRealPath = realpath($sourceKeyPath) ?: $sourceKeyPath;
+        $targetKeyRealPath = realpath($targetKeyPath) ?: $targetKeyPath;
+
+        if ($sourceKeyRealPath !== $targetKeyRealPath && is_readable($sourceKeyPath)) {
             @copy($sourceKeyPath, $targetKeyPath);
         }
     }
@@ -572,6 +669,14 @@ class AfipService
             [$certPath, $keyPath] = $this->resolveCredentialPaths();
             $this->syncCredentialsToNormalizedPath($certPath, $keyPath);
 
+            log::info('Certificados encontrados para ARCA', [
+                'empresa_id' => $this->empresa->id,
+                'certPath' => $certPath,
+                'keyPath' => $keyPath
+            ]);
+
+
+
             // Evita falsos positivos por archivos existentes pero vacíos/corruptos.
             if (!is_readable($certPath) || trim((string) @file_get_contents($certPath)) === '') {
                 return [
@@ -596,6 +701,12 @@ class AfipService
                         'message' => 'No se pudo obtener TA de WSAA. Revisa certificado, clave y autorización del servicio wsfe'
                     ];
                 }
+
+                log ::info('TA obtenido de WSAA', [
+                    'empresa_id' => $this->empresa->id,
+                    'ta_expiration' => $ta['expiration'] ?? null
+                ]);
+
             } catch (Exception $wsaaException) {
                 $wsaaMessage = (string) $wsaaException->getMessage();
                 $taVigente = stripos($wsaaMessage, 'TA valido') !== false
@@ -609,6 +720,12 @@ class AfipService
 
             // Intentar obtener tipos de comprobantes (verifica conectividad)
             $types = ArcaWsfev1::getInvoiceTypes($this->empresa->cuit);
+
+            log::info('Tipos de comprobantes obtenidos de ARCA', [
+                'empresa_id' => $this->empresa->id,
+                'tipos_comprobantes' => $types
+            ]);     
+
 
             if (!$types) {
                 return [
@@ -639,6 +756,8 @@ class AfipService
     public function generarCertificadosDesarrollo(array $data)
     {
         try {
+            $normalizedCuit = preg_replace('/\D+/', '', (string) $this->empresa->cuit) ?: (string) $this->empresa->cuit;
+
             $dn = [
                 'organizationName' => $data['organizationName'] ?? $this->empresa->nombre,
                 'commonName' => $data['commonName'] ?? 'SistemaFacturacion',
@@ -661,7 +780,7 @@ class AfipService
             return [
                 'success' => true,
                 'message' => 'CSR generado. Descárgalo y sube a ARCA para obtener cert.crt',
-                'csr_path' => 'storage/app/public/' . $this->empresa->cuit . '/request.csr'
+                'csr_path' => $this->resolveConfiguredCsrPath($normalizedCuit)
             ];
         } catch (Exception $e) {
             Log::error('Error generando CSR', [
