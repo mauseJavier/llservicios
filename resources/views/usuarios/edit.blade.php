@@ -68,7 +68,7 @@
         id="afip_punto_venta"
         name="afip_punto_venta"
         data-current="{{ $usuario->afip_punto_venta }}"
-        data-url-base="{{ url('/afip/puntos-venta') }}"
+        data-url-base="{{ route('afip.puntos-venta.empresa', ['empresaId' => '__EMPRESA__'], false) }}"
       >
         <option value="">Seleccionar...</option>
         @foreach ($puntosVenta as $puntoVenta)
@@ -181,7 +181,8 @@
       if (puntosVentaError) puntosVentaError.textContent = '';
 
       try {
-        const response = await fetch(`${urlBase}/${empresaId}`);
+        const endpoint = urlBase.replace('__EMPRESA__', encodeURIComponent(empresaId));
+        const response = await fetch(endpoint);
         const payload = await response.json();
 
         if (payload.success && Array.isArray(payload.data) && payload.data.length > 0) {
