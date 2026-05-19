@@ -1,29 +1,18 @@
-
-# services:
-#   localllservicios:
-#     #build:
-#     #  context: .
-#     #  dockerfile: Dockerfile
-#     image: shinsenter/laravel:latest
-#     container_name: localllservicios
-#     volumes:
-#       - .:/var/www/html
-#     networks:
-#       - redPrincipal
-     
-# networks:
-#   redPrincipal:
-#     external: true
-
-
 services:
-  localllservicios:
+  localllservicios-v2:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: localllservicios
+    image: localllservicios-v2:local
+    container_name: localllservicios-v2
     volumes:
-      - .:/var/www/html
+      - ./.env:/var/www/html/.env:ro
+      - ./storage:/var/www/html/storage
+      - ./app:/var/www/html/app
+      - ./resources:/var/www/html/resources
+      - ./routes:/var/www/html/routes
+      - ./config:/var/www/html/config
+      - ./public:/var/www/html/public
     networks:
       - redPrincipal
     restart: always
@@ -33,59 +22,88 @@ services:
     depends_on:
       - mariadb
 
-  localllservicios-scheduler:
-    image: shinsenter/laravel:latest
-    container_name: localllservicios-scheduler
+  localllfactura-scheduler-v2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: localllservicios-v2:local
+    container_name: localllservicios-scheduler-v2
     volumes:
-      - .:/var/www/html
+      - ./.env:/var/www/html/.env:ro
+      - ./storage:/var/www/html/storage
     entrypoint: ["/bin/sh", "-c", "chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache && while true; do php /var/www/html/artisan schedule:run --no-interaction & sleep 60; done"]
     networks:
       - redPrincipal
     restart: always
-    #QUITAR EL SERVICIO DE MARIA DB 
     depends_on:
       - mariadb
 
-  localllservicios-queue-worker:
-    image: shinsenter/laravel:latest
-    container_name: localllservicios-queue-worker
+  localllfactura-queue-worker-v2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: localllservicios-v2:local
+    container_name: localllservicios-queue-worker-v2
     volumes:
-      - .:/var/www/html
-    entrypoint: ["/bin/sh", "-c", "chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache && php /var/www/html/artisan queue:work"]
+      - ./.env:/var/www/html/.env:ro
+      - ./storage:/var/www/html/storage
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ ! -f /tmp/permissions_set ]; then
+          chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+          chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+          touch /tmp/permissions_set
+        fi
+        # Loop infinito para auto-reinicio
+        while true; do
+          php /var/www/html/artisan queue:work --verbose \
+            --sleep=3 \
+            --tries=3 \
+            --max-time=3600 \
+            --timeout=300 \
+            --memory=512 \
+            --queue=default,emails,notifications \
+            --verbose
+          echo "Worker stopped. Restarting in 5 seconds..."
+          sleep 5
+        done
     networks:
       - redPrincipal
     restart: always
-    #QUITAR EL SERVICIO DE MARIA DB 
-    depends_on:
-      - mariadb
-  #QUITAR EL SERVICIO DE MARIA DB 
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -q 'queue:work' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   mariadb:
     image: mariadb:latest
     container_name: mariadb
     environment:
-      MYSQL_ROOT_PASSWORD: root  # Cambia esto a una contraseña segura
-      MYSQL_DATABASE: localllservicios  # Nombre de la base de datos
-      MYSQL_USER: root  # Usuario de la base de datos
-      MYSQL_PASSWORD: root  # Contraseña del usuario
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: localllservicios
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
     volumes:
       - mariadb_data:/var/lib/mysql
     networks:
       - redPrincipal
     restart: always
 
-# QUITAR EL SERVICIO DE PHPMYADMIN
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
     container_name: phpmyadmin
     environment:
-      PMA_HOST: mariadb  # Nombre del servicio de MariaDB
-      PMA_USER: root  # Usuario de la base de datos
-      PMA_PASSWORD: root  # Contraseña del usuario
+      PMA_HOST: mariadb
+      PMA_USER: root
+      PMA_PASSWORD: root
     ports:
-      - "8080:80"  # Puerto para acceder a phpMyAdmin
+      - "8080:80"
     networks:
       - redPrincipal
     restart: always
+  
 
 volumes:
   mariadb_data:
@@ -93,4 +111,3 @@ volumes:
 networks:
   redPrincipal:
     external: true
-

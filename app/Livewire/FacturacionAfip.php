@@ -96,8 +96,16 @@ class FacturacionAfip extends Component
     public function cargarEmpresaConfig()
     {
         $user = Auth::user();
-        if ($user && $user->empresa_id) {
-            $this->empresa = Empresa::find($user->empresa_id);
+        $empresaId = null;
+
+        if ($this->pago?->usuario?->empresa_id) {
+            $empresaId = $this->pago->usuario->empresa_id;
+        } elseif ($user && $user->empresa_id) {
+            $empresaId = $user->empresa_id;
+        }
+
+        if ($empresaId) {
+            $this->empresa = Empresa::find($empresaId);
         }
     }
 
@@ -119,7 +127,9 @@ class FacturacionAfip extends Component
                 return;
             }
 
-            $afipService = new AfipService($this->empresa->id);
+            // Crear el servicio sin inicializar para evitar excepciones del constructor
+            // La validación real la hace verificarCertificados()
+            $afipService = new AfipService($this->empresa->id, false);
             $resultado = $afipService->verificarCertificados();
             
             $this->certificadosValidos = $resultado['success'];

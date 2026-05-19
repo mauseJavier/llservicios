@@ -79,7 +79,7 @@ class AfipController extends Controller
     }
 
     /**
-     * Generar certificados de AFIP mediante automatización
+     * Generar certificados de AFIP mediante ARCA (genera CSR)
      */
     public function generarCertificados(Request $request)
     {
@@ -93,31 +93,31 @@ class AfipController extends Controller
         $empresa = Auth::user()->empresa;
 
         try {
-            $afipService = new AfipService($empresa->id);
+            $afipService = new AfipService($empresa->id, false);
 
             $data = [
-                'cuit' => $empresa->cuit,
-                'username' => $request->input('username'),
-                'password' => $request->input('password'),
-                'alias' => $request->input('alias'),
+                'organizationName' => $empresa->nombre,
+                'commonName' => $request->input('alias'),
+                'email' => Auth::user()->email,
             ];
 
-            $resultado = $request->input('entorno') === 'prod'
-                ? $afipService->generarCertificadosProduccion($data)
-                : $afipService->generarCertificadosDesarrollo($data);
+            $resultado = $afipService->generarCertificadosDesarrollo($data);
 
             if ($resultado['success']) {
-                return redirect()->back()->with('success', 'Certificados de AFIP generados y guardados correctamente');
+                return redirect()->back()->with('success', 
+                    'CSR generado. Descárgalo desde: ' . $resultado['csr_path']);
             }
 
-            return redirect()->back()->with('error', 'Error al generar certificados: ' . $resultado['error']);
+            return redirect()->back()->with('error', 
+                'Error: ' . $resultado['error']);
         } catch (Exception $e) {
-            Log::error('Error al generar certificados AFIP', [
+            Log::error('Error generarCertificados', [
                 'empresa_id' => $empresa->id,
                 'error' => $e->getMessage()
             ]);
 
-            return redirect()->back()->with('error', 'Error al generar certificados: ' . $e->getMessage());
+            return redirect()->back()->with('error', 
+                'Error: ' . $e->getMessage());
         }
     }
 

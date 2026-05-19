@@ -2,22 +2,22 @@
 
 namespace App\Services;
 
-use Afip;
+use Mause\LaravelArca\Facades\ArcaWsaa;
+use Mause\LaravelArca\Facades\ArcaWsfev1;
+use Mause\LaravelArca\Facades\ArcaWsPadron;
 use Exception;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class AfipService
 {
-    protected $afip;
     protected $empresa;
 
     /**
-     * Constructor del servicio AFIP
+     * Constructor del servicio AFIP → ARCA
      * 
      * @param int $empresaId ID de la empresa
-     * @param bool $inicializar Si debe inicializar AFIP al construir
-     * @throws Exception Si la empresa no tiene configuración de AFIP
+     * @param bool $inicializar Si debe inicializar/validar certificados
+     * @throws Exception Si la empresa no tiene configuración
      */
     public function __construct($empresaId = null, $inicializar = true)
     {
@@ -25,135 +25,192 @@ class AfipService
             $this->empresa = \App\Models\Empresa::findOrFail($empresaId);
 
             if ($inicializar) {
-                $this->inicializarAfip();
+                $this->validarCertificados();
             }
         }
     }
 
     /**
-     * Inicializar la instancia de AFIP con las credenciales de la empresa
+     * Validar que existan certificados ARCA para la empresa
      */
-    protected function inicializarAfip()
+    protected function validarCertificados()
     {
-        // Validar que la empresa tenga CUIT
+        $this->resolveCredentialPaths();
+    }
+
+    /**
+     * Resuelve paths de credenciales soportando CUIT con y sin guiones.
+     *
+     * @return array{0:string,1:string}
+     */
+    protected function resolveCredentialPaths(): array
+    {
         if (empty($this->empresa->cuit)) {
             throw new Exception('La empresa no tiene CUIT configurado');
         }
 
-        // Rutas de certificados (ajustar según tu estructura)
-        $certPath = storage_path('app/afip/empresas/' . $this->empresa->cuit . '/certificate.crt');
-        $keyPath = storage_path('app/afip/empresas/' . $this->empresa->cuit . '/private.key');
+        $cuitRaw = (string) $this->empresa->cuit;
+        $cuitNormalized = preg_replace('/\D+/', '', $cuitRaw) ?: '';
 
-        // Validar que existan los certificados
-        if (!file_exists($certPath) || !file_exists($keyPath)) {
-            throw new Exception('Certificados de AFIP no encontrados para la empresa ' . $this->empresa->cuit);
+        $candidates = array_values(array_unique([$cuitRaw, $cuitNormalized]));
+
+        foreach ($candidates as $cuitCandidate) {
+            if ($cuitCandidate === '') {
+                continue;
+            }
+
+            $certPath = storage_path('app/public/' . $cuitCandidate . '/cert.crt');
+            $keyPath = storage_path('app/public/' . $cuitCandidate . '/key.key');
+
+            if (file_exists($certPath) && file_exists($keyPath)) {
+                return [$certPath, $keyPath];
+            }
         }
 
-        $this->afip = new Afip([
-            'CUIT' => $this->empresa->cuit,
-            'production' => config('afip.production', false),
-            'access_token' => config('afip.access_token'),
-            'cert' => file_get_contents($certPath),
-            'key' => file_get_contents($keyPath),
-            'ta_folder' => storage_path('app/afip/empresas/' . $this->empresa->cuit . '/ta'),
-            'res_folder' => storage_path('app/afip/empresas/' . $this->empresa->cuit . '/res')
-        ]);
+        throw new Exception('Certificados ARCA no encontrados para CUIT ' . $this->empresa->cuit);
+    }
+
+    /**
+     * Asegura que cert/key también existan en el path normalizado que usa la librería ARCA.
+     */
+    protected function syncCredentialsToNormalizedPath(string $sourceCertPath, string $sourceKeyPath): void
+    {
+        $cuitNormalized = preg_replace('/\D+/', '', (string) $this->empresa->cuit) ?: '';
+
+        if ($cuitNormalized === '') {
+            return;
+        }
+
+        $targetDir = storage_path('app/public/' . $cuitNormalized);
+        $targetCertPath = $targetDir . '/cert.crt';
+        $targetKeyPath = $targetDir . '/key.key';
+
+        if (!is_dir($targetDir)) {
+            @mkdir($targetDir, 0775, true);
+        }
+
+        if (realpath($sourceCertPath) !== realpath($targetCertPath) && is_readable($sourceCertPath)) {
+            @copy($sourceCertPath, $targetCertPath);
+        }
+
+        if (realpath($sourceKeyPath) !== realpath($targetKeyPath) && is_readable($sourceKeyPath)) {
+            @copy($sourceKeyPath, $targetKeyPath);
+        }
     }
 
     /**
      * Crear una factura electrónica
      * 
      * @param array $data Datos de la factura
-     * @return array Respuesta de AFIP con el comprobante generado
+     * @return array Respuesta con CAE y detalles
      */
     public function crearFactura(array $data)
     {
         try {
             $normalizeImporte = static fn ($value) => round((float) $value, 2);
 
-            // Obtener el último número de comprobante
-            $ultimoComprobante = $this->afip->ElectronicBilling->GetLastVoucher(
-                $data['PtoVta'], 
+            // Obtener último número autorizado
+            $lastResult = ArcaWsfev1::getLastAuthorizedNumber(
+                $this->empresa->cuit,
+                $data['PtoVta'],
                 $data['CbteTipo']
             );
 
-            $siguienteNumero = $ultimoComprobante + 1;
+            if (!$lastResult || !isset($lastResult['cbte_nro'])) {
+                throw new Exception('No se pudo obtener el último número de comprobante');
+            }
 
-            // Datos del comprobante
-            $facturaData = [
-                'CantReg' => 1,
-                'PtoVta' => $data['PtoVta'],
-                'CbteTipo' => $data['CbteTipo'],
-                'Concepto' => $data['Concepto'] ?? 1, // 1=Productos, 2=Servicios, 3=Productos y Servicios
-                'DocTipo' => $data['DocTipo'] ?? 99, // 99=Sin identificar
-                'DocNro' => $data['DocNro'] ?? 0,
-                'CbteDesde' => $siguienteNumero,
-                'CbteHasta' => $siguienteNumero,
-                'CbteFch' => date('Ymd'),
-                'ImpTotal' => $normalizeImporte($data['ImpTotal']),
-                'ImpTotConc' => $normalizeImporte($data['ImpTotConc'] ?? 0),
-                'ImpNeto' => $normalizeImporte($data['ImpNeto']),
-                'ImpOpEx' => $normalizeImporte($data['ImpOpEx'] ?? 0),
-                'ImpIVA' => $normalizeImporte($data['ImpIVA']),
-                'ImpTrib' => $normalizeImporte($data['ImpTrib'] ?? 0),
-                'MonId' => $data['MonId'] ?? 'PES',
-                'MonCotiz' => $normalizeImporte($data['MonCotiz'] ?? 1),
-                'CondicionIVAReceptorId' => $data['CondicionIVAReceptorId'] ?? 5, // 5=Consumidor Final
+            $siguienteNumero = ($lastResult['cbte_nro'] ?? 0) + 1;
 
-
-                
+            // Construir estructura de factura para ARCA (FeCabReq + FeDetReq)
+            $invoice = [
+                'FeCabReq' => [
+                    'CantReg' => 1,
+                    'CbteTipo' => $data['CbteTipo'],
+                    'PtoVta' => $data['PtoVta'],
+                ],
+                'FeDetReq' => [
+                    'FECAEDetRequest' => [
+                        'Concepto' => $data['Concepto'] ?? 1,
+                        'DocTipo' => $data['DocTipo'] ?? 99,
+                        'DocNro' => $data['DocNro'] ?? 0,
+                        'CbteDesde' => $siguienteNumero,
+                        'CbteHasta' => $siguienteNumero,
+                        'CbteFch' => date('Ymd'),
+                        'ImpTotal' => $normalizeImporte($data['ImpTotal']),
+                        'ImpTotConc' => $normalizeImporte($data['ImpTotConc'] ?? 0),
+                        'ImpNeto' => $normalizeImporte($data['ImpNeto']),
+                        'ImpOpEx' => $normalizeImporte($data['ImpOpEx'] ?? 0),
+                        'ImpIVA' => $normalizeImporte($data['ImpIVA']),
+                        'ImpTrib' => $normalizeImporte($data['ImpTrib'] ?? 0),
+                        'MonId' => $data['MonId'] ?? 'PES',
+                        'MonCotiz' => $normalizeImporte($data['MonCotiz'] ?? 1),
+                        'CondicionIVAReceptorId' => $data['CondicionIVAReceptorId'] ?? 5,
+                    ]
+                ]
             ];
 
-            if (in_array($facturaData['Concepto'], [2, 3], true)) {
+            // Agregar fechas de servicio si aplica (Concepto 2 o 3)
+            if (in_array($invoice['FeDetReq']['FECAEDetRequest']['Concepto'], [2, 3], true)) {
                 $hoy = date('Ymd');
-                $facturaData['FchServDesde'] = $data['FchServDesde'] ?? $hoy;
-                $facturaData['FchServHasta'] = $data['FchServHasta'] ?? $hoy;
-                $facturaData['FchVtoPago'] = $data['FchVtoPago'] ?? date('Ymd', strtotime('+10 days'));
+                $invoice['FeDetReq']['FECAEDetRequest']['FchServDesde'] = $data['FchServDesde'] ?? $hoy;
+                $invoice['FeDetReq']['FECAEDetRequest']['FchServHasta'] = $data['FchServHasta'] ?? $hoy;
+                $invoice['FeDetReq']['FECAEDetRequest']['FchVtoPago'] = $data['FchVtoPago'] ?? date('Ymd', strtotime('+10 days'));
             }
 
-            // Si tiene IVA, agregar el detalle (solo para comprobantes que discriminan IVA)
+            // Agregar detalle de IVA si existe
             if (isset($data['Iva']) && $data['ImpIVA'] > 0) {
-                $facturaData['Iva'] = $data['Iva'];
+                $invoice['FeDetReq']['FECAEDetRequest']['Iva'] = $data['Iva'];
             }
 
-            // Comprobantes asociados (requerido para Notas de Crédito/Débito)
+            // Comprobantes asociados (NC/ND)
             if (isset($data['CbtesAsoc'])) {
-                $facturaData['CbtesAsoc'] = $data['CbtesAsoc'];
+                $invoice['FeDetReq']['FECAEDetRequest']['CbtesAsoc'] = $data['CbtesAsoc'];
             }
 
-            if(env('APP_ENV') === 'local' ) {
-                Log::info('Creando factura AFIP desde pago', [
-                    'factura_data' => $facturaData
-                ]);
-            }  
+            if (env('APP_ENV') === 'local') {
+                Log::info('Solicitando CAE a ARCA', ['empresa_id' => $this->empresa->id, 'data' => $invoice]);
+            }
 
+            // Solicitar CAE a ARCA
+            $response = ArcaWsfev1::requestCae($this->empresa->cuit, $invoice);
 
-            // Crear la factura
-            $voucher = $this->afip->ElectronicBilling->CreateVoucher($facturaData);
+            if (!$response || isset($response['error'])) {
+                throw new Exception($response['error'] ?? 'Error desconocido al solicitar CAE');
+            }
 
-            if(env('APP_ENV') === 'local' ) {
-                Log::info('Factura AFIP creada exitosamente', [
+            $cae = trim((string) ($response['cae'] ?? ''));
+            $caeVencimiento = trim((string) ($response['expiration'] ?? ''));
+
+            // ARCA puede responder sin error técnico pero sin CAE (comprobante rechazado).
+            if ($cae === '') {
+                Log::warning('Respuesta de ARCA sin CAE', [
                     'empresa_id' => $this->empresa->id,
-                    'comprobante' => $siguienteNumero,
-                    'cae' => $voucher['CAE'] ?? null
+                    'response' => $response,
+                    'invoice' => $invoice,
                 ]);
+
+                throw new Exception('ARCA no devolvió CAE para el comprobante. Revisar datos fiscales del receptor/comprobante.');
             }
+
+            Log::info('CAE obtenido exitosamente desde ARCA', [
+                'empresa_id' => $this->empresa->id,
+                'cae' => $cae,
+                'numero_comprobante' => $siguienteNumero
+            ]);
 
             return [
                 'success' => true,
-                'data' => $voucher,
+                'data' => $response,
                 'numero_comprobante' => $siguienteNumero,
-                'cae' => $voucher['CAE'] ?? null,
-                'cae_vencimiento' => $voucher['CAEFchVto'] ?? null
+                'cae' => $cae,
+                'cae_vencimiento' => $caeVencimiento
             ];
 
         } catch (Exception $e) {
-
-            
-            Log::error('Error al crear factura AFIP', [
+            Log::error('Error al crear factura con ARCA', [
                 'empresa_id' => $this->empresa->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'error' => $e->getMessage()
             ]);
 
             return [
@@ -168,14 +225,20 @@ class AfipService
      * 
      * @param int $puntoVenta Punto de venta
      * @param int $tipoComprobante Tipo de comprobante
-     * @return int Último número de comprobante
+     * @return int Último número
      */
     public function obtenerUltimoComprobante($puntoVenta, $tipoComprobante)
     {
         try {
-            return $this->afip->ElectronicBilling->GetLastVoucher($puntoVenta, $tipoComprobante);
+            $result = ArcaWsfev1::getLastAuthorizedNumber(
+                $this->empresa->cuit,
+                $puntoVenta,
+                $tipoComprobante
+            );
+
+            return $result['cbte_nro'] ?? 0;
         } catch (Exception $e) {
-            Log::error('Error al obtener último comprobante AFIP', [
+            Log::error('Error obtener último comprobante', [
                 'empresa_id' => $this->empresa->id,
                 'error' => $e->getMessage()
             ]);
@@ -186,14 +249,14 @@ class AfipService
     /**
      * Obtener tipos de comprobantes disponibles
      * 
-     * @return array Lista de tipos de comprobantes
+     * @return array|null
      */
     public function obtenerTiposComprobantes()
     {
         try {
-            return $this->afip->ElectronicBilling->GetVoucherTypes();
+            return ArcaWsfev1::getInvoiceTypes($this->empresa->cuit) ?? [];
         } catch (Exception $e) {
-            Log::error('Error al obtener tipos de comprobantes AFIP', [
+            Log::error('Error obtener tipos de comprobantes', [
                 'empresa_id' => $this->empresa->id,
                 'error' => $e->getMessage()
             ]);
@@ -203,15 +266,21 @@ class AfipService
 
     /**
      * Obtener puntos de venta disponibles
+     * Nota: ARCA no expone esta información directamente,
+     * se retorna un array con punto 1 como default
      * 
-     * @return array Lista de puntos de venta
+     * @return array
      */
     public function obtenerPuntosVenta()
     {
         try {
-            return $this->afip->ElectronicBilling->GetSalesPoints();
+            // ARCA no proporciona endpoint para puntos de venta
+            // Se retorna un array default, puede editarse según configuración
+            return [
+                ['id' => 1, 'nombre' => 'Punto de Venta 1'],
+            ];
         } catch (Exception $e) {
-            Log::error('Error al obtener puntos de venta AFIP', [
+            Log::error('Error obtener puntos de venta', [
                 'empresa_id' => $this->empresa->id,
                 'error' => $e->getMessage()
             ]);
@@ -221,15 +290,22 @@ class AfipService
 
     /**
      * Obtener tipos de documentos disponibles
+     * Nota: ARCA no expone listado, valores comunes:
+     * 80=CUIT, 86=CUIL, 96=Documento Extranjero, 99=Sin especificar
      * 
-     * @return array Lista de tipos de documentos
+     * @return array
      */
     public function obtenerTiposDocumentos()
     {
         try {
-            return $this->afip->ElectronicBilling->GetDocumentTypes();
+            return [
+                ['id' => 80, 'nombre' => 'CUIT'],
+                ['id' => 86, 'nombre' => 'CUIL'],
+                ['id' => 96, 'nombre' => 'Documento Extranjero'],
+                ['id' => 99, 'nombre' => 'Sin Especificar'],
+            ];
         } catch (Exception $e) {
-            Log::error('Error al obtener tipos de documentos AFIP', [
+            Log::error('Error obtener tipos de documentos', [
                 'empresa_id' => $this->empresa->id,
                 'error' => $e->getMessage()
             ]);
@@ -239,15 +315,22 @@ class AfipService
 
     /**
      * Obtener tipos de IVA disponibles
+     * Nota: ARCA no expone listado, valores comunes:
+     * 3=0%, 4=10.5%, 5=21%, etc.
      * 
-     * @return array Lista de tipos de IVA
+     * @return array
      */
     public function obtenerTiposIva()
     {
         try {
-            return $this->afip->ElectronicBilling->GetAliquotTypes();
+            return [
+                ['id' => 3, 'nombre' => '0%'],
+                ['id' => 4, 'nombre' => '10.5%'],
+                ['id' => 5, 'nombre' => '21%'],
+                ['id' => 6, 'nombre' => '27%'],
+            ];
         } catch (Exception $e) {
-            Log::error('Error al obtener tipos de IVA AFIP', [
+            Log::error('Error obtener tipos de IVA', [
                 'empresa_id' => $this->empresa->id,
                 'error' => $e->getMessage()
             ]);
@@ -256,23 +339,32 @@ class AfipService
     }
 
     /**
-     * Consultar información de un contribuyente por CUIT
+     * Consultar contribuyente por DNI/CUIT/CUIL (auto-detecta tipo)
      * 
-     * @param string $cuit CUIT del contribuyente
-     * @return array Información del contribuyente
+     * @param string|int $identificador DNI, CUIT o CUIL
+     * @return array
      */
-    public function consultarContribuyente($cuit)
+    public function consultarContribuyente($identificador)
     {
         try {
-            $info = $this->afip->RegisterScopeFour->GetTaxpayerDetails($cuit);
-            
+            $result = ArcaWsPadron::consultarPadron($this->empresa->cuit, $identificador);
+
+            if (!$result || isset($result['error'])) {
+                return [
+                    'success' => false,
+                    'error' => $result['error'] ?? 'Error en consulta de padrón'
+                ];
+            }
+
             return [
                 'success' => true,
-                'data' => $info
+                'data' => $result['data'] ?? $result,
+                'type' => $result['type'] ?? null
             ];
         } catch (Exception $e) {
-            Log::error('Error al consultar contribuyente AFIP', [
-                'cuit' => $cuit,
+            Log::error('Error consultarContribuyente', [
+                'empresa_id' => $this->empresa->id,
+                'identificador' => $identificador,
                 'error' => $e->getMessage()
             ]);
 
@@ -470,39 +562,66 @@ class AfipService
     }
 
     /**
-     * Verificar si los certificados de la empresa son válidos
+     * Verificar certificados y conectividad con ARCA
      * 
-     * @return array{success:bool,message?:string}
+     * @return array
      */
     public function verificarCertificados()
     {
         try {
-            $certPath = storage_path('app/afip/empresas/' . $this->empresa->cuit . '/certificate.crt');
-            $keyPath = storage_path('app/afip/empresas/' . $this->empresa->cuit . '/private.key');
+            [$certPath, $keyPath] = $this->resolveCredentialPaths();
+            $this->syncCredentialsToNormalizedPath($certPath, $keyPath);
 
-            if (!file_exists($certPath) || !file_exists($keyPath)) {
+            // Evita falsos positivos por archivos existentes pero vacíos/corruptos.
+            if (!is_readable($certPath) || trim((string) @file_get_contents($certPath)) === '') {
                 return [
                     'success' => false,
-                    'message' => 'No se encontraron certificados de AFIP'
+                    'message' => 'El certificado cert.crt está vacío o no se puede leer'
                 ];
             }
 
-            if (!isset($this->afip)) {
-                $this->inicializarAfip();
+            if (!is_readable($keyPath) || trim((string) @file_get_contents($keyPath)) === '') {
+                return [
+                    'success' => false,
+                    'message' => 'La clave key.key está vacía o no se puede leer'
+                ];
             }
 
-            // Validar certificados consultando estado del servicio
-            $this->afip->ElectronicBilling->GetServerStatus();
+            // Validar WSAA. Si ARCA devuelve "TA ya valido", se considera un estado correcto.
+            try {
+                $ta = ArcaWsaa::requestTa($this->empresa->cuit, 'wsfe');
+                if (!$ta || empty($ta['token']) || empty($ta['sign'])) {
+                    return [
+                        'success' => false,
+                        'message' => 'No se pudo obtener TA de WSAA. Revisa certificado, clave y autorización del servicio wsfe'
+                    ];
+                }
+            } catch (Exception $wsaaException) {
+                $wsaaMessage = (string) $wsaaException->getMessage();
+                $taVigente = stripos($wsaaMessage, 'TA valido') !== false
+                    || stripos($wsaaMessage, 'TA válido') !== false
+                    || stripos($wsaaMessage, 'posee un TA') !== false;
+
+                if (!$taVigente) {
+                    throw $wsaaException;
+                }
+            }
+
+            // Intentar obtener tipos de comprobantes (verifica conectividad)
+            $types = ArcaWsfev1::getInvoiceTypes($this->empresa->cuit);
+
+            if (!$types) {
+                return [
+                    'success' => false,
+                    'message' => 'TA válido, pero WSFE no devolvió tipos de comprobantes'
+                ];
+            }
 
             return [
-                'success' => true
+                'success' => true,
+                'message' => 'Certificados válidos y conectividad con ARCA OK'
             ];
-
         } catch (Exception $e) {
-            Log::error('Error al verificar certificados AFIP', [
-                'empresa_id' => $this->empresa->id,
-                'error' => $e->getMessage()
-            ]);
             return [
                 'success' => false,
                 'message' => $e->getMessage()
@@ -511,108 +630,42 @@ class AfipService
     }
 
     /**
-     * Generar certificados de AFIP en entorno de desarrollo (homologación)
-     *
-     * @param array $data Debe incluir: cuit, username, password, alias
-     * @return array Resultado con success, cert_path, key_path o error
+     * Generar CSR (Certificate Signing Request) para la empresa
+     * Genera key.key y request.csr en storage/app/public/{cuit}/
+     * 
+     * @param array $data con organizationName, commonName, email, etc.
+     * @return array
      */
     public function generarCertificadosDesarrollo(array $data)
     {
-        return $this->generarCertificadosAutomation(config('afip.automation_dev', 'create-cert-dev'), $data);
-    }
-
-    /**
-     * Generar certificados de AFIP en entorno de producción
-     *
-     * @param array $data Debe incluir: cuit, username, password, alias
-     * @return array Resultado con success, cert_path, key_path o error
-     */
-    public function generarCertificadosProduccion(array $data)
-    {
-        return $this->generarCertificadosAutomation(config('afip.automation_prod', 'create-cert-prod'), $data);
-    }
-
-    /**
-     * Ejecuta la automatización de AFIP y persiste cert/key en storage
-     *
-     * @param string $automationName Nombre de la automatización
-     * @param array $data Datos requeridos por la automatización
-     * @return array
-     */
-    protected function generarCertificadosAutomation($automationName, array $data)
-    {
         try {
-            $accessToken = config('afip.access_token');
+            $dn = [
+                'organizationName' => $data['organizationName'] ?? $this->empresa->nombre,
+                'commonName' => $data['commonName'] ?? 'SistemaFacturacion',
+                'countryName' => 'AR',
+                'stateOrProvinceName' => 'Buenos Aires',
+                'emailAddress' => $data['email'] ?? 'admin@empresa.com',
+            ];
 
-            if (empty($accessToken)) {
-                throw new Exception('AFIP access token no configurado');
-            }
+            $result = ArcaWsaa::createCertificateRequest(
+                $this->empresa->cuit,
+                $dn,
+                $data['passphrase'] ?? null
+            );
 
-            foreach (['cuit', 'username', 'password', 'alias'] as $campo) {
-                if (empty($data[$campo])) {
-                    throw new Exception('Falta el campo requerido: ' . $campo);
-                }
-            }
-
-            if(env('APP_ENV') === 'local' ) {
-
-                Log::info('Generando certificados AFIP (automatización)', [
-                    'automation' => $automationName,
-                    'data' => $data
-                ]);
-
-
-            }
-
-            $afip = new Afip([
-                'access_token' => $accessToken
-            ]);
-
-            $response = $afip->CreateAutomation($automationName, $data, true);
-
-            if(env('APP_ENV') === 'local' ) {
-                
-                Log::info('Respuesta de automatización AFIP', [
-                    'response' => $response
-                ]); 
-
-            }
-
-            $cert = $response->data->cert ?? null;
-            $key = $response->data->key ?? null;
-
-            if (empty($cert) || empty($key)) {
-                throw new Exception('No se recibieron cert/key en la respuesta de AFIP');
-            }
-
-            $empresaPath = storage_path('app/afip/empresas/' . $data['cuit']);
-
-            if (!file_exists($empresaPath)) {
-                mkdir($empresaPath, 0755, true);
-                mkdir($empresaPath . '/ta', 0755, true);
-                mkdir($empresaPath . '/res', 0755, true);
-            }
-
-            $certPath = $empresaPath . '/certificate.crt';
-            $keyPath = $empresaPath . '/private.key';
-
-            file_put_contents($certPath, $cert);
-            file_put_contents($keyPath, $key);
-
-            Log::info('Certificados AFIP generados', [
-                'cuit' => $data['cuit'],
-                'automation' => $automationName
+            Log::info('CSR generado con ARCA', [
+                'empresa_id' => $this->empresa->id,
+                'cuit' => $this->empresa->cuit
             ]);
 
             return [
                 'success' => true,
-                'cert_path' => $certPath,
-                'key_path' => $keyPath
+                'message' => 'CSR generado. Descárgalo y sube a ARCA para obtener cert.crt',
+                'csr_path' => 'storage/app/public/' . $this->empresa->cuit . '/request.csr'
             ];
         } catch (Exception $e) {
-            Log::error('Error al generar certificados AFIP', [
-                'cuit' => $data['cuit'] ?? null,
-                'automation' => $automationName,
+            Log::error('Error generando CSR', [
+                'empresa_id' => $this->empresa->id,
                 'error' => $e->getMessage()
             ]);
 
@@ -624,58 +677,94 @@ class AfipService
     }
 
     /**
-     * Tipos de comprobantes más comunes
+     * Alias para compatibilidad: generarCertificadosProduccion
+     * En ARCA es el mismo proceso que desarrollo
      * 
-     * @param int|null $condicionIvaId Condición IVA de la empresa (1=Responsable Inscripto, 6=Monotributo, etc.)
-     * @return array Lista filtrada de tipos de comprobantes disponibles según la condición IVA
+     * @param array $data
+     * @return array
+     */
+    public function generarCertificadosProduccion(array $data)
+    {
+        return $this->generarCertificadosDesarrollo($data);
+    }
+
+    /**
+     * Helper para obtener tipos de comprobantes según condición IVA
+     * 
+     * Mapeo de comprobantes por condición:
+     * - RI (1): Tipos A, B, M
+     * - Monotributo (6): Tipo C
+     * - Consumidor Final (5): Tipos B, C
+     * - Exento (4): Tipos B, C
+     * - Sujeto No Categorizado (7): Tipos B, C
+     * 
+     * @param int|null $condicionIvaId Condición frente al IVA
+     * @return array
      */
     public static function tiposComprobantesComunes($condicionIvaId = null)
     {
-        $todosLosComprobantes = [
-            1 => 'Factura A',
-            6 => 'Factura B',
-            11 => 'Factura C',
-            3 => 'Nota de Crédito A',
-            8 => 'Nota de Crédito B',
-            13 => 'Nota de Crédito C',
-            2 => 'Nota de Débito A',
-            7 => 'Nota de Débito B',
-            12 => 'Nota de Débito C',
-            4 => 'Recibo A',
-            9 => 'Recibo B',
-            15 => 'Recibo C'
-        ];
-
-        // Si no se especifica condición IVA, devolver todos
+        // Si no se especifica, devolver todos
         if ($condicionIvaId === null) {
-            return $todosLosComprobantes;
+            return [
+                1 => 'Factura A',
+                2 => 'Nota de Crédito A',
+                4 => 'Nota de Débito A',
+                6 => 'Factura B',
+                3 => 'Nota de Crédito B',
+                8 => 'Nota de Débito B',
+                11 => 'Factura C',
+                13 => 'Nota de Crédito C',
+                15 => 'Nota de Débito C',
+            ];
         }
 
-        // Filtrar según condición IVA de la empresa
-        switch ($condicionIvaId) {
-            case 1: // Responsable Inscripto
-                // Puede emitir Facturas A, Notas de Crédito A, Notas de Débito A, Recibos A
-                return array_intersect_key($todosLosComprobantes, array_flip([1, 3, 2, 4,6,7,8,9]));
-            
-            case 6: // Monotributo
-            case 13: // Monotributista Social
-            case 16: // Monotributo Trabajador Independiente Promovido
-                // Puede emitir Facturas B/C, Notas de Crédito B/C, Notas de Débito B/C, Recibos B/C
-                return array_intersect_key($todosLosComprobantes, array_flip([ 11, 13,  12, 15]));
-            
-            case 4: // IVA Sujeto Exento
-            case 5: // Consumidor Final (generalmente no emite, pero si lo hace son B o C)
-            case 7: // Sujeto No Categorizado
-            case 10: // IVA Liberado
-            case 15: // IVA No Alcanzado
-                // Puede emitir Facturas B/C, Notas de Crédito B/C, Notas de Débito B/C, Recibos B/C
-                return array_intersect_key($todosLosComprobantes, array_flip([6, 11, 8, 13, 7, 12, 9, 15]));
-            
-            default:
-                // Por defecto, devolver todos los comprobantes
-                return $todosLosComprobantes;
+        // RI (Responsable Inscripto) - Tipos A, B
+        if ($condicionIvaId === 1) {
+            return [
+                1 => 'Factura A',
+                2 => 'Nota de Crédito A',
+                4 => 'Nota de Débito A',
+                6 => 'Factura B',
+                3 => 'Nota de Crédito B',
+                8 => 'Nota de Débito B',
+            ];
         }
+
+        // Monotributo (6) - Solo Tipo C
+        if ($condicionIvaId === 6) {
+            return [
+                11 => 'Factura C',
+                13 => 'Nota de Crédito C',
+                15 => 'Nota de Débito C',
+            ];
+        }
+
+        // Consumidor Final (5), Exento (4), Sujeto No Categorizado (7) - Tipos B, C
+        if (in_array($condicionIvaId, [4, 5, 7, 8, 9, 10, 15])) {
+            return [
+                6 => 'Factura B',
+                3 => 'Nota de Crédito B',
+                8 => 'Nota de Débito B',
+                11 => 'Factura C',
+                13 => 'Nota de Crédito C',
+                15 => 'Nota de Débito C',
+            ];
+        }
+
+        // Default: todos los tipos
+        return [
+            1 => 'Factura A',
+            2 => 'Nota de Crédito A',
+            4 => 'Nota de Débito A',
+            6 => 'Factura B',
+            3 => 'Nota de Crédito B',
+            8 => 'Nota de Débito B',
+            11 => 'Factura C',
+            13 => 'Nota de Crédito C',
+            15 => 'Nota de Débito C',
+        ];
     }
+
 
     /**
      * Tipos de documento más comunes
@@ -690,4 +779,5 @@ class AfipService
             99 => 'Sin identificar'
         ];
     }
+
 }

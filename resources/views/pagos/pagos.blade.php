@@ -157,7 +157,7 @@
             <strong>{{ $resumen->formaPago }}</strong>
             <div class="total">${{ number_format($resumen->totalImporte, 2) }}</div>
             <div class="cantidad">{{ $resumen->cantidadPagos }} pagos</div>
-            <div class="promedio">Promedio: ${{ number_format($resumen->totalImporte / $resumen->cantidadPagos, 2) }}</div>
+            <div class="promedio">Promedio: ${{ number_format($resumen->cantidadPagos > 0 ? ($resumen->totalImporte / $resumen->cantidadPagos) : 0, 2) }}</div>
           </div>
           <hr>
         @endforeach
@@ -190,10 +190,10 @@
                 <td><strong>{{ $resumen->formaPago }}</strong></td>
                 <td>{{ $resumen->cantidadPagos }}</td>
                 <td>${{ number_format($resumen->totalImporte, 2) }}</td>
-                <td>${{ number_format($resumen->totalImporte / $resumen->cantidadPagos, 2) }}</td>
+                <td>${{ number_format($resumen->cantidadPagos > 0 ? ($resumen->totalImporte / $resumen->cantidadPagos) : 0, 2) }}</td>
                 <td>
-                  {{ number_format(($resumen->totalImporte / $totalGeneral) * 100, 1) }}%
-                  <div class="porcentaje-bar" style="width: {{ ($resumen->totalImporte / $totalGeneral) * 100 }}px;"></div>
+                  {{ number_format($totalGeneral > 0 ? (($resumen->totalImporte / $totalGeneral) * 100) : 0, 1) }}%
+                  <div class="porcentaje-bar" style="width: {{ $totalGeneral > 0 ? (($resumen->totalImporte / $totalGeneral) * 100) : 0 }}px;"></div>
                 </td>
               </tr>
             @endforeach
@@ -201,7 +201,7 @@
               <td><strong>TOTAL GENERAL</strong></td>
               <td><strong>{{ collect($resumenPagos)->sum('cantidadPagos') }}</strong></td>
               <td><strong>${{ number_format($totalGeneral, 2) }}</strong></td>
-              <td><strong>${{ number_format($totalGeneral / collect($resumenPagos)->sum('cantidadPagos'), 2) }}</strong></td>
+              <td><strong>${{ number_format(collect($resumenPagos)->sum('cantidadPagos') > 0 ? ($totalGeneral / collect($resumenPagos)->sum('cantidadPagos')) : 0, 2) }}</strong></td>
               <td><strong>100%</strong></td>
             </tr>
           </tbody>
@@ -225,7 +225,7 @@
             </div>
             <div class="total" style="color: #2196f3;">${{ number_format($resumen->totalImporte, 2) }}</div>
             <div class="cantidad">{{ $resumen->cantidadPagos }} pagos</div>
-            <div class="promedio">Promedio: ${{ number_format($resumen->totalImporte / $resumen->cantidadPagos, 2) }}</div>
+            <div class="promedio">Promedio: ${{ number_format($resumen->cantidadPagos > 0 ? ($resumen->totalImporte / $resumen->cantidadPagos) : 0, 2) }}</div>
           </div>
           <hr>
         @endforeach
@@ -261,10 +261,10 @@
                 <td><strong>{{ $resumen->nombreUsuario }}</strong></td>
                 <td>{{ $resumen->cantidadPagos }}</td>
                 <td>${{ number_format($resumen->totalImporte, 2) }}</td>
-                <td>${{ number_format($resumen->totalImporte / $resumen->cantidadPagos, 2) }}</td>
+                <td>${{ number_format($resumen->cantidadPagos > 0 ? ($resumen->totalImporte / $resumen->cantidadPagos) : 0, 2) }}</td>
                 <td>
-                  {{ number_format(($resumen->totalImporte / $totalGeneralUsuarios) * 100, 1) }}%
-                  <div class="porcentaje-bar" style="width: {{ ($resumen->totalImporte / $totalGeneralUsuarios) * 100 }}px; background-color: #2196f3;"></div>
+                  {{ number_format($totalGeneralUsuarios > 0 ? (($resumen->totalImporte / $totalGeneralUsuarios) * 100) : 0, 1) }}%
+                  <div class="porcentaje-bar" style="width: {{ $totalGeneralUsuarios > 0 ? (($resumen->totalImporte / $totalGeneralUsuarios) * 100) : 0 }}px; background-color: #2196f3;"></div>
                 </td>
               </tr>
             @endforeach
@@ -272,7 +272,7 @@
               <td><strong>TOTAL GENERAL</strong></td>
               <td><strong>{{ $totalPagosUsuarios }}</strong></td>
               <td><strong>${{ number_format($totalGeneralUsuarios, 2) }}</strong></td>
-              <td><strong>${{ number_format($totalGeneralUsuarios / $totalPagosUsuarios, 2) }}</strong></td>
+              <td><strong>${{ number_format($totalPagosUsuarios > 0 ? ($totalGeneralUsuarios / $totalPagosUsuarios) : 0, 2) }}</strong></td>
               <td><strong>100%</strong></td>
             </tr>
           </tbody>
@@ -581,7 +581,7 @@
                 <a href="{{$pagos->url($pagos->currentPage())}}">{{$pagos->currentPage()}}</a>
               </strong>            
             </li>
-          @if (($pagos->currentPage() +1 ) < round($pagos->total()/$pagos->perPage())+1)
+          @if ($pagos->hasMorePages())
             <li>
               <a href="{{$pagos->url($pagos->currentPage() +1)}}">{{$pagos->currentPage() +1}}</a>
             </li>
