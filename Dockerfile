@@ -37,6 +37,7 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install soap pdo_mysql zip bcmath gd opcache \
     && a2enmod rewrite \
+    && echo "ServerName localhost" >> /etc/apache2/apache2.conf \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. Configurar el DocumentRoot de Apache para Laravel
@@ -96,7 +97,7 @@ RUN chown -R www-data:www-data /var/www/html/bootstrap/cache /var/www/html/stora
     && php artisan view:cache 
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
-  CMD curl -f http://localhost/up || exit 1
+    CMD php /var/www/html/artisan up || exit 1
 
 
 EXPOSE 443
