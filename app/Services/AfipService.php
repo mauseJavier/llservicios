@@ -363,19 +363,76 @@ class AfipService
 
     /**
      * Obtener puntos de venta disponibles
-     * Nota: ARCA no expone esta información directamente,
-     * se retorna un array con punto 1 como default
      * 
      * @return array
      */
     public function obtenerPuntosVenta()
     {
         try {
-            // ARCA no proporciona endpoint para puntos de venta
-            // Se retorna un array default, puede editarse según configuración
-            return [
-                ['id' => 1, 'nombre' => 'Punto de Venta 1'],
-            ];
+            $ta = ArcaWsaa::requestTa($this->empresa->cuit, 'wsfe');
+
+            if (!$ta || empty($ta['token']) || empty($ta['sign'])) {
+                throw new Exception('No se pudo obtener TA de WSAA para consultar puntos de venta');
+            }
+
+            $mode = (string) config('arca.mode', 'homologation');
+            $isProduction = in_array(strtolower($mode), ['production', 'produccion'], true);
+            $wsfeUrl = $isProduction
+                ? 'https://servicios1.afip.gov.ar/wsfev1/service.asmx'
+                : 'https://wswhomo.afip.gov.ar/wsfev1/service.asmx';
+
+            $client = new \SoapClient($wsfeUrl . '?wsdl', [
+                'exceptions' => true,
+                'trace' => true,
+                'soap_version' => SOAP_1_1,
+            ]);
+
+            $response = $client->FEParamGetPtosVenta([
+                'Auth' => [
+                    'Token' => $ta['token'],
+                    'Sign' => $ta['sign'],
+                    'Cuit' => (int) preg_replace('/\D+/', '', (string) $this->empresa->cuit),
+                ],
+            ]);
+
+            $puntosRaw = $response->FEParamGetPtosVentaResult->ResultGet->PtoVenta ?? null;
+
+            if ($puntosRaw === null) {
+                throw new Exception('ARCA no devolvió puntos de venta');
+            }
+
+            $puntos = is_array($puntosRaw) ? $puntosRaw : [$puntosRaw];
+
+            $resultado = [];
+            foreach ($puntos as $punto) {
+                if (!is_object($punto) && !is_array($punto)) {
+                    continue;
+                }
+
+                $numero = is_object($punto)
+                    ? ($punto->Nro ?? $punto->nro ?? $punto->numero ?? $punto->id ?? null)
+                    : ($punto['Nro'] ?? $punto['nro'] ?? $punto['numero'] ?? $punto['id'] ?? null);
+
+                if ($numero === null || $numero === '') {
+                    continue;
+                }
+
+                $resultado[] = [
+                    'id' => (int) $numero,
+                    'numero' => (int) $numero,
+                    'Nro' => (int) $numero,
+                    'nombre' => 'Punto de Venta ' . $numero,
+                    'Nombre' => 'Punto de Venta ' . $numero,
+                ];
+            }
+
+            if (empty($resultado)) {
+                throw new Exception('ARCA devolvió una estructura de puntos de venta vacía o inválida');
+            }
+
+            usort($resultado, static fn (array $a, array $b) => ($a['numero'] <=> $b['numero']));
+
+            return $resultado;
         } catch (Exception $e) {
             Log::error('Error obtener puntos de venta', [
                 'empresa_id' => $this->empresa->id,
