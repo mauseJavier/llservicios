@@ -111,6 +111,14 @@ class PagosController extends Controller
             // FILTRO 2: Filtrar por empresa del cliente
             ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
                 $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 3: Filtrar por empresa del cobrador (o pago online)
+            ->where(function($q) use ($empresaId) {
+                $q->where('id_usuario', 0)
+                  ->orWhereHas('usuario', function($subq) use ($empresaId) {
+                      $subq->where('empresa_id', $empresaId)
+                           ->orWhere('email', self::USUARIO_PAGO_ONLINE_EMAIL);
+                  });
             });
 
         // Aplicar filtro de fecha inicio
@@ -180,6 +188,14 @@ class PagosController extends Controller
             // FILTRO 2: Filtrar por empresa del cliente
             ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
                 $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 3: Filtrar por empresa del cobrador (o pago online)
+            ->where(function($q) use ($empresaId) {
+                $q->where('id_usuario', 0)
+                  ->orWhereHas('usuario', function($subq) use ($empresaId) {
+                      $subq->where('empresa_id', $empresaId)
+                           ->orWhere('email', self::USUARIO_PAGO_ONLINE_EMAIL);
+                  });
             });
 
         // Aplicar filtros de fecha
@@ -262,6 +278,14 @@ class PagosController extends Controller
             // FILTRO 2: Filtrar por empresa del cliente
             ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
                 $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 3: Filtrar por empresa del cobrador (o pago online)
+            ->where(function($q) use ($empresaId) {
+                $q->where('id_usuario', 0)
+                  ->orWhereHas('usuario', function($subq) use ($empresaId) {
+                      $subq->where('empresa_id', $empresaId)
+                           ->orWhere('email', self::USUARIO_PAGO_ONLINE_EMAIL);
+                  });
             });
 
         // Aplicar filtro de fecha inicio
@@ -313,6 +337,14 @@ class PagosController extends Controller
             // FILTRO 2: Filtrar por empresa del cliente
             ->whereHas('servicioPagar.cliente.empresas', function($q) use ($empresaId) {
                 $q->where('empresa_id', $empresaId);
+            })
+            // FILTRO 3: Filtrar por empresa del cobrador (o pago online)
+            ->where(function($q) use ($empresaId) {
+                $q->where('id_usuario', 0)
+                  ->orWhereHas('usuario', function($subq) use ($empresaId) {
+                      $subq->where('empresa_id', $empresaId)
+                           ->orWhere('email', self::USUARIO_PAGO_ONLINE_EMAIL);
+                  });
             });
 
         // Aplicar filtros de fecha
