@@ -100,6 +100,6 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
     CMD php /var/www/html/artisan up || exit 1
 
 
-EXPOSE 443
+EXPOSE 80
 
 # USER www-data
