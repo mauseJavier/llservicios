@@ -13,14 +13,14 @@ services:
       - ./routes:/var/www/html/routes
       - ./config:/var/www/html/config
       - ./public:/var/www/html/public
+      - ./database:/var/www/html/database
     networks:
       - redPrincipal
     restart: always
     #QUITAR LOS PUERTOS Y LA DEPENDENCIA DE MARIADB
     ports:
       - "1234:80"
-    depends_on:
-      - mariadb
+
 
   localllfactura-scheduler-v2:
     build:
@@ -35,8 +35,7 @@ services:
     networks:
       - redPrincipal
     restart: always
-    depends_on:
-      - mariadb
+
 
   localllfactura-queue-worker-v2:
     build:
@@ -77,36 +76,6 @@ services:
       timeout: 10s
       retries: 3
 
-  mariadb:
-    image: mariadb:latest
-    container_name: mariadb
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: localllservicios
-      MYSQL_USER: root
-      MYSQL_PASSWORD: root
-    volumes:
-      - mariadb_data:/var/lib/mysql
-    networks:
-      - redPrincipal
-    restart: always
-
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin:latest
-    container_name: phpmyadmin
-    environment:
-      PMA_HOST: mariadb
-      PMA_USER: root
-      PMA_PASSWORD: root
-    ports:
-      - "8080:80"
-    networks:
-      - redPrincipal
-    restart: always
-  
-
-volumes:
-  mariadb_data:
 
 networks:
   redPrincipal:

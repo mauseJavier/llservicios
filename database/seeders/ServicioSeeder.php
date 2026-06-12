@@ -14,6 +14,19 @@ class ServicioSeeder extends Seeder
      */
     public function run(): void
     {
-        Servicio::factory()->count(200)->create();
+        $servicios = [
+            ['nombre' => 'Consulta General', 'descripcion' => 'Atención médica general', 'precio' => 1500.00, 'empresa_id' => 1],
+            ['nombre' => 'Análisis de Sangre', 'descripcion' => 'Análisis clínico completo', 'precio' => 2500.00, 'empresa_id' => 1],
+            ['nombre' => 'Ecografía', 'descripcion' => 'Ecografía abdominal', 'precio' => 3500.00, 'empresa_id' => 1],
+            ['nombre' => 'Consulta Cardiológica', 'descripcion' => 'Evaluación del corazón', 'precio' => 2000.00, 'empresa_id' => 1],
+            ['nombre' => 'Rayos X', 'descripcion' => 'Radiografía digital', 'precio' => 1800.00, 'empresa_id' => 1],
+        ];
+
+        foreach ($servicios as $servicio) {
+            Servicio::firstOrCreate(
+                ['nombre' => $servicio['nombre'], 'empresa_id' => $servicio['empresa_id']],
+                $servicio
+            );
+        }
     }
 }
