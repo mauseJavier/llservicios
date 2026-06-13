@@ -284,6 +284,7 @@ class ServicioPagarController extends Controller
             'tipoAjuste' => 'nullable|in:descuento,incremento',
             'ajusteTipo' => 'nullable|in:porcentaje,monto',
             'valorAjuste' => 'nullable|numeric|min:0',
+            'comprobantePDF' => 'nullable',
         ]);
 
         // return $request;
@@ -311,76 +312,85 @@ class ServicioPagarController extends Controller
         $formasPagoIds = array_filter([$request->formaPago, $request->formaPago2]);
         $formasPago = FormaPago::whereIn('id', $formasPagoIds)->get()->keyBy('id');
         
-        $nombreFormaPago1 = $formasPago[$request->formaPago]->nombre ?? null;
-        $nombreFormaPago2 = $request->formaPago2 ? ($formasPago[$request->formaPago2]->nombre ?? null) : null;
+        $formaPago1 = $formasPago->get($request->formaPago);
+        if (!$formaPago1) {
+            return redirect()->back()->withErrors(['La forma de pago seleccionada no es válida.']);
+        }
+        $nombreFormaPago1 = $formaPago1->nombre;
+
+        $nombreFormaPago2 = null;
+        if ($request->filled('formaPago2')) {
+            $formaPago2 = $formasPago->get($request->formaPago2);
+            $nombreFormaPago2 = $formaPago2?->nombre;
+        }
         
-        // Si se aplicó un ajuste, actualizar el precio en servicio_pagar
+        // Si se aplicó un ajuste, calcular el comentario informativo
+        $comentarioFinal = $request->comentario;
+
         if ($request->filled('aplicarAjuste') && $request->aplicarAjuste) {
             $importeFinal = floatval($request->importe);
             $importeOriginal = floatval($request->importeOriginal);
-            
-            // Calcular el nuevo precio unitario basado en el importe final
-            if ($servicioPagar->cantidad > 0) {
-                $nuevoPrecio = $importeFinal / $servicioPagar->cantidad;
-                
-                // Actualizar el precio en servicio_pagar
-                $servicioPagar->update([
-                    'precio' => $nuevoPrecio,
-                ]);
-                
 
-                //solo mostramos comentario cuando es descuento no cuando es un incremento
-                if($request->tipoAjuste === 'descuento'){
-                    
-                    // Agregar información del ajuste al comentario
-                    $tipoAjusteTexto = $request->tipoAjuste === 'descuento' ? 'Descuento' : 'Incremento';
-                    $ajusteTexto = $request->ajusteTipo === 'porcentaje' 
-                        ? $request->valorAjuste . '%' 
-                        : '$' . $request->valorAjuste;
-                    
-                    $comentarioAjuste = "{$tipoAjusteTexto} aplicado: {$ajusteTexto} (Importe original: \${$importeOriginal}, Importe final: \${$importeFinal})";
-                    
-                    // Combinar con el comentario del usuario si existe
-                    $comentarioFinal = $request->comentario 
-                        ? $request->comentario . ' | ' . $comentarioAjuste 
-                        : $comentarioAjuste;
-                }
-                else{
-                    $comentarioFinal = $request->comentario;
-                }
+            if ($request->tipoAjuste === 'descuento') {
+                $tipoAjusteTexto = 'Descuento';
+                $ajusteTexto = $request->ajusteTipo === 'porcentaje'
+                    ? $request->valorAjuste . '%'
+                    : '$' . $request->valorAjuste;
 
-            } else {
-                $comentarioFinal = $request->comentario;
+                $comentarioAjuste = "{$tipoAjusteTexto} aplicado: {$ajusteTexto} (Importe original: \${$importeOriginal}, Importe final: \${$importeFinal})";
+
+                $comentarioFinal = $request->comentario
+                    ? $request->comentario . ' | ' . $comentarioAjuste
+                    : $comentarioAjuste;
             }
-        } else {
-            $comentarioFinal = $request->comentario;
         }
         
-        // Iniciar transacción para garantizar consistencia de datos
+        // Iniciar transacción con lock pesimista para evitar race conditions
         DB::beginTransaction();
         
         try {
-            // Actualizar el estado del servicio a pagado usando Eloquent (elimina query redundante)
+            // Recargar el modelo DENTRO de la transacción con lock pesimista
+            $servicioPagar = ServicioPagar::with(['cliente', 'servicio'])
+                ->where('id', $request->idServicioPagar)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            // Re-verificar estado después del lock (protege contra pagos duplicados concurrentes)
+            if ($servicioPagar->estado === 'pago') {
+                DB::rollBack();
+                return redirect()->route('ServiciosImpagos')
+                    ->with('status', 'Servicio ya ha sido pagado.');
+            }
+
+            // Aplicar ajuste de precio dentro de la transacción (se revierte si algo falla)
+            if ($request->filled('aplicarAjuste') && $request->aplicarAjuste) {
+                if ($servicioPagar->cantidad > 0) {
+                    $nuevoPrecio = floatval($request->importe) / $servicioPagar->cantidad;
+                    $servicioPagar->update(['precio' => $nuevoPrecio]);
+                }
+            }
+
+            // Actualizar el estado del servicio a pagado
             $servicioPagar->update([
                 'estado' => 'pago',
                 'updated_at' => now()
             ]);
 
             // Preparar datos del pago
-            $pago = ['idServicioPagar'=>$request->idServicioPagar,
-                        'idUsuario'=>$usuario->id,
-                        'importe'=>$request->importe1,
-                        'forma_pago'=>$request->formaPago,
-                        'forma_pago2'=>$request->formaPago2,
-                        'importe2'=>$request->importe2,
-                        'comentario'=>$comentarioFinal];
+            $pago = [
+                'idServicioPagar' => $request->idServicioPagar,
+                'idUsuario' => $usuario->id,
+                'importe' => $request->importe1,
+                'forma_pago' => $request->formaPago,
+                'forma_pago2' => $request->formaPago2,
+                'importe2' => $request->importe2,
+                'comentario' => $comentarioFinal,
+            ];
 
-            // dd($pago);
-                     
-            PagoServicioEvent::dispatch($pago);
-            
-            // Confirmar transacción
             DB::commit();
+
+            // Dispatch AFTER commit para que el worker vea los datos confirmados
+            PagoServicioEvent::dispatch($pago);
             
         } catch (\Exception $e) {
             DB::rollBack();
@@ -393,59 +403,62 @@ class ServicioPagarController extends Controller
                 ->withErrors(['Error al procesar el pago: ' . $e->getMessage()]);
         }
 
-            // Aquí tengo que hacer una notificación
-            ////////////////////////////////777
-            // app/Jobs/EnviarWhatsAppJob.php
+        // Notificaciones al cliente
+        $mensaje = "Hola {$cliente->nombre},\n\n";
+        $mensaje .= "Le informamos que hemos recibido su pago.\n";
+        $mensaje .= "Detalles del pago:\n";
+        $mensaje .= "• Servicio: {$servicio->nombre}\n";
 
-            //crear un mensaje personalizado con los datos del pago y del cliente y de la empresa 
+        if ($request->filled('formaPago2') && $request->importe2 > 0) {
+            $mensaje .= "• Forma de pago 1: {$nombreFormaPago1} - \${$request->importe1}\n";
+            $mensaje .= "• Forma de pago 2: {$nombreFormaPago2} - \${$request->importe2}\n";
+            $mensaje .= "• Total pagado: \$" . ($request->importe1 + $request->importe2) . "\n";
+        } else {
+            $mensaje .= "• Forma de pago: {$nombreFormaPago1}\n";
+            $mensaje .= "• Importe: \${$request->importe1}\n";
+        }
 
-            $mensaje = "Hola {$cliente->nombre},\n\n";
-            $mensaje .= "Le informamos que hemos recibido su pago.\n";
-            $mensaje .= "Detalles del pago:\n";
-            $mensaje .= "• Servicio: {$servicio->nombre}\n";
+        $mensaje .= "• Fecha: " . now()->format('d/m/Y H:i') . "\n\n";
+        $mensaje .= "¡Gracias por su preferencia!";
 
-            // Verificar si hay dos formas de pago
-            if ($request->filled('formaPago2') && $request->importe2 > 0) {
-                $mensaje .= "• Forma de pago 1: {$nombreFormaPago1} - \${$request->importe1}\n";
-                $mensaje .= "• Forma de pago 2: {$nombreFormaPago2} - \${$request->importe2}\n";
-                $mensaje .= "• Total pagado: \$" . ($request->importe1 + $request->importe2) . "\n";
-            } else {
-                $mensaje .= "• Forma de pago: {$nombreFormaPago1}\n";
-                $mensaje .= "• Importe: \${$request->importe1}\n";
-            }
+        $datos = [
+            'phoneNumber' => $cliente->telefono,
+            'message' => $mensaje,
+            'type' => 'text',
+            'additionalData' => [],
+            'instanciaWS' => $empresa->instanciaWS ?? null,
+            'tokenWS' => $empresa->tokenWS ?? null
+        ];
 
-            $mensaje .= "• Fecha: " . now()->format('d/m/Y H:i') . "\n\n";
-            $mensaje .= "¡Gracias por su preferencia!";
+        $datosPDF = [
+            'nombreCliente' => $cliente->nombre,
+            'dniCliente' => $cliente->dni,
+            'nombreServicio' => $servicio->nombre,
+            'nombreEmpresa' => $empresa->nombre,
+            'cantidad' => $servicioPagar->cantidad,
+            'precioUnitario' => $servicioPagar->precio,
+            'forma_pago' => $nombreFormaPago1,
+            'importe' => $request->importe1,
+            'forma_pago2' => $nombreFormaPago2,
+            'importe2' => $request->importe2,
+            'comentario' => $comentarioFinal,
+            'fechaPago' => now()->format('d/m/Y H:i'),
+            'logoEmpresa' => $empresa->logo,
+        ];
 
-            $datos = [
-                'phoneNumber' => $cliente->telefono,
-                'message' => $mensaje,
-                'type' => 'text',
-                'additionalData' => [],
-                'instanciaWS' => $empresa->instanciaWS ?? null,
-                'tokenWS' => $empresa->tokenWS ?? null
-            ];
-            
+        $datosCorreo = [
+            'total' => floatval($request->importe1) + floatval($request->importe2 ?? 0),
+            'forma_pago' => $nombreFormaPago1,
+            'importe' => floatval($request->importe1),
+            'forma_pago2' => $nombreFormaPago2,
+            'importe2' => floatval($request->importe2 ?? 0),
+            'logoEmpresa' => $empresa->logo,
+        ];
+
+        // Despachar notificaciones protegido: si falla el dispatch, el pago ya está confirmado
+        try {
             EnviarWhatsAppJob::dispatch($datos);
 
-            // Preparar datos del PDF para envío asíncrono
-            $datosPDF = [
-                'nombreCliente' => $cliente->nombre,
-                'dniCliente' => $cliente->dni,
-                'nombreServicio' => $servicio->nombre,
-                'nombreEmpresa' => $empresa->nombre,
-                'cantidad' => $servicioPagar->cantidad,
-                'precioUnitario' => $servicioPagar->precio,
-                'forma_pago' => $nombreFormaPago1,
-                'importe' => $request->importe1,
-                'forma_pago2' => $nombreFormaPago2,
-                'importe2' => $request->importe2,
-                'comentario' => $comentarioFinal,
-                'fechaPago' => now()->format('d/m/Y H:i'),
-                'logoEmpresa' => $empresa->logo,
-            ];
-
-            // Enviar comprobante PDF de forma asíncrona para no bloquear el response
             \App\Jobs\GenerarYEnviarComprobantePDFJob::dispatch(
                 $cliente->telefono,
                 $datosPDF,
@@ -453,34 +466,20 @@ class ServicioPagarController extends Controller
                 $empresa->tokenWS ?? null
             );
 
-            // Preparar datos adicionales para el correo
-            $datosCorreo = [
-                'total' => floatval($request->importe1) + floatval($request->importe2 ?? 0),
-                'forma_pago' => $nombreFormaPago1,
-                'importe' => floatval($request->importe1),
-                'forma_pago2' => $nombreFormaPago2,
-                'importe2' => floatval($request->importe2 ?? 0),
-                'logoEmpresa' => $empresa->logo,
-            ];
-            
-            // Enviar correo con los datos completos del pago
-            EnviarComprobantePagoEmailJob::dispatch($servicioPagar->id, $datosCorreo);   
+            EnviarComprobantePagoEmailJob::dispatch($servicioPagar->id, $datosCorreo);
+        } catch (\Exception $e) {
+            \Log::error('Error al despachar notificaciones post-pago', [
+                'servicio_pagar_id' => $request->idServicioPagar,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
+        if (isset($request->comprobantePDF)) {
+            return redirect()->route('PagosVer', ['idServicioPagar' => $request->idServicioPagar]);
+        }
 
-            if (isset( $request->comprobantePDF)){    
-
-
-
-                return redirect()->route('PagosVer', ['idServicioPagar' => $request->idServicioPagar]);
-
-                
-            }
-    
-                return redirect()->route('Grilla')
-                ->with('status', 'Pagado correcto.');
-            
-
-
+        return redirect()->route('Grilla')
+            ->with('status', 'Pagado correcto.');
     }
 
     public function PagarServicio($idServicioPagar,$importe){
