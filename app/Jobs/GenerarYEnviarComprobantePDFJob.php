@@ -8,6 +8,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\WhatsAppService;
 
 class GenerarYEnviarComprobantePDFJob implements ShouldQueue
 {
@@ -15,49 +16,46 @@ class GenerarYEnviarComprobantePDFJob implements ShouldQueue
 
     public $tries = 3;
     public $backoff = 10;
-    public $timeout = 60;
+    public $timeout = 120;
 
     protected $phoneNumber;
     protected $datosPDF;
     protected $instanciaWS;
     protected $tokenWS;
+    protected $mensajeTexto;
 
-    /**
-     * Create a new job instance.
-     */
-    public function __construct($phoneNumber, array $datosPDF, $instanciaWS = null, $tokenWS = null)
+    public function __construct($phoneNumber, array $datosPDF, $instanciaWS = null, $tokenWS = null, $mensajeTexto = null)
     {
+        $this->onQueue('notificaciones');
         $this->phoneNumber = $phoneNumber;
         $this->datosPDF = $datosPDF;
         $this->instanciaWS = $instanciaWS;
         $this->tokenWS = $tokenWS;
+        $this->mensajeTexto = $mensajeTexto;
     }
 
-    /**
-     * Execute the job.
-     */
     public function handle(): void
     {
         try {
-            // Generar el PDF de forma asíncrona
+            $whatsappService = app()->make(WhatsAppService::class, [
+                'instanciaWS' => $this->instanciaWS,
+                'tokenWS' => $this->tokenWS,
+            ]);
+
+            if ($this->mensajeTexto) {
+                $whatsappService->sendTextMessage($this->phoneNumber, $this->mensajeTexto, []);
+            }
+
             $pdfBase64 = $this->generarComprobantePagoPDFBase64($this->datosPDF);
 
-            // Preparar datos para envío por WhatsApp
-            $datos = [
-                'phoneNumber' => $this->phoneNumber,
-                'message' => 'Comprobante de Pago adjunto.',
-                'type' => 'document',
-                'additionalData' => [
-                    'filename' => 'comprobante_pago.pdf',
-                    'caption' => 'Comprobante de Pago',
-                    'base64' => $pdfBase64
-                ],
-                'instanciaWS' => $this->instanciaWS,
-                'tokenWS' => $this->tokenWS
-            ];
-
-            // Despachar el job de WhatsApp
-            EnviarWhatsAppJob::dispatch($datos);
+            $whatsappService->sendDocument(
+                $this->phoneNumber,
+                'Comprobante de Pago adjunto.',
+                'comprobante_pago.pdf',
+                'Comprobante de Pago',
+                [],
+                $pdfBase64
+            );
 
         } catch (\Exception $e) {
             \Log::error('Error generando y enviando comprobante PDF', [
@@ -65,8 +63,8 @@ class GenerarYEnviarComprobantePDFJob implements ShouldQueue
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
-            throw $e; // Relanzar para que el job se reintente
+
+            throw $e;
         }
     }
 

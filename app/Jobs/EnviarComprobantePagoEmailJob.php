@@ -39,6 +39,7 @@ class EnviarComprobantePagoEmailJob implements ShouldQueue
      */
     public function __construct(int $idServicioPagar, ?array $datosPago = null)
     {
+        $this->onQueue('notificaciones');
         $this->idServicioPagar = $idServicioPagar;
         $this->datosPago = $datosPago;
     }
@@ -95,7 +96,12 @@ class EnviarComprobantePagoEmailJob implements ShouldQueue
 
             
             // Enviar el correo con el comprobante PDF adjunto
-            Mail::to($datos['correoCliente'])->send(new ComprobantePagoMail($datos));
+            try {
+                Mail::mailer('smtp')->to($datos['correoCliente'])->send(new ComprobantePagoMail($datos));
+            } catch (\Exception $e) {
+                \Log::warning("Fallo smtp, intentando con secundario: " . $e->getMessage());
+                Mail::mailer('secundario')->to($datos['correoCliente'])->send(new ComprobantePagoMail($datos));
+            }
 
         } catch (Exception $e) {
             // Registrar el error para debugging

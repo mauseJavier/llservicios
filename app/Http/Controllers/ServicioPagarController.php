@@ -17,9 +17,7 @@ use App\Models\MercadoPagoPOS;
 use App\Models\MercadoPagoQROrder;
 
 
-use App\Jobs\EnviarComprobantePagoEmailJob;
-
-
+use App\Jobs\ProcesarPagoJob;
 
 use App\Services\MercadoPago\MercadoPagoQRService;
 use Illuminate\Support\Str;
@@ -27,7 +25,6 @@ use Illuminate\Support\Str;
 
 
 
-use App\Events\PagoServicioEvent;
 use App\Events\NuevoServicioPagarEvent;
 
 
@@ -36,8 +33,6 @@ use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
 
 use Barryvdh\DomPDF\Facade\Pdf;
-
-use App\Jobs\EnviarWhatsAppJob;
 
 class ServicioPagarController extends Controller
 {
@@ -287,43 +282,23 @@ class ServicioPagarController extends Controller
             'comprobantePDF' => 'nullable',
         ]);
 
-        // return $request;
-
         $usuario = Auth::user();
-        $empresa = Empresa::find($usuario->empresa_id);
-        
-        // Obtener el servicio_pagar con eager loading para evitar N+1 queries
-        $servicioPagar = ServicioPagar::with(['cliente', 'servicio'])
-            ->findOrFail($request->idServicioPagar);
+        $idServicioPagar = $request->idServicioPagar;
 
-        //si el servicioPagar esta en estado pago no se puede pagar de nuevo
-        if ($servicioPagar->estado === 'pago') {
-            // return response()->json(['error' => 'El servicio ya ha sido pagado.'], 400);
-            return redirect()->route('ServiciosImpagos')
-                ->with('status', 'Servicio ya ha sido pagado.');
-
-        }
-
-        // Usar relación cargada en lugar de query adicional
-        $cliente = $servicioPagar->cliente;
-        $servicio = $servicioPagar->servicio;
-
-        // Cachear formas de pago en una sola query
+        // Cachear formas de pago con pluck (solo id + nombre, menos datos)
         $formasPagoIds = array_filter([$request->formaPago, $request->formaPago2]);
-        $formasPago = FormaPago::whereIn('id', $formasPagoIds)->get()->keyBy('id');
-        
-        $formaPago1 = $formasPago->get($request->formaPago);
-        if (!$formaPago1) {
+        $nombresFormasPago = FormaPago::whereIn('id', $formasPagoIds)->pluck('nombre', 'id');
+
+        $nombreFormaPago1 = $nombresFormasPago->get($request->formaPago);
+        if ($nombreFormaPago1 === null) {
             return redirect()->back()->withErrors(['La forma de pago seleccionada no es válida.']);
         }
-        $nombreFormaPago1 = $formaPago1->nombre;
 
         $nombreFormaPago2 = null;
         if ($request->filled('formaPago2')) {
-            $formaPago2 = $formasPago->get($request->formaPago2);
-            $nombreFormaPago2 = $formaPago2?->nombre;
+            $nombreFormaPago2 = $nombresFormasPago->get($request->formaPago2);
         }
-        
+
         // Si se aplicó un ajuste, calcular el comentario informativo
         $comentarioFinal = $request->comentario;
 
@@ -332,26 +307,31 @@ class ServicioPagarController extends Controller
             $importeOriginal = floatval($request->importeOriginal);
 
             if ($request->tipoAjuste === 'descuento') {
-                $tipoAjusteTexto = 'Descuento';
-                $ajusteTexto = $request->ajusteTipo === 'porcentaje'
-                    ? $request->valorAjuste . '%'
-                    : '$' . $request->valorAjuste;
-
-                $comentarioAjuste = "{$tipoAjusteTexto} aplicado: {$ajusteTexto} (Importe original: \${$importeOriginal}, Importe final: \${$importeFinal})";
+                $comentarioAjuste = "Descuento aplicado: "
+                    . ($request->ajusteTipo === 'porcentaje' ? $request->valorAjuste . '%' : '$' . $request->valorAjuste)
+                    . " (Importe original: \${$importeOriginal}, Importe final: \${$importeFinal})";
 
                 $comentarioFinal = $request->comentario
                     ? $request->comentario . ' | ' . $comentarioAjuste
                     : $comentarioAjuste;
             }
         }
-        
+
         // Iniciar transacción con lock pesimista para evitar race conditions
         DB::beginTransaction();
-        
+
         try {
-            // Recargar el modelo DENTRO de la transacción con lock pesimista
-            $servicioPagar = ServicioPagar::with(['cliente', 'servicio'])
-                ->where('id', $request->idServicioPagar)
+            // Traer empresa con solo las columnas que se necesitan
+            $empresa = Empresa::select(['id', 'nombre', 'logo', 'instanciaWS', 'tokenWS'])
+                ->find($usuario->empresa_id);
+
+            // Cargar modelo con lock y solo columnas necesarias de relaciones
+            $servicioPagar = ServicioPagar::select(['id', 'cliente_id', 'servicio_id', 'precio', 'cantidad', 'estado'])
+                ->with([
+                    'cliente:id,nombre,dni,telefono',
+                    'servicio:id,nombre'
+                ])
+                ->where('id', $idServicioPagar)
                 ->lockForUpdate()
                 ->firstOrFail();
 
@@ -362,43 +342,41 @@ class ServicioPagarController extends Controller
                     ->with('status', 'Servicio ya ha sido pagado.');
             }
 
+            $cliente = $servicioPagar->cliente;
+            $servicio = $servicioPagar->servicio;
+
             // Aplicar ajuste de precio dentro de la transacción (se revierte si algo falla)
             if ($request->filled('aplicarAjuste') && $request->aplicarAjuste) {
                 if ($servicioPagar->cantidad > 0) {
-                    $nuevoPrecio = floatval($request->importe) / $servicioPagar->cantidad;
-                    $servicioPagar->update(['precio' => $nuevoPrecio]);
+                    $servicioPagar->precio = floatval($request->importe) / $servicioPagar->cantidad;
+                    $servicioPagar->save();
                 }
             }
 
             // Actualizar el estado del servicio a pagado
-            $servicioPagar->update([
-                'estado' => 'pago',
-                'updated_at' => now()
-            ]);
+            $servicioPagar->estado = 'pago';
+            $servicioPagar->save();
 
-            // Preparar datos del pago
-            $pago = [
-                'idServicioPagar' => $request->idServicioPagar,
-                'idUsuario' => $usuario->id,
+            // Registrar el pago DENTRO de la transacción (consistencia inmediata)
+            Pagos::create([
+                'id_servicio_pagar' => $idServicioPagar,
+                'id_usuario' => $usuario->id,
                 'importe' => $request->importe1,
                 'forma_pago' => $request->formaPago,
                 'forma_pago2' => $request->formaPago2,
                 'importe2' => $request->importe2,
                 'comentario' => $comentarioFinal,
-            ];
+            ]);
 
             DB::commit();
 
-            // Dispatch AFTER commit para que el worker vea los datos confirmados
-            PagoServicioEvent::dispatch($pago);
-            
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error al confirmar pago', [
                 'error' => $e->getMessage(),
-                'servicio_pagar_id' => $request->idServicioPagar
+                'servicio_pagar_id' => $idServicioPagar
             ]);
-            
+
             return redirect()->back()
                 ->withErrors(['Error al procesar el pago: ' . $e->getMessage()]);
         }
@@ -420,15 +398,6 @@ class ServicioPagarController extends Controller
 
         $mensaje .= "• Fecha: " . now()->format('d/m/Y H:i') . "\n\n";
         $mensaje .= "¡Gracias por su preferencia!";
-
-        $datos = [
-            'phoneNumber' => $cliente->telefono,
-            'message' => $mensaje,
-            'type' => 'text',
-            'additionalData' => [],
-            'instanciaWS' => $empresa->instanciaWS ?? null,
-            'tokenWS' => $empresa->tokenWS ?? null
-        ];
 
         $datosPDF = [
             'nombreCliente' => $cliente->nombre,
@@ -455,18 +424,17 @@ class ServicioPagarController extends Controller
             'logoEmpresa' => $empresa->logo,
         ];
 
-        // Despachar notificaciones protegido: si falla el dispatch, el pago ya está confirmado
+        // Despachar job centralizador de notificaciones (cola: alta)
         try {
-            EnviarWhatsAppJob::dispatch($datos);
-
-            \App\Jobs\GenerarYEnviarComprobantePDFJob::dispatch(
+            ProcesarPagoJob::dispatch(
                 $cliente->telefono,
-                $datosPDF,
+                $mensaje,
                 $empresa->instanciaWS ?? null,
-                $empresa->tokenWS ?? null
+                $empresa->tokenWS ?? null,
+                $datosPDF,
+                $datosCorreo,
+                $servicioPagar->id
             );
-
-            EnviarComprobantePagoEmailJob::dispatch($servicioPagar->id, $datosCorreo);
         } catch (\Exception $e) {
             \Log::error('Error al despachar notificaciones post-pago', [
                 'servicio_pagar_id' => $request->idServicioPagar,

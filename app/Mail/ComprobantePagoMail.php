@@ -40,7 +40,7 @@ class ComprobantePagoMail extends Mailable
     {
         return new Envelope(
             subject: 'Comprobante de Pago - ' . ($this->datos['nombreServicio'] ?? 'Servicio'),
-            from: new Address('notificacion@llservicios.ar', 'LLServicios.ar'),
+            // from: new Address('notificacion@llservicios.ar', 'LLServicios.ar'),
         );
     }
 

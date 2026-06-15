@@ -56,13 +56,13 @@ services:
         fi
         # Loop infinito para auto-reinicio
         while true; do
-          php /var/www/html/artisan queue:work --verbose \
+          php /var/www/html/artisan queue:work \
             --sleep=3 \
             --tries=3 \
             --max-time=3600 \
             --timeout=300 \
             --memory=512 \
-            --queue=default,emails,notifications \
+            --queue=notificaciones,default \
             --verbose
           echo "Worker stopped. Restarting in 5 seconds..."
           sleep 5
@@ -76,6 +76,44 @@ services:
       timeout: 10s
       retries: 3
 
+
+  localllservicios-queue-high-v2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: localllservicios-v2:local
+    container_name: localllservicios-queue-high-v2
+    volumes:
+      - ./.env:/var/www/html/.env:ro
+      - ./storage:/var/www/html/storage
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ ! -f /tmp/permissions_set ]; then
+          chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+          chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+          touch /tmp/permissions_set
+        fi
+        while true; do
+          php /var/www/html/artisan queue:work \
+            --sleep=1 \
+            --tries=3 \
+            --max-time=3600 \
+            --timeout=120 \
+            --memory=256 \
+            --queue=alta \
+            --verbose
+          echo "High worker stopped. Restarting in 5 seconds..."
+          sleep 5
+        done
+    networks:
+      - redPrincipal
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -q 'queue:work' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
   redPrincipal:

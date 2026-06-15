@@ -30,7 +30,7 @@ class NotificacionCuotaMail extends Mailable
     {
         return new Envelope(
             subject: 'Notificacion Cuota',
-            from: new Address('notificacion@llservicios.ar', 'Notificacion LLServicios.ar'),
+            // from: new Address('notificacion@llservicios.ar', 'Notificacion LLServicios.ar'),
         );
 
     }
