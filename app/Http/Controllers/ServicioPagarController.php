@@ -17,6 +17,7 @@ use App\Models\MercadoPagoPOS;
 use App\Models\MercadoPagoQROrder;
 
 
+use App\Jobs\GenerarFacturaAfipJob;
 use App\Jobs\ProcesarPagoJob;
 
 use App\Services\MercadoPago\MercadoPagoQRService;
@@ -280,10 +281,12 @@ class ServicioPagarController extends Controller
             'ajusteTipo' => 'nullable|in:porcentaje,monto',
             'valorAjuste' => 'nullable|numeric|min:0',
             'comprobantePDF' => 'nullable',
+            'generarFactura' => 'nullable',
         ]);
 
         $usuario = Auth::user();
         $idServicioPagar = $request->idServicioPagar;
+        $puntoVenta = $usuario->afip_punto_venta ?? config('afip.default_punto_venta', 1);
 
         // Cachear formas de pago con pluck (solo id + nombre, menos datos)
         $formasPagoIds = array_filter([$request->formaPago, $request->formaPago2]);
@@ -358,7 +361,7 @@ class ServicioPagarController extends Controller
             $servicioPagar->save();
 
             // Registrar el pago DENTRO de la transacción (consistencia inmediata)
-            Pagos::create([
+            $pago = Pagos::create([
                 'id_servicio_pagar' => $idServicioPagar,
                 'id_usuario' => $usuario->id,
                 'importe' => $request->importe1,
@@ -440,6 +443,18 @@ class ServicioPagarController extends Controller
                 'servicio_pagar_id' => $request->idServicioPagar,
                 'error' => $e->getMessage(),
             ]);
+        }
+
+        // Despachar job de facturación AFIP si se solicitó
+        if ($request->boolean('generarFactura') && isset($pago)) {
+            try {
+                GenerarFacturaAfipJob::dispatch($pago->id, $empresa->id, $puntoVenta);
+            } catch (\Exception $e) {
+                \Log::error('Error al despachar facturación AFIP', [
+                    'pago_id' => $pago->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         if (isset($request->comprobantePDF)) {

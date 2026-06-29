@@ -266,6 +266,11 @@
             <input name="comprobantePDF" type="checkbox" role="switch" />
             Imprimir Comprobante PDF
           </label>
+
+          <label>
+            <input name="generarFactura" type="checkbox" role="switch" />
+            Generar factura electrónica (AFIP)
+          </label>
           <HR></HR>
 
         
