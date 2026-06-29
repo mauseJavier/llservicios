@@ -418,71 +418,80 @@
 
   <hr>
 
-  <h2>Detalle de Pagos</h2>
 
-  @if(isset($buscar) && $buscar)
-    <article style="margin-bottom: 1rem; background: #4543d1ff; border-left: 4px solid #2196f3;">
-      <p style="margin: 0;">
-        🔍 <strong>Búsqueda activa:</strong> Filtrando por cliente que coincida con "{{ $buscar }}"
-        <a href="{{route('Pagos', ['fecha_inicio' => $fechaInicio, 'fecha_fin' => $fechaFin, 'usuario_id' => $usuarioId])}}" style="margin-left: 1rem;">
-          ✖ Limpiar
-        </a>
-      </p>
-    </article>
-  @endif
 
-    <nav>
-        <ul>
-            <li>
-              <form class="form" action="{{route('Pagos')}}" method="GET">
-                  
-                  <div class="input-group">
-                      <input type="search" class="input" id="buscar" name="buscar" 
-                      @if (isset($buscar))
-                          value="{{$buscar}}"
-                      @endif  placeholder="Buscar por cliente (nombre, correo, DNI)...">
-                      
-                      {{-- Mantener los filtros de fecha y usuario al buscar --}}
-                      <input type="hidden" name="fecha_inicio" value="{{ $fechaInicio }}">
-                      <input type="hidden" name="fecha_fin" value="{{ $fechaFin }}">
-                      <input type="hidden" name="usuario_id" value="{{ $usuarioId }}">
-                  </div>
-              </form>
-            </li>
-        </ul>
-        <ul>
-            @if(isset($buscar) && $buscar)
-                <li>
-                    <a href="{{route('Pagos', ['fecha_inicio' => $fechaInicio, 'fecha_fin' => $fechaFin, 'usuario_id' => $usuarioId])}}" role="button" class="secondary">
-                        Limpiar búsqueda
-                    </a>
-                </li>
-            @endif
-        </ul>
-    </nav>
 
-  <figure>
+  </div>  {{-- //para cerrar el container del principio  --}}
+
+  
+  <div class="container-fluid">
+
+      <h2>Detalle de Pagos</h2>
+
+      @if(isset($buscar) && $buscar)
+        <article style="margin-bottom: 1rem; background: #4543d1ff; border-left: 4px solid #2196f3;">
+          <p style="margin: 0;">
+            🔍 <strong>Búsqueda activa:</strong> Filtrando por cliente que coincida con "{{ $buscar }}"
+            <a href="{{route('Pagos', ['fecha_inicio' => $fechaInicio, 'fecha_fin' => $fechaFin, 'usuario_id' => $usuarioId])}}" style="margin-left: 1rem;">
+              ✖ Limpiar
+            </a>
+          </p>
+        </article>
+      @endif
+
+      <nav>
+          <ul>
+              <li>
+                <form class="form" action="{{route('Pagos')}}" method="GET">
+                    
+                    <div class="input-group">
+                        <input type="search" class="input" id="buscar" name="buscar" 
+                        @if (isset($buscar))
+                            value="{{$buscar}}"
+                        @endif  placeholder="Buscar por cliente (nombre, correo, DNI)...">
+                        
+                        {{-- Mantener los filtros de fecha y usuario al buscar --}}
+                        <input type="hidden" name="fecha_inicio" value="{{ $fechaInicio }}">
+                        <input type="hidden" name="fecha_fin" value="{{ $fechaFin }}">
+                        <input type="hidden" name="usuario_id" value="{{ $usuarioId }}">
+                    </div>
+                </form>
+              </li>
+          </ul>
+          <ul>
+              @if(isset($buscar) && $buscar)
+                  <li>
+                      <a href="{{route('Pagos', ['fecha_inicio' => $fechaInicio, 'fecha_fin' => $fechaFin, 'usuario_id' => $usuarioId])}}" role="button" class="secondary">
+                          Limpiar búsqueda
+                      </a>
+                  </li>
+              @endif
+          </ul>
+      </nav>
+
+
+    
     <div class="overflow-auto">
       <table>
           <thead>
             <tr>
               <th scope="col">#</th>
+              <th scope="col">Acciones</th>
               <th scope="col">Cliente</th>
               <th scope="col">Servicio</th>
+              <th scope="col">Total</th>
               <th scope="col">Comprobante</th>
               <th scope="col">Forma de Pago 1</th>
               <th scope="col">Importe 1</th>
               <th scope="col">Forma de Pago 2</th>
               <th scope="col">Importe 2</th>
-              <th scope="col">Total</th>
               <th scope="col">Usuario</th>
-              <th scope="col">Acciones</th>
             </tr>
           </thead>
           <tbody>
       
             @foreach ($pagos as $e)
-
+  
             {{-- {
               "id": 1,
               "id_servicio_pagar": 8,
@@ -499,11 +508,43 @@
               "formaPago": "MercadoPago"
             }
           ] --}}
-
+  
               <tr>
                 <td>{{$e->id}}</td>
+  
+                <th>                  
+                  <div role="group">
+                    {{-- <strong><a role="button" href="{{route('PagosVer',['idServicioPagar'=>$e->idServicioPagar])}}" data-tooltip="Ver Pago">Detalle</a></strong> --}}
+  
+  
+                    <a role="button" href="{{route('PagosVer',['idServicioPagar'=>$e->idServicioPagar])}}" data-tooltip="Ver Pago"><i class="fas fa-info-circle"></i></a>
+  
+                    
+                    @if ( isset($e->afip_cae) && $e->afip_cae != null )
+                      
+                      <a role="button" href="{{route('FacturaAfipPDF',['pagoId'=>$e->id])}}" data-tooltip="Ver Comprobante AFIP" target="_blank"><i class="fas fa-receipt"></i> </a>
+                        
+                    @endif
+  
+                  </div>
+                </th>
+  
                 <td>{{$e->Cliente}}</td>
                 <td>{{$e->Servicio}}</td>
+  
+                <td>
+                  @if ($e->importe + ($e->importe2 ?? 0) > 0)
+                      
+                    <strong>${{number_format($e->importe + ($e->importe2 ?? 0), 2)}}</strong>
+                      
+                  @else
+  
+                    <strong style="color: red;">${{number_format($e->importe + ($e->importe2 ?? 0), 2)}}</strong>
+                      
+                  @endif
+                </td>
+  
+  
                 <td>
                   <strong style="color: {{ $e->tipoComprobanteColor ?? '#757575' }};">
                     {{ $e->tipoComprobanteResumen ?? 'Sin AFIP' }}
@@ -529,36 +570,21 @@
                     <small style="color: #999;">-</small>
                   @endif
                 </td>
-                <td>
-                  @if ($e->importe + ($e->importe2 ?? 0) > 0)
-                      
-                    <strong>${{number_format($e->importe + ($e->importe2 ?? 0), 2)}}</strong>
-                      
-                  @else
-
-                    <strong style="color: red;">${{number_format($e->importe + ($e->importe2 ?? 0), 2)}}</strong>
-                      
-                  @endif
-                </td>
+  
                 <td>{{$e->nombreUsuario}}</td>
-                <th>                  
-                    <strong><a href="{{route('PagosVer',['idServicioPagar'=>$e->idServicioPagar])}}" data-tooltip="Ver Pago">Detalle</a></strong>
-                    @if ( isset($e->afip_cae) && $e->afip_cae != null )
-                      
-                      <strong><a href="{{route('FacturaAfipPDF',['pagoId'=>$e->id])}}" data-tooltip="Ver Comprobante AFIP" target="_blank">Comprobante AFIP</a></strong>
-                        
-                    @endif
-                </th>
+  
               </tr>
             @endforeach
           
           </tfoot>
       </table>
     </div>
-</figure>
+
+</div>
 
 
 
+<div class="container">
 
 
 @if (method_exists($pagos, 'currentPage'))   

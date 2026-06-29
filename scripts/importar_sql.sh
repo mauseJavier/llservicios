@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Variables (ajusta según tu entorno)
-ARCHIVO="/home/mause/Downloads/llservicios (6).sql"
+ARCHIVO="/home/mause/Downloads/llservicios (7).sql"
 CONTENEDOR=mariadb
 USUARIO=root
 PASSWORD=root

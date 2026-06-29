@@ -209,6 +209,7 @@
 
                         <label for="puntoVenta">Punto de Venta</label>
                         <input 
+                            readonly
                             wire:model="puntoVenta" 
                             type="number" 
                             id="puntoVenta" 

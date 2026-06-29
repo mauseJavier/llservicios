@@ -94,9 +94,9 @@
         {{-- <div class="fixed-button" id="menuButton"><i id="icoButton" class="fas fa-sun"></i></div> --}}
         <button class="fixed-button" id="menuButton"><i id="icoButton" class="fas fa-sun"></i></button>
         <div class="menu" id="dropdownMenu">
-          <li><a href="#" data-theme-switcher="auto">Auto</a></li>
-          <li><a href="#" data-theme-switcher="light">Luz</a></li>
-          <li><a href="#" data-theme-switcher="dark">Oscuro</a></li>
+          <li><a role="button" href="#" data-theme-switcher="auto">Auto</a></li>
+          <li><a role="button" href="#" data-theme-switcher="light">Luz</a></li>
+          <li><a role="button" href="#" data-theme-switcher="dark">Oscuro</a></li>
         </div>
 
     @include('principal.menuAPP')
