@@ -64,5 +64,14 @@ class Cliente extends Model
         return $this->hasMany(ServicioPagar::class, 'cliente_id')->where('estado', 'pago');
     }
 
+    /**
+     * Los segmentos del cliente
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
+    public function segmentos(): BelongsToMany
+    {
+        return $this->belongsToMany(Segmento::class, 'cliente_segmento', 'cliente_id', 'segmento_id');
+    }
 
 }

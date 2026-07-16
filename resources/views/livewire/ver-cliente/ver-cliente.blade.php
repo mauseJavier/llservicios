@@ -19,8 +19,14 @@
 
         <div class="grid">
 
-            <fieldset role="group">       
+            <fieldset role="group">
                 <input type="search" placeholder="Buscar cliente..." wire:model.live="buscarCliente" />
+                <select wire:model.live="segmentoFiltro">
+                    <option value="">Todos los segmentos</option>
+                    @foreach ($segmentos as $seg)
+                        <option value="{{ $seg->id }}">{{ $seg->nombre }}</option>
+                    @endforeach
+                </select>
             </fieldset>
 
 

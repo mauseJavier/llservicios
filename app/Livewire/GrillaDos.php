@@ -9,10 +9,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 use App\Models\Cliente;
 use App\Models\Servicio;
+use App\Models\Segmento;
 
 class GrillaDos extends Component
 {
     public $buscar = '';
+    public $segmentoFiltro = '';
     public $year;
 
 
@@ -21,7 +23,8 @@ class GrillaDos extends Component
     public function mount()
     {
         $this->buscar = '';
-        $this->year = date('Y'); // Año actual por defecto
+        $this->segmentoFiltro = '';
+        $this->year = date('Y');
     }
 
     public function getClientes()
@@ -29,10 +32,33 @@ class GrillaDos extends Component
         $usuario = Auth::user();
         $buscar = $this->buscar;
 
+        $clienteIds = null;
+        if ($this->segmentoFiltro) {
+            $segmento = Segmento::find($this->segmentoFiltro);
+            $clienteIds = $segmento ? $segmento->clientes()->pluck('clientes.id')->toArray() : [];
+            if (empty($clienteIds)) {
+                return [[], []];
+            }
+        }
+
         if ($buscar) {
-            $clientes = DB::select('SELECT b.* FROM cliente_empresa a, clientes b WHERE a.cliente_id = b.id and a.empresa_id = ? and (b.nombre like ? or b.dni like ? or b.titular like ?)', [$usuario->empresa_id, "%" . $buscar . "%", "%" . $buscar . "%", "%" . $buscar . "%"]);
+            $sql = 'SELECT b.* FROM cliente_empresa a, clientes b WHERE a.cliente_id = b.id and a.empresa_id = ? and (b.nombre like ? or b.dni like ? or b.titular like ?)';
+            $params = [$usuario->empresa_id, "%" . $buscar . "%", "%" . $buscar . "%", "%" . $buscar . "%"];
+            if ($clienteIds !== null) {
+                $placeholders = implode(',', array_fill(0, count($clienteIds), '?'));
+                $sql .= ' and b.id in (' . $placeholders . ')';
+                $params = array_merge($params, $clienteIds);
+            }
+            $clientes = DB::select($sql, $params);
         } else {
-            $clientes = DB::select('SELECT b.* FROM cliente_empresa a, clientes b WHERE a.cliente_id = b.id and a.empresa_id = ?', [$usuario->empresa_id]);
+            $sql = 'SELECT b.* FROM cliente_empresa a, clientes b WHERE a.cliente_id = b.id and a.empresa_id = ?';
+            $params = [$usuario->empresa_id];
+            if ($clienteIds !== null) {
+                $placeholders = implode(',', array_fill(0, count($clienteIds), '?'));
+                $sql .= ' and b.id in (' . $placeholders . ')';
+                $params = array_merge($params, $clienteIds);
+            }
+            $clientes = DB::select($sql, $params);
         }
 
         // Generar todos los periodos del año seleccionado (enero a diciembre)
@@ -108,11 +134,14 @@ class GrillaDos extends Component
     {
         list($clientes, $total) = $this->getClientes();
 
+        $segmentos = Segmento::where('empresa_id', Auth::user()->empresa_id)->get();
+
         return view('livewire.grilla-dos', [
             'clientes' => $clientes,
             'total' => $total,
             'buscar' => $this->buscar,
-            'year' => $this->year
+            'year' => $this->year,
+            'segmentos' => $segmentos,
         ])
         ->extends('principal.principal')
         ->section('body'); 

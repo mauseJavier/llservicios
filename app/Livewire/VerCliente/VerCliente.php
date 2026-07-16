@@ -12,6 +12,7 @@ use App\Models\Servicio;
 
 use App\Models\ServicioPagar;
 use App\Models\Pagos;
+use App\Models\Segmento;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -22,6 +23,7 @@ class VerCliente extends Component
 
     public $idCliente;
     public $buscarCliente;
+    public $segmentoFiltro = '';
     public $clienteAEliminar = null;
     public $mostrarModalConfirmacion = false;
 
@@ -33,7 +35,11 @@ class VerCliente extends Component
 
     public function updatingBuscarCliente()
     {
-        // Resetear a la primera página cuando se actualiza el filtro de búsqueda
+        $this->resetPage();
+    }
+
+    public function updatingSegmentoFiltro()
+    {
         $this->resetPage();
     }
 
@@ -159,6 +165,8 @@ class VerCliente extends Component
     {
         $empresa = Empresa::find(Auth::user()->empresa_id);
         
+        $segmentos = Segmento::where('empresa_id', $empresa->id)->get();
+        
         $query = $empresa->clientes()
             ->withCount([
                 'servicios as servicios_vinculados_count' => function($q) use ($empresa) {
@@ -178,11 +186,19 @@ class VerCliente extends Component
             });
         }
         
+        // Aplicar filtro por segmento
+        if ($this->segmentoFiltro) {
+            $query->whereHas('segmentos', function($q) {
+                $q->where('segmento_id', $this->segmentoFiltro);
+            });
+        }
+        
         // Paginar los resultados (10 clientes por página)
         $clientes = $query->paginate(10);
         
         return view('livewire.ver-cliente.ver-cliente', [
-            'clientes' => $clientes
+            'clientes' => $clientes,
+            'segmentos' => $segmentos,
         ])
         ->extends('principal.principal')
         ->section('body');

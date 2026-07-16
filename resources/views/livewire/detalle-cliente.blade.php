@@ -48,6 +48,31 @@
                 </div>
             </article>
 
+            <!-- Segmentos del Cliente -->
+            <article>
+                <header>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <strong><i class="fas fa-tags"></i> Segmentos</strong>
+                        <button wire:click="abrirModalSegmentos" class="outline" style="padding: 0.25rem 0.75rem; font-size: 0.85em;">
+                            <i class="fas fa-plus"></i> Gestionar
+                        </button>
+                    </div>
+                </header>
+                @if (count($segmentosCliente) > 0)
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                        @foreach ($segmentosCliente as $seg)
+                            <span style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.7rem; border-radius: 1rem; font-size: 0.85em; background-color: {{ $seg->color ?? '#e5e7eb' }}20; border: 1px solid {{ $seg->color ?? '#d1d5db' }}; color: {{ $seg->color ?? '#374151' }};">
+                                <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: {{ $seg->color ?? '#6b7280' }};"></span>
+                                <strong>{{ $seg->nombre }}</strong>
+                                <button wire:click="toggleSegmento({{ $seg->id }})" wire:confirm="¿Quitar segmento '{{ $seg->nombre }}'?" style="border: none; background: none; cursor: pointer; padding: 0; font-size: 1.1em; line-height: 1; color: inherit; opacity: 0.6;" title="Quitar segmento">&times;</button>
+                            </span>
+                        @endforeach
+                    </div>
+                @else
+                    <p><em>Este cliente no tiene segmentos asignados.</em></p>
+                @endif
+            </article>
+
             <!-- Resumen de Servicios -->
             <div class="grid">
                 <article style="background-color: var(--pico-card-background-color);">
@@ -275,116 +300,63 @@
                         </table>
                     </div>
                 </article>
-            @endif
+        @endif
 
-        </div>
-
-        <!-- Modal para vincular servicio -->
-        @if ($mostrarModalVincular)
+        <!-- Modal para gestionar segmentos -->
+        @if ($mostrarModalSegmentos)
             <dialog open>
-                <article style="max-width: 600px; margin: 0 auto;">
+                <article style="max-width: 500px; margin: 0 auto;">
                     <header>
-                        <button 
-                            aria-label="Close" 
-                            rel="prev" 
-                            wire:click="cerrarModalVincular"
-                            style="border: none; background: none; cursor: pointer; font-size: 1.5em;">
-                        </button>
-                        <strong><i class="fas fa-link"></i> Vincular Servicio a {{ $cliente->nombre }}</strong>
+                        <button aria-label="Close" rel="prev" wire:click="cerrarModalSegmentos" style="border: none; background: none; cursor: pointer; font-size: 1.5em;"></button>
+                        <strong><i class="fas fa-tags"></i> Gestionar Segmentos de {{ $cliente->nombre }}</strong>
                     </header>
-                    
-                    <form wire:submit.prevent="vincularServicio">
-                        <!-- Buscador de servicios -->
-                        <label for="buscarServicio">
-                            Buscar servicio
-                            <input 
-                                type="text" 
-                                id="buscarServicio" 
-                                wire:model.live="buscarServicio" 
-                                placeholder="Buscar por nombre o descripción...">
-                        </label>
 
-                        <!-- Selector de servicio -->
-                        <label for="servicioSeleccionado">
-                            Servicio *
-                            <select 
-                                id="servicioSeleccionado" 
-                                wire:model="servicioSeleccionado" 
-                                required>
-                                <option value="">-- Seleccione un servicio --</option>
-                                @foreach ($serviciosDisponibles as $servicio)
-                                    <option value="{{ $servicio->id }}">
-                                        {{ $servicio->nombre }} - ${{ number_format($servicio->precio, 2) }} por {{ $servicio->tiempo }}
-                                    </option>
+                    <div>
+                        @if (count($segmentosCliente) > 0)
+                            <p><strong>Segmentos asignados:</strong></p>
+                            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
+                                @foreach ($segmentosCliente as $seg)
+                                    <span style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.7rem; border-radius: 1rem; font-size: 0.85em; background-color: {{ $seg->color ?? '#e5e7eb' }}20; border: 1px solid {{ $seg->color ?? '#d1d5db' }}; color: {{ $seg->color ?? '#374151' }};">
+                                        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: {{ $seg->color ?? '#6b7280' }};"></span>
+                                        {{ $seg->nombre }}
+                                        <button wire:click="toggleSegmento({{ $seg->id }})" style="border: none; background: none; cursor: pointer; padding: 0; font-size: 1.1em; line-height: 1; color: inherit; opacity: 0.6;" title="Quitar">&times;</button>
+                                    </span>
                                 @endforeach
-                            </select>
-                            @error('servicioSeleccionado') 
-                                <small style="color: var(--pico-color-red-500);">{{ $message }}</small> 
-                            @enderror
-                        </label>
-
-                        @if (empty($serviciosDisponibles) && !$buscarServicio)
-                            <p><em>No hay servicios disponibles para vincular. Todos los servicios ya están vinculados a este cliente.</em></p>
-                        @elseif (empty($serviciosDisponibles) && $buscarServicio)
-                            <p><em>No se encontraron servicios con ese criterio de búsqueda.</em></p>
+                            </div>
+                        @else
+                            <p><em>No hay segmentos asignados.</em></p>
                         @endif
 
-                        <div class="grid">
-                            <!-- Cantidad -->
-                            <label for="cantidadVincular">
-                                Cantidad *
-                                <input 
-                                    type="number" 
-                                    id="cantidadVincular" 
-                                    wire:model="cantidadVincular" 
-                                    min="0.5" 
-                                    step="0.5" 
-                                    required>
-                                @error('cantidadVincular') 
-                                    <small style="color: var(--pico-color-red-500);">{{ $message }}</small> 
-                                @enderror
-                            </label>
+                        @if (count($todosSegmentos) > 0)
+                            <hr>
+                            <p><strong>Segmentos disponibles:</strong></p>
+                            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                                @foreach ($todosSegmentos as $seg)
+                                    <button wire:click="toggleSegmento({{ $seg->id }})" style="display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.7rem; border-radius: 1rem; font-size: 0.85em; cursor: pointer; border: 1px dashed {{ $seg->color ?? '#d1d5db' }}; background: transparent; color: {{ $seg->color ?? '#374151' }};">
+                                        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: {{ $seg->color ?? '#6b7280' }};"></span>
+                                        + {{ $seg->nombre }}
+                                    </button>
+                                @endforeach
+                            </div>
+                        @else
+                            <p><em>No hay más segmentos disponibles.
+                                @if(count($segmentosCliente) > 0)
+                                    El cliente ya está en todos los segmentos.
+                                @else
+                                    <br><a href="{{ route('segmentos') }}" target="_blank">Crear segmentos</a>
+                                @endif
+                            </em></p>
+                        @endif
+                    </div>
 
-                            <!-- Vencimiento -->
-                            <label for="vencimientoVincular">
-                                Fecha de Vencimiento *
-                                <input 
-                                    type="datetime-local" 
-                                    id="vencimientoVincular" 
-                                    wire:model="vencimientoVincular" 
-                                    required>
-                                @error('vencimientoVincular') 
-                                    <small style="color: var(--pico-color-red-500);">{{ $message }}</small> 
-                                @enderror
-                            </label>
-                        </div>
-
-                        <footer style="display: flex; justify-content: flex-end; gap: 1rem;">
-                            <button 
-                                type="button" 
-                                class="secondary" 
-                                wire:click="cerrarModalVincular">
-                                Cancelar
-                            </button>
-                            <button 
-                                type="submit" 
-                                :disabled="!$servicioSeleccionado"
-                                @if(empty($serviciosDisponibles)) disabled @endif>
-                                <i class="fas fa-link"></i> Vincular Servicio
-                            </button>
-                        </footer>
-                    </form>
+                    <footer style="display: flex; justify-content: flex-end;">
+                        <button type="button" class="secondary" wire:click="cerrarModalSegmentos">Cerrar</button>
+                    </footer>
                 </article>
             </dialog>
         @endif
 
-    @else
-        <div class="container">
-            <article>
-                <p>No se pudo cargar la información del cliente.</p>
-                <a href="{{ route('Cliente.index') }}" role="button">Volver al listado</a>
-            </article>
-        </div>
+    </div>
     @endif
 
     <style>

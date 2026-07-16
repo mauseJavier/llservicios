@@ -69,4 +69,12 @@ class Empresa extends Model
         return $this->hasMany(Servicio::class, 'empresa_id', 'id');
     }
 
+    /**
+     * Relación con segmentos - Una empresa puede tener muchos segmentos
+     */
+    public function segmentos(): HasMany
+    {
+        return $this->hasMany(Segmento::class, 'empresa_id', 'id');
+    }
+
 }

@@ -36,6 +36,7 @@
                 @if (Auth::User()->role->nombre == 'Super' || 
                     Auth::User()->role->nombre == 'Admin')
                   <li><a href="{{route('Cliente.index')}}">Clientes</a></li>
+                  <li><a href="{{route('segmentos')}}">Segmentos</a></li>
                   <li><a href="{{route('Servicios.index')}}">Servicios</a></li>
                   <li><a href="{{route('Grilla')}}">Grilla Clientes</a></li>
                   <li><a href="{{route('Pagos', ['fecha_inicio' => date('Y-m-d'), 'fecha_fin' => date('Y-m-d')])}}">Pagos</a></li>

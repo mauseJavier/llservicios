@@ -91,10 +91,14 @@ RUN mkdir -p /var/www/html/storage/framework/cache \
     && chown -R www-data:www-data /var/www/html \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# 8. Cache de Laravel (produccion)
-# Deshabilitado para desarrollo - se ejecutará en runtime si es necesario
-RUN chown -R www-data:www-data /var/www/html/bootstrap/cache /var/www/html/storage \
-    && php artisan view:cache 
+# 8. Permisos de runtime (view:cache se omite: incompatible con Livewire v3, se maneja en entrypoint)
+RUN chown -R www-data:www-data /var/www/html/bootstrap/cache /var/www/html/storage
+
+# 9. Entrypoint: migraciones automaticas, config cache y permisos
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["apache2-foreground"]
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
     CMD php /var/www/html/artisan up || exit 1

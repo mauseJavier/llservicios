@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
     image: localllservicios-v2:local
     container_name: localllservicios-v2
+    environment:
+      - MIGRATE=true
     volumes:
       - ./.env:/var/www/html/.env:ro
       - ./storage:/var/www/html/storage

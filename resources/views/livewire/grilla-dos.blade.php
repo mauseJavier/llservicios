@@ -15,6 +15,12 @@
 
             {{-- <a href="{{route('NuevoCobro')}}" role="button" style="white-space: nowrap;">Agregar Servicio</a> --}}
             <input type="search" class="input" id="buscar" name="buscar" wire:model.live="buscar" placeholder="Buscar...">
+            <select wire:model.live="segmentoFiltro" style="max-width: 200px;">
+                <option value="">Todos los segmentos</option>
+                @foreach ($segmentos as $seg)
+                    <option value="{{ $seg->id }}">{{ $seg->nombre }}</option>
+                @endforeach
+            </select>
             <select wire:model.live="year" style="max-width: 150px;">
                 @for ($y = date('Y'); $y >= 2025; $y--)
                     <option value="{{ $y }}">{{ $y }}</option>

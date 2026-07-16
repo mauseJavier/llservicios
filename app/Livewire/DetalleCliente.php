@@ -26,10 +26,16 @@ class DetalleCliente extends Component
     public $vencimientoVincular = '';
     public $buscarServicio = '';
 
+    // Propiedades para segmentos
+    public $segmentosCliente = [];
+    public $todosSegmentos = [];
+    public $mostrarModalSegmentos = false;
+
     public function mount($clienteId)
     {
         $this->clienteId = $clienteId;
         $this->cargarDatosCliente();
+        $this->cargarSegmentos();
         
         // Establecer fecha de vencimiento por defecto (1 año desde hoy)
         $this->vencimientoVincular = now()->addYear()->format('Y-m-d\TH:i');
@@ -117,6 +123,8 @@ class DetalleCliente extends Component
         // Calcular totales
         $this->totalImpago = array_sum(array_column($this->serviciosImpagos, 'total'));
         $this->totalPagado = array_sum(array_column($this->serviciosPagos, 'total'));
+
+        $this->cargarSegmentos();
     }
 
     public function abrirModalVincular()
@@ -257,6 +265,84 @@ class DetalleCliente extends Component
         } else {
             session()->flash('error', 'Error al desvincular el servicio');
         }
+    }
+
+    // ============================================================
+    // GESTIÓN DE SEGMENTOS
+    // ============================================================
+
+    public function cargarSegmentos()
+    {
+        $usuario = Auth::user();
+
+        $this->segmentosCliente = DB::select(
+            'SELECT sg.id, sg.nombre, sg.color
+             FROM cliente_segmento cs
+             INNER JOIN segmentos sg ON cs.segmento_id = sg.id
+             WHERE cs.cliente_id = ?
+             AND sg.empresa_id = ?
+             ORDER BY sg.nombre ASC',
+            [$this->clienteId, $usuario->empresa_id]
+        );
+
+        $idsAsignados = array_column($this->segmentosCliente, 'id');
+
+        if (!empty($idsAsignados)) {
+            $placeholders = implode(',', array_fill(0, count($idsAsignados), '?'));
+            $this->todosSegmentos = DB::select(
+                "SELECT * FROM segmentos WHERE empresa_id = ? AND id NOT IN ($placeholders) ORDER BY nombre ASC",
+                array_merge([$usuario->empresa_id], $idsAsignados)
+            );
+        } else {
+            $this->todosSegmentos = DB::select(
+                'SELECT * FROM segmentos WHERE empresa_id = ? ORDER BY nombre ASC',
+                [$usuario->empresa_id]
+            );
+        }
+    }
+
+    public function toggleSegmento($segmentoId)
+    {
+        $usuario = Auth::user();
+
+        $segmentoExiste = DB::selectOne(
+            'SELECT * FROM segmentos WHERE id = ? AND empresa_id = ?',
+            [$segmentoId, $usuario->empresa_id]
+        );
+
+        if (!$segmentoExiste) {
+            session()->flash('error', 'Segmento no válido');
+            return;
+        }
+
+        $yaAsignado = DB::selectOne(
+            'SELECT * FROM cliente_segmento WHERE cliente_id = ? AND segmento_id = ?',
+            [$this->clienteId, $segmentoId]
+        );
+
+        if ($yaAsignado) {
+            DB::delete(
+                'DELETE FROM cliente_segmento WHERE cliente_id = ? AND segmento_id = ?',
+                [$this->clienteId, $segmentoId]
+            );
+        } else {
+            DB::table('cliente_segmento')->insert([
+                'cliente_id' => $this->clienteId,
+                'segmento_id' => $segmentoId,
+            ]);
+        }
+
+        $this->cargarSegmentos();
+    }
+
+    public function abrirModalSegmentos()
+    {
+        $this->mostrarModalSegmentos = true;
+    }
+
+    public function cerrarModalSegmentos()
+    {
+        $this->mostrarModalSegmentos = false;
     }
 
     public function render()
