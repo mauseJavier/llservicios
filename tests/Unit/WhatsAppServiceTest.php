@@ -46,6 +46,82 @@ class WhatsAppServiceTest extends TestCase
     }
 
     /** @test */
+    public function puede_enviar_mensaje_con_botones()
+    {
+        Http::fake([
+            '*' => Http::response([
+                'success' => true,
+                'message_id' => 'btn123'
+            ], 200)
+        ]);
+
+        $resultado = $this->whatsappService->sendButtons(
+            '5492942506803',
+            'Título de prueba',
+            'Descripción del mensaje',
+            'Footer del mensaje',
+            [
+                ['type' => 'reply', 'displayText' => 'Opción 1', 'id' => 'opt1'],
+                ['type' => 'reply', 'displayText' => 'Opción 2', 'id' => 'opt2'],
+                ['type' => 'reply', 'displayText' => 'Información recibida', 'id' => 'info_recibida'],
+            ]
+        );
+
+        $this->assertTrue($resultado['success']);
+        $this->assertArrayHasKey('data', $resultado);
+        $this->assertEquals('Mensaje con botones enviado correctamente', $resultado['message']);
+    }
+
+    /** @test */
+    public function maneja_errores_de_api_en_botones()
+    {
+        Http::fake([
+            '*' => Http::response([
+                'error' => 'API Error'
+            ], 500)
+        ]);
+
+        $resultado = $this->whatsappService->sendButtons(
+            '5492942506803',
+            'Título',
+            'Descripción',
+            'Footer',
+            [['type' => 'reply', 'displayText' => 'Información recibida', 'id' => 'info_recibida']]
+        );
+
+        $this->assertFalse($resultado['success']);
+        $this->assertStringContainsString('Error al enviar mensaje con botones', $resultado['message']);
+    }
+
+    /** @test */
+    public function formatea_numero_correctamente_en_botones()
+    {
+        Http::fake([
+            '*' => Http::response(['success' => true], 200)
+        ]);
+
+        $resultado = $this->whatsappService->sendButtons(
+            '2942506803',
+            'Título',
+            'Descripción',
+            'Footer',
+            [['type' => 'reply', 'displayText' => 'Información recibida', 'id' => 'info_recibida']]
+        );
+
+        $this->assertTrue($resultado['success']);
+
+        $resultado2 = $this->whatsappService->sendButtons(
+            '5492942506803',
+            'Título',
+            'Descripción',
+            'Footer',
+            [['type' => 'reply', 'displayText' => 'Información recibida', 'id' => 'info_recibida']]
+        );
+
+        $this->assertTrue($resultado2['success']);
+    }
+
+    /** @test */
     public function puede_enviar_documento()
     {
         Http::fake([

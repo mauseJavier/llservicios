@@ -290,22 +290,7 @@ Route::get('/login', function () {
 })->name('login');
 
 Route::get('/loginUsuario', function () {
-
-    if (Auth::check()) {
-
-        // return Response::json([
-        //     'id' => Auth::user()->id,
-        //     'name' => Auth::user()->name,
-        //     'role' => 'user',
-        //     'isNew' => \Session::get('isNew', 0)
-        // ]);
-
-        // The user is logged in...
-        return redirect('panelServicios');
-    }else{
-        return view('login');
-    }
-    
+    return redirect()->route('login');
 })->name('loginUsuario');
 
 

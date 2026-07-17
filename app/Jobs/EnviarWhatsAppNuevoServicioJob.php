@@ -95,11 +95,19 @@ class EnviarWhatsAppNuevoServicioJob implements ShouldQueue
             // Instanciar el servicio de WhatsApp
             $whatsappService = new WhatsAppService($this->instanciaWS, $this->tokenWS);
 
-            // Construir el mensaje
-            $mensaje = $this->construirMensaje($datosServicio, $fechaFormateada);
+            $total = number_format($datosServicio->precioServicio * $datosServicio->cantidadServicio, 2, ',', '.');
 
-            // Enviar el mensaje
-            $resultado = $whatsappService->sendTextMessage($datosServicio->telefonoCliente, $mensaje);
+            $resultado = $whatsappService->sendButtons(
+                $datosServicio->telefonoCliente,
+                '📢 Nuevo Servicio Registrado',
+                "Hola {$datosServicio->nombreCliente}, se ha registrado un nuevo servicio a su nombre:\n\n• Servicio: {$datosServicio->nombreServicio}\n• Cantidad: {$datosServicio->cantidadServicio}\n• Precio unitario: \$" . number_format($datosServicio->precioServicio, 2, ',', '.') . "\n• Fecha: {$fechaFormateada}\n\n💰 Total a pagar: \${$total}",
+                'Gracias por su atención',
+                [
+                    ['type' => 'reply', 'displayText' => '💳 Pagar ahora', 'id' => 'pagar_servicio'],
+                    ['type' => 'reply', 'displayText' => '📞 Contactar', 'id' => 'contactar'],
+                    ['type' => 'reply', 'displayText' => 'Gracias por la información', 'id' => 'info_recibida'],
+                ]
+            );
 
             if ($resultado['success']) {
                 Log::info('WhatsApp Job - Notificación de nuevo servicio enviada exitosamente', [

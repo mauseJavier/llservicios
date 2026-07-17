@@ -286,7 +286,47 @@ class WhatsAppService
     //     }
     // }
 
-        /**
+    public function sendButtons(string $telefono, string $title, string $description, string $footer, array $buttons): array
+    {
+        try {
+            $telefono = preg_replace('/[^0-9]/', '', $telefono);
+
+            if (!str_starts_with($telefono, '549')) {
+                $telefono = '549' . $telefono;
+            }
+
+            $payload = [
+                'number' => $telefono,
+                'title' => $title,
+                'description' => $description,
+                'footer' => $footer,
+                'buttons' => $buttons,
+            ];
+
+            $response = $this->makeRequest('POST', '/message/sendButtons/' . $this->instanceId, $payload);
+
+            return [
+                'success' => true,
+                'message' => 'Mensaje con botones enviado correctamente',
+                'data' => $response
+            ];
+
+        } catch (Exception $e) {
+            Log::error('WhatsApp - Error enviando mensaje con botones', [
+                'telefono' => $telefono ?? $telefono,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Error al enviar mensaje con botones: ' . $e->getMessage(),
+                'data' => null
+            ];
+        }
+    }
+
+    /**
      * Realizar petición HTTP a la API de WhatsApp
      * 
      * @param string $method Método HTTP (GET, POST, etc)

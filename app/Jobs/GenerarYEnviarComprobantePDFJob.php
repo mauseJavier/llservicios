@@ -43,7 +43,15 @@ class GenerarYEnviarComprobantePDFJob implements ShouldQueue
             ]);
 
             if ($this->mensajeTexto) {
-                $whatsappService->sendTextMessage($this->phoneNumber, $this->mensajeTexto, []);
+                $whatsappService->sendButtons(
+                    $this->phoneNumber,
+                    '🧾 Comprobante de Pago',
+                    $this->mensajeTexto,
+                    'Gracias por su pago',
+                    [
+                        ['type' => 'reply', 'displayText' => 'Información recibida', 'id' => 'info_recibida'],
+                    ]
+                );
             }
 
             $pdfBase64 = $this->generarComprobantePagoPDFBase64($this->datosPDF);

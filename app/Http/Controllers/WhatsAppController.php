@@ -31,103 +31,15 @@ class WhatsAppController extends Controller
             'message' => 'required|string',
         ]);
 
-        $result = $this->whatsappService->sendTextMessage(
+        $result = $this->whatsappService->sendButtons(
             $request->phone,
+            config('app.name'),
             $request->message,
-            $request->only(['pushName', 'instanceId', 'source'])
+            '',
+            [
+                ['type' => 'reply', 'displayText' => 'Información recibida', 'id' => 'info_recibida'],
+            ]
         );
-
-        return response()->json($result, $result['success'] ? 200 : 500);
-    }
-
-    /**
-     * Enviar documento
-     * 
-     * POST /api/whatsapp/send-document
-     * Body: {
-     *   "phone": "5492942506803",
-     *   "document_url": "https://ejemplo.com/documento.pdf",
-     *   "filename": "documento.pdf",
-     *   "caption": "Aquí está tu documento"
-     * }
-     */
-    public function sendDocument(Request $request): JsonResponse
-    {
-        $request->validate([
-            'phone' => 'required|string',
-            'document_url' => 'required|url',
-            'filename' => 'required|string',
-            'caption' => 'nullable|string',
-        ]);
-
-        $result = $this->whatsappService->sendDocument(
-            $request->phone,
-            $request->document_url,
-            $request->filename,
-            $request->caption,
-            $request->only(['pushName', 'instanceId', 'source', 'mimetype'])
-        );
-
-        return response()->json($result, $result['success'] ? 200 : 500);
-    }
-
-    /**
-     * Enviar imagen
-     * 
-     * POST /api/whatsapp/send-image
-     * Body: {
-     *   "phone": "5492942506803",
-     *   "image_url": "https://ejemplo.com/imagen.jpg",
-     *   "caption": "Mira esta imagen"
-     * }
-     */
-    public function sendImage(Request $request): JsonResponse
-    {
-        $request->validate([
-            'phone' => 'required|string',
-            'image_url' => 'required|url',
-            'caption' => 'nullable|string',
-        ]);
-
-        $result = $this->whatsappService->sendImage(
-            $request->phone,
-            $request->image_url,
-            $request->caption,
-            $request->only(['pushName', 'instanceId', 'source'])
-        );
-
-        return response()->json($result, $result['success'] ? 200 : 500);
-    }
-
-    /**
-     * Enviar mensaje personalizado con estructura completa
-     * 
-     * POST /api/whatsapp/send-custom
-     * Body: {
-     *   "key": {
-     *     "remoteJid": "5492942506803@s.whatsapp.net",
-     *     "fromMe": true,
-     *     "id": "..."
-     *   },
-     *   "pushName": "Mi App",
-     *   "status": "PENDING",
-     *   "message": {
-     *     "conversation": "mensaje de prueba"
-     *   },
-     *   "messageType": "conversation",
-     *   "messageTimestamp": 1761756020,
-     *   "instanceId": "b8ace17d-ae1d-4e03-a750-6bd4edd8cb8a",
-     *   "source": "api"
-     * }
-     */
-    public function sendCustom(Request $request): JsonResponse
-    {
-        $request->validate([
-            'key.remoteJid' => 'required|string',
-            'message' => 'required|array',
-        ]);
-
-        $result = $this->whatsappService->sendCustomMessage($request->all());
 
         return response()->json($result, $result['success'] ? 200 : 500);
     }
@@ -167,7 +79,15 @@ class WhatsAppController extends Controller
             default => 'Notificación desde ' . config('app.name')
         };
 
-        $result = $this->whatsappService->sendTextMessage($phone, $mensaje);
+        $result = $this->whatsappService->sendButtons(
+            $phone,
+            '🔔 Notificación',
+            $mensaje,
+            config('app.name'),
+            [
+                ['type' => 'reply', 'displayText' => 'Información recibida', 'id' => 'info_recibida'],
+            ]
+        );
 
         return response()->json($result, $result['success'] ? 200 : 500);
     }

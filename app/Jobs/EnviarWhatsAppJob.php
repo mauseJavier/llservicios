@@ -75,6 +75,15 @@ class EnviarWhatsAppJob implements ShouldQueue
                     $this->message,
                     $this->additionalData
                 ),
+                'buttons' => $whatsappService->sendButtons(
+                    $this->phoneNumber,
+                    $this->additionalData['title'] ?? config('app.name'),
+                    $this->message,
+                    $this->additionalData['footer'] ?? '',
+                    $this->additionalData['buttons'] ?? [
+                        ['type' => 'reply', 'displayText' => 'Información recibida', 'id' => 'info_recibida']
+                    ]
+                ),
                 'document' => $whatsappService->sendDocument(
                     $this->phoneNumber,
                     $this->message, // URL del documento

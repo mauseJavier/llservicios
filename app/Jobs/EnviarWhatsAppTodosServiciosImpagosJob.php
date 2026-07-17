@@ -46,11 +46,21 @@ class EnviarWhatsAppTodosServiciosImpagosJob implements ShouldQueue
             // Instanciar el servicio de WhatsApp
             $whatsappService = new WhatsAppService($this->instanciaWS, $this->tokenWS);
 
-            // Construir el mensaje
-            $mensaje = $this->construirMensaje();
+            $nombreCliente = $this->datos['nombreCliente'];
+            $nombreEmpresa = $this->datos['nombreEmpresa'] ?? 'nuestra empresa';
+            $total = number_format($this->datos['total'], 2, ',', '.');
 
-            // Enviar el mensaje
-            $resultado = $whatsappService->sendTextMessage($this->telefono, $mensaje);
+            $resultado = $whatsappService->sendButtons(
+                $this->telefono,
+                '🔔 Servicios Pendientes',
+                "Hola {$nombreCliente}, le informamos desde {$nombreEmpresa} que tiene {$this->datos['cantidad']} servicio(s) pendiente(s) de pago.\n\n💰 Total adeudado: \${$total}\n\nPor favor, regularice su situación a la brevedad posible.",
+                'Gracias por su atención',
+                [
+                    ['type' => 'reply', 'displayText' => '💳 Regularizar pago', 'id' => 'pagar_impagos'],
+                    ['type' => 'reply', 'displayText' => '📞 Consultar', 'id' => 'consultar'],
+                    ['type' => 'reply', 'displayText' => 'Gracias por la información', 'id' => 'info_recibida'],
+                ]
+            );
 
             if ($resultado['success']) {
                 Log::info('WhatsApp Job - Mensaje enviado exitosamente', [
