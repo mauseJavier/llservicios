@@ -491,6 +491,7 @@ class PagosController extends Controller
                 $q->where('id', $idServicioPagar);
             })
             ->whereNull('afip_nc_de_pago_id')
+            ->orderBy('id', 'desc')
             // FILTRO 1: Filtrar por empresa del servicio
             ->whereHas('servicioPagar.servicio', function($q) use ($empresaId) {
                 $q->where('empresa_id', $empresaId);
@@ -534,6 +535,7 @@ class PagosController extends Controller
                 $q->where('id', $idServicioPagar);
             })
             ->whereNull('afip_nc_de_pago_id')
+            ->orderBy('id', 'desc')
             // FILTRO 1: Filtrar por empresa del servicio
             ->whereHas('servicioPagar.servicio', function($q) use ($empresaId) {
                 $q->where('empresa_id', $empresaId);
