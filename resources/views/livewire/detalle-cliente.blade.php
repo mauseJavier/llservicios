@@ -356,6 +356,91 @@
             </dialog>
         @endif
 
+        <!-- Modal para vincular servicio -->
+        @if ($mostrarModalVincular)
+            <dialog open>
+                <article style="max-width: 600px; margin: 0 auto;">
+                    <header>
+                        <button aria-label="Close" rel="prev" wire:click="cerrarModalVincular" style="border: none; background: none; cursor: pointer; font-size: 1.5em;"></button>
+                        <strong><i class="fas fa-link"></i> Vincular Servicio a {{ $cliente->nombre }}</strong>
+                    </header>
+
+                    <div>
+                        @if (session()->has('error'))
+                            <div style="color: red; margin-bottom: 0.5rem;">
+                                <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
+                            </div>
+                        @endif
+
+                        @error('servicioSeleccionado')
+                            <div style="color: red; margin-bottom: 0.5rem;">
+                                <i class="fas fa-exclamation-circle"></i> {{ $message }}
+                            </div>
+                        @enderror
+
+                        <!-- Buscador de servicios -->
+                        <div style="margin-bottom: 1rem;">
+                            <label for="buscarServicio">Buscar servicio</label>
+                            <input type="text" id="buscarServicio" wire:model.live="buscarServicio" placeholder="Escriba para buscar servicios..." style="margin-bottom: 0.5rem;">
+                        </div>
+
+                        <!-- Lista de servicios disponibles -->
+                        <div style="margin-bottom: 1rem;">
+                            <label>Seleccione un servicio</label>
+                            @if (count($serviciosDisponibles) > 0)
+                                <div style="display: flex; flex-direction: column; gap: 0.3rem; max-height: 200px; overflow-y: auto; border: 1px solid var(--pico-form-element-border-color); border-radius: var(--pico-border-radius); padding: 0.5rem;">
+                                    @foreach ($serviciosDisponibles as $servicio)
+                                        <button type="button" wire:click="$set('servicioSeleccionado', {{ $servicio->id }})" 
+                                            style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-radius: 0.3rem; cursor: pointer; border: 1px solid {{ $servicioSeleccionado == $servicio->id ? 'var(--pico-primary-background)' : 'transparent' }}; background-color: {{ $servicioSeleccionado == $servicio->id ? 'var(--pico-primary-background)' : 'transparent' }}; color: {{ $servicioSeleccionado == $servicio->id ? 'var(--pico-primary-inverse)' : 'inherit' }}; text-align: left; width: 100%;">
+                                            <span>
+                                                <strong>{{ $servicio->nombre }}</strong>
+                                                @if($servicio->descripcion)
+                                                    <br><small>{{ Str::limit($servicio->descripcion, 40) }}</small>
+                                                @endif
+                                            </span>
+                                            <span style="text-align: right; white-space: nowrap;">
+                                                <strong>${{ number_format($servicio->precio, 2) }}</strong>
+                                                <br><small>{{ ucfirst($servicio->tiempo) }}</small>
+                                            </span>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            @else
+                                <p><em>No hay servicios disponibles. 
+                                    @if($buscarServicio)
+                                        No se encontraron servicios con "{{ $buscarServicio }}".
+                                    @else
+                                        Todos los servicios ya están vinculados a este cliente.
+                                    @endif
+                                </em></p>
+                            @endif
+                        </div>
+
+                        <!-- Campos de cantidad y vencimiento -->
+                        <div class="grid" style="grid-template-columns: 1fr 1fr;">
+                            <div>
+                                <label for="cantidadVincular">Cantidad</label>
+                                <input type="number" id="cantidadVincular" wire:model="cantidadVincular" min="0.5" step="0.5">
+                                @error('cantidadVincular') <small style="color: red;">{{ $message }}</small> @enderror
+                            </div>
+                            <div>
+                                <label for="vencimientoVincular">Fecha de Vencimiento</label>
+                                <input type="datetime-local" id="vencimientoVincular" wire:model="vencimientoVincular">
+                                @error('vencimientoVincular') <small style="color: red;">{{ $message }}</small> @enderror
+                            </div>
+                        </div>
+                    </div>
+
+                    <footer style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                        <button type="button" class="secondary" wire:click="cerrarModalVincular">Cancelar</button>
+                        <button type="button" wire:click="vincularServicio">
+                            <i class="fas fa-link"></i> Vincular Servicio
+                        </button>
+                    </footer>
+                </article>
+            </dialog>
+        @endif
+
     </div>
     @endif
 
