@@ -9,6 +9,7 @@ use App\Models\Empresa;
 use App\Models\role;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Services\AfipService;
 
 
@@ -60,34 +61,39 @@ class UserController extends Controller
 
     public function loginUsuario(Request $request)
     {
-        
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
 
-        // return Auth::check();
- 
-        if (Auth::attempt($credentials)) {
+        Log::info('[LOGIN] Intento de login', ['email' => $request->email]);
+        
+        $authResult = Auth::attempt($credentials);
+        Log::info('[LOGIN] Resultado Auth::attempt', ['result' => $authResult]);
+        
+        if ($authResult) {
+            Log::info('[LOGIN] Autenticación exitosa, regenerando sesión');
             $request->session()->regenerate();
- 
-            $usuario= Auth::user();
-            $empresa_id = $usuario->empresa_id;
-            // Via the global "session" helper...
+  
+            $usuario = Auth::user();
+            Log::info('[LOGIN] Datos usuario', [
+                'id' => $usuario->id,
+                'empresa_id' => $usuario->empresa_id,
+                'role_id' => $usuario->role_id
+            ]);
             
-            $empresa = Empresa::where('id',$empresa_id)->get();
+            $empresa = Empresa::where('id', $usuario->empresa_id)->get();
+            Log::info('[LOGIN] Empresa encontrada', ['count' => $empresa->count()]);
 
             session(['logoEmpresa' => $empresa[0]->logo]);    
 
-            if($usuario->role_id == 3 || $usuario->role_id == 2){
-                return redirect()->intended('Grilla');
-            }else{
-                return redirect()->intended('servicios');
-            }
+            $destino = in_array($usuario->role_id, [2, 3]) ? 'Grilla' : 'servicios';
+            Log::info('[LOGIN] Redirigiendo a', ['destino' => $destino]);
 
-            
+            return redirect()->intended($destino);
         }
- 
+
+        Log::warning('[LOGIN] Credenciales inválidas', ['email' => $request->email]);
         return back()->withErrors([
             'email' => 'Correo o Contraseña Incorrectos.',
         ])->onlyInput('email');
