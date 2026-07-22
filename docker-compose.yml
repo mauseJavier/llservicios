@@ -8,8 +8,8 @@ services:
     env_file:
       - .env
     environment:
-      - APP_ENV=production
-      - APP_DEBUG=false
+      - APP_ENV=local
+      - APP_DEBUG=true
       - MIGRATE=true
     volumes:
       - ./.env:/var/www/html/.env:ro
