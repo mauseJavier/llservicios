@@ -65,7 +65,11 @@ class EnviarComprobantePagoEmailJob implements ShouldQueue
 
             // Verificar que el cliente tenga correo
             if (!$servicioPagar->cliente || !$servicioPagar->cliente->correo) {
-                throw new Exception("El cliente no tiene correo electrónico registrado");
+                \Log::warning("Cliente sin correo electrónico, saltando envío de comprobante", [
+                    'idServicioPagar' => $this->idServicioPagar,
+                    'cliente_id' => $servicioPagar->cliente->id ?? 'N/A',
+                ]);
+                return;
             }
 
             // Preparar los datos para el correo y el PDF

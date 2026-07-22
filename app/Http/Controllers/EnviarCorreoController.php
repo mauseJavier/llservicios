@@ -96,12 +96,15 @@ class EnviarCorreoController extends Controller
                                                                 a.cantidad AS cantidad,
                                                                 a.precio AS precio,
                                                                 a.precio * a.cantidad AS total,
-                                                                a.created_at as fecha
+                                                                a.created_at as fecha,
+                                                                c.nombre AS nombreEmpresa,
+                                                                c.aliasTranferencia AS aliasTransferencia
                                                             FROM
                                                                 servicio_pagar a,
-                                                                servicios b
+                                                                servicios b,
+                                                                empresas c
                                                             WHERE
-                                                                a.servicio_id = b.id AND b.empresa_id = ? AND a.cliente_id = ? AND a.estado = ?', [$usuario->empresa_id, $valor->cliente_id,'impago']);
+                                                                a.servicio_id = b.id AND b.empresa_id = c.id AND b.empresa_id = ? AND a.cliente_id = ? AND a.estado = ?', [$usuario->empresa_id, $valor->cliente_id,'impago']);
 
             foreach  ($serviciosImpagos[$i]['servicios'] as $datos){
                 $totalServicios = $totalServicios + $datos->total;
