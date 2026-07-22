@@ -15,7 +15,7 @@ fi
 
 if [ "$1" = "apache2-foreground" ]; then
     if [ "${APP_ENV}" = "production" ]; then
-        php /var/www/html/artisan config:cache
+        php /var/www/html/artisan config:clear
         php /var/www/html/artisan view:clear
     else
         php /var/www/html/artisan config:clear
