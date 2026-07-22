@@ -353,12 +353,12 @@ class WhatsAppService
         $url = $this->apiUrl . '' . $endpoint;
 
 
-        Log::info("WhatsApp - Realizando petición {$method} a {$url}", [
-            'endpoint' => $endpoint,
-            'api_url' => $this->apiUrl,
-            'full_url' => $url,
-            'data' => $data
-        ]);
+        // Log::info("WhatsApp - Realizando petición {$method} a {$url}", [
+        //     'endpoint' => $endpoint,
+        //     'api_url' => $this->apiUrl,
+        //     'full_url' => $url,
+        //     'data' => $data
+        // ]);
 
         // Construir la petición con headers correctos según la API de Evolution
         $response = Http::timeout(30)
@@ -384,6 +384,57 @@ class WhatsAppService
     }
 
 
+
+    /**
+     * Obtener el estado de conexión de la instancia de WhatsApp
+     * 
+     * @param string|null $instanceName Nombre de la instancia
+     * @return array
+     */
+    public function getConnectionState(?string $instanceName = null): array
+    {
+        $instanceName = $instanceName ?? $this->instanceId;
+
+        if (empty($this->apiUrl) || empty($this->apiKey) || empty($instanceName)) {
+            return [
+                'success' => false,
+                'state' => 'error',
+                'message' => 'Configuración de WhatsApp incompleta'
+            ];
+        }
+
+        try {
+            $url = rtrim($this->apiUrl, '/') . '/instance/connectionState/' . $instanceName;
+
+            $response = Http::timeout(10)
+                ->withHeaders([
+                    'Content-Type' => 'application/json',
+                    'apikey' => $this->apiKey,
+                ])
+                ->get($url);
+
+            if ($response->successful()) {
+                $body = $response->json();
+                return [
+                    'success' => true,
+                    'state' => $body['instance']['state'] ?? 'unknown',
+                    'instanceName' => $body['instance']['instanceName'] ?? $instanceName,
+                ];
+            }
+
+            return [
+                'success' => false,
+                'state' => 'error',
+                'message' => 'Error HTTP: ' . $response->status(),
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'state' => 'error',
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
 
     /**
      * Generar ID único para el mensaje

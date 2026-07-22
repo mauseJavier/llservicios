@@ -17,6 +17,7 @@ use App\Http\Controllers\ReciboSueldoController;
 use App\Http\Controllers\FormatoRegistroReciboController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\AfipController;
+use App\Http\Controllers\LogController;
 
 // Password Reset Controller
 use App\Http\Controllers\PasswordResetController;
@@ -60,9 +61,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/UsuariosEmpresasVer/{idEmpresa}', [EmpresaController::class, 'UsuariosEmpresasVer'])->name('UsuariosEmpresasVer');
         Route::get('/BuscarEmpresa', [EmpresaController::class, 'BuscarEmpresa'])->name('BuscarEmpresa');
 
-
+        Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
+        Route::delete('/logs', [LogController::class, 'clear'])->name('logs.clear');
        
-        
     });
 
     Route::middleware(['RolAdmin'])->group(function () {//AK CREAR UN MIDDELWARE PARA ADDMIN
