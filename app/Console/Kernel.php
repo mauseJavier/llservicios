@@ -38,7 +38,6 @@ class Kernel extends ConsoleKernel
             $schedule->command('app:cobrador-diario')->daily()->appendOutputTo(storage_path('logs/tareasDia.log'));
             $schedule->command('app:cobrador-semanal')->weekly()->appendOutputTo(storage_path('logs/tareasSemana.log'));
             $schedule->command('app:cobrador-mensual')->monthly()->appendOutputTo(storage_path('logs/tareasMes.log'));
-            $schedule->command('session:gc')->hourly();
 
             //NOTIFICACION MENSUAL SE EJECUTA 2 Y 7 A LAS 13 
             $schedule->command('app:notificacion-mensual')->twiceMonthly(2, 7, '13:00')->appendOutputTo(storage_path('logs/notificacionMensual.log'));
