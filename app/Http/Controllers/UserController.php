@@ -66,34 +66,34 @@ class UserController extends Controller
             'password' => ['required'],
         ]);
 
-        Log::info('[LOGIN] Intento de login', ['email' => $request->email]);
+        // Log::info('[LOGIN] Intento de login', ['email' => $request->email]);
         
         $authResult = Auth::attempt($credentials);
-        Log::info('[LOGIN] Resultado Auth::attempt', ['result' => $authResult]);
+        // Log::info('[LOGIN] Resultado Auth::attempt', ['result' => $authResult]);
         
         if ($authResult) {
-            Log::info('[LOGIN] Autenticación exitosa, regenerando sesión');
+            // Log::info('[LOGIN] Autenticación exitosa, regenerando sesión');
             $request->session()->regenerate();
   
             $usuario = Auth::user();
-            Log::info('[LOGIN] Datos usuario', [
-                'id' => $usuario->id,
-                'empresa_id' => $usuario->empresa_id,
-                'role_id' => $usuario->role_id
-            ]);
+            // Log::info('[LOGIN] Datos usuario', [
+            //     'id' => $usuario->id,
+            //     'empresa_id' => $usuario->empresa_id,
+            //     'role_id' => $usuario->role_id
+            // ]);
             
             $empresa = Empresa::where('id', $usuario->empresa_id)->get();
-            Log::info('[LOGIN] Empresa encontrada', ['count' => $empresa->count()]);
+            // Log::info('[LOGIN] Empresa encontrada', ['count' => $empresa->count()]);
 
             session(['logoEmpresa' => $empresa[0]->logo]);    
 
             $destino = in_array($usuario->role_id, [2, 3]) ? 'Grilla' : 'servicios';
-            Log::info('[LOGIN] Redirigiendo a', ['destino' => $destino]);
+            // Log::info('[LOGIN] Redirigiendo a', ['destino' => $destino]);
 
             return redirect()->intended($destino);
         }
 
-        Log::warning('[LOGIN] Credenciales inválidas', ['email' => $request->email]);
+        // Log::warning('[LOGIN] Credenciales inválidas', ['email' => $request->email]);
         return back()->withErrors([
             'email' => 'Correo o Contraseña Incorrectos.',
         ])->onlyInput('email');
