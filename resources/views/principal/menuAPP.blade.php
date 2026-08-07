@@ -49,6 +49,7 @@
         
                   <li><a href="{{route('expenses.index')}}">Gastos</a></li>
                   <li><a href="{{route('cierre-caja')}}">Cierre de Caja</a></li>
+                  <li><a href="{{route('cierre-caja.historial')}}">Historial de Caja</a></li>
 
                   <li><a href="{{route('mercadopago.qr-manager')}}">Gestión QR MP</a></li>
               

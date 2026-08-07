@@ -188,6 +188,7 @@ Route::middleware('auth')->group(function () {
 
             //RUTA PARA CIERRE DE CAJA
             Route::get('/cierre-caja', \App\Livewire\CierreCaja::class)->name('cierre-caja');
+            Route::get('/cierre-caja/historial', \App\Livewire\HistorialCierreCaja::class)->name('cierre-caja.historial');
 
             //RUTA PARA SEGMENTOS
             Route::get('/segmentos', \App\Livewire\GestionSegmentos::class)->name('segmentos');

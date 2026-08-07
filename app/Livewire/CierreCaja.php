@@ -6,8 +6,6 @@ use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
 use App\Models\CierreCaja as CierreCajaModel;
 use App\Models\Empresa;
-use App\Models\Pagos;
-use App\Models\Expense;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -125,68 +123,13 @@ class CierreCaja extends Component
     public function calcularMovimientosCaja()
     {
         $usuario = Auth::user();
-        $hoy = Carbon::today();
-        
-        // Calcular suma de todos los inicios de caja del día
-        $totalInicioCaja = CierreCajaModel::where('empresa_id', $usuario->empresa_id)
-                                         ->where('usuario_id', $usuario->id)
-                                         ->where('movimiento', 'inicio')
-                                         ->whereDate('created_at', $hoy)
-                                         ->sum('importe');
 
-        // Calcular suma de todos los cierres de caja del día
-        $totalCierreCaja = CierreCajaModel::where('empresa_id', $usuario->empresa_id)
-                                         ->where('usuario_id', $usuario->id)
-                                         ->where('movimiento', 'cierre')
-                                         ->whereDate('created_at', $hoy)
-                                         ->sum('importe');
+        $resumen = CierreCajaModel::resumenUsuario($usuario->empresa_id, $usuario->id, Carbon::today());
 
-        // Obtener contadores de registros para mostrar en resumen
-        $cantidadInicios = CierreCajaModel::where('empresa_id', $usuario->empresa_id)
-                                         ->where('usuario_id', $usuario->id)
-                                         ->where('movimiento', 'inicio')
-                                         ->whereDate('created_at', $hoy)
-                                         ->count();
-
-        $cantidadCierres = CierreCajaModel::where('empresa_id', $usuario->empresa_id)
-                                         ->where('usuario_id', $usuario->id)
-                                         ->where('movimiento', 'cierre')
-                                         ->whereDate('created_at', $hoy)
-                                         ->count();
-
-        // Calcular total de pagos del usuario logueado en el día
-        $totalPagos = Pagos::where('id_usuario', $usuario->id)
-                            ->where('forma_pago', '=', 1)
-                           ->whereDate('created_at', $hoy)
-                           ->sum('importe');
-
-        // Calcular total de gastos del usuario logueado en el día
-        $totalGastos = Expense::where('usuario_id', $usuario->id)
-            ->where('estado', 'pago')
-            ->where('forma_pago_id', '=', 1)
-                              ->whereDate('created_at', $hoy)
-                              ->sum('importe');
-
-        // Cálculo según la fórmula: inicio de caja negativo, pagos negativo, cierre de caja y gastos positivo
-        $this->calculoCaja = [
-            'inicio_caja' => $totalInicioCaja,
-            'total_pagos' => $totalPagos,
-            'total_gastos' => $totalGastos,
-            'cierre_caja' => $totalCierreCaja,
-            'calculo_final' => (-$totalInicioCaja) + (-$totalPagos) + $totalCierreCaja + $totalGastos
-        ];
-
-        // Resumen detallado del día
-        $this->resumenDia = [
-            'fecha' => $hoy->format('d/m/Y'),
+        $this->calculoCaja = $resumen['calculoCaja'];
+        $this->resumenDia = array_merge($resumen['resumenDia'], [
             'usuario' => $usuario->name,
-            'inicio_registrado' => $cantidadInicios > 0,
-            'cierre_registrado' => $cantidadCierres > 0,
-            'cantidad_inicios' => $cantidadInicios,
-            'cantidad_cierres' => $cantidadCierres,
-            'total_movimientos_pagos' => Pagos::where('id_usuario', $usuario->id)->whereDate('created_at', $hoy)->count(),
-            'total_movimientos_gastos' => Expense::where('usuario_id', $usuario->id)->whereDate('created_at', $hoy)->count()
-        ];
+        ]);
     }
 
     public function generarPdfA4()
@@ -207,44 +150,20 @@ class CierreCaja extends Component
         // Asegurar que tenemos los datos actualizados
         $this->calcularMovimientosCaja();
         
-        // Obtener detalles de movimientos para el reporte
+        // Obtener el resumen y los movimientos del día
         $hoy = Carbon::today();
-        
-        $movimientosInicio = CierreCajaModel::where('empresa_id', $usuario->empresa_id)
-                                           ->where('usuario_id', $usuario->id)
-                                           ->where('movimiento', 'inicio')
-                                           ->whereDate('created_at', $hoy)
-                                           ->orderBy('created_at')
-                                           ->get();
-        
-        $movimientosCierre = CierreCajaModel::where('empresa_id', $usuario->empresa_id)
-                                           ->where('usuario_id', $usuario->id)
-                                           ->where('movimiento', 'cierre')
-                                           ->whereDate('created_at', $hoy)
-                                           ->orderBy('created_at')
-                                           ->get();
-        
-        $pagosDia = Pagos::where('id_usuario', $usuario->id)
-                         ->where('forma_pago', '=', 1)
-                         ->whereDate('created_at', $hoy)
-                         ->orderBy('created_at')
-                         ->get();
-        
-        $gastosDia = Expense::where('usuario_id', $usuario->id)
-                           ->whereDate('created_at', $hoy)
-                           ->orderBy('created_at')
-                           ->get();
+        $datosResumen = CierreCajaModel::resumenUsuario($usuario->empresa_id, $usuario->id, $hoy);
 
         $datos = [
             'usuario' => $usuario,
             'empresa' => $empresa,
             'fecha' => $hoy,
-            'calculoCaja' => $this->calculoCaja,
-            'resumenDia' => $this->resumenDia,
-            'movimientosInicio' => $movimientosInicio,
-            'movimientosCierre' => $movimientosCierre,
-            'pagosDia' => $pagosDia,
-            'gastosDia' => $gastosDia,
+            'calculoCaja' => $datosResumen['calculoCaja'],
+            'resumenDia' => $datosResumen['resumenDia'],
+            'movimientosInicio' => $datosResumen['movimientosInicio'],
+            'movimientosCierre' => $datosResumen['movimientosCierre'],
+            'pagosDia' => $datosResumen['pagosDia'],
+            'gastosDia' => $datosResumen['gastosDia'],
             'formato' => $formato
         ];
 
@@ -274,99 +193,8 @@ class CierreCaja extends Component
     public function cargarResumenEmpresa()
     {
         $usuario = Auth::user();
-        $empresaId = $usuario->empresa_id;
-        $hoy = Carbon::today();
 
-        // Obtener todos los usuarios de la empresa con movimientos de caja hoy
-        $usuariosConMovimientos = CierreCajaModel::where('empresa_id', $empresaId)
-            ->whereDate('created_at', $hoy)
-            ->select('usuario_id', 'usuario_nombre')
-            ->distinct()
-            ->get()
-            ->pluck('usuario_nombre', 'usuario_id');
-
-        $resumenPorUsuario = [];
-        $totalesEmpresa = [
-            'inicio_caja' => 0,
-            'total_pagos' => 0,
-            'total_gastos' => 0,
-            'cierre_caja' => 0,
-            'calculo_final' => 0
-        ];
-
-        foreach ($usuariosConMovimientos as $usuarioId => $usuarioNombre) {
-            // Calcular inicio de caja
-            $totalInicioCaja = CierreCajaModel::where('empresa_id', $empresaId)
-                ->where('usuario_id', $usuarioId)
-                ->where('movimiento', 'inicio')
-                ->whereDate('created_at', $hoy)
-                ->sum('importe');
-
-            // Calcular cierre de caja
-            $totalCierreCaja = CierreCajaModel::where('empresa_id', $empresaId)
-                ->where('usuario_id', $usuarioId)
-                ->where('movimiento', 'cierre')
-                ->whereDate('created_at', $hoy)
-                ->sum('importe');
-
-            // Calcular total de pagos
-            $totalPagos = Pagos::where('id_usuario', $usuarioId)
-                ->where('forma_pago', '=', 1)
-                ->whereDate('created_at', $hoy)
-                ->sum('importe');
-
-            // Calcular total de gastos
-            $totalGastos = Expense::where('usuario_id', $usuarioId)
-                ->where('estado', 'pago')
-                ->where('forma_pago_id', '=', 1)
-                ->whereDate('created_at', $hoy)
-                ->sum('importe');
-
-            $calculoFinal = (-$totalInicioCaja) + (-$totalPagos) + $totalCierreCaja + $totalGastos;
-
-            $resumenPorUsuario[] = [
-                'usuario_id' => $usuarioId,
-                'usuario_nombre' => $usuarioNombre,
-                'inicio_caja' => $totalInicioCaja,
-                'total_pagos' => $totalPagos,
-                'total_gastos' => $totalGastos,
-                'cierre_caja' => $totalCierreCaja,
-                'calculo_final' => $calculoFinal,
-                'cantidad_inicios' => CierreCajaModel::where('empresa_id', $empresaId)
-                    ->where('usuario_id', $usuarioId)
-                    ->where('movimiento', 'inicio')
-                    ->whereDate('created_at', $hoy)
-                    ->count(),
-                'cantidad_cierres' => CierreCajaModel::where('empresa_id', $empresaId)
-                    ->where('usuario_id', $usuarioId)
-                    ->where('movimiento', 'cierre')
-                    ->whereDate('created_at', $hoy)
-                    ->count(),
-                'cantidad_pagos' => Pagos::where('id_usuario', $usuarioId)
-                    ->where('forma_pago', '=', 1)
-                    ->whereDate('created_at', $hoy)
-                    ->count(),
-                'cantidad_gastos' => Expense::where('usuario_id', $usuarioId)
-                    ->where('estado', 'pago')
-                    ->where('forma_pago_id', '=', 1)
-                    ->whereDate('created_at', $hoy)
-                    ->count(),
-            ];
-
-            // Acumular totales
-            $totalesEmpresa['inicio_caja'] += $totalInicioCaja;
-            $totalesEmpresa['total_pagos'] += $totalPagos;
-            $totalesEmpresa['total_gastos'] += $totalGastos;
-            $totalesEmpresa['cierre_caja'] += $totalCierreCaja;
-            $totalesEmpresa['calculo_final'] += $calculoFinal;
-        }
-
-        $this->resumenEmpresa = [
-            'fecha' => $hoy->format('d/m/Y'),
-            'usuarios' => $resumenPorUsuario,
-            'totales' => $totalesEmpresa,
-            'cantidad_usuarios' => count($resumenPorUsuario)
-        ];
+        $this->resumenEmpresa = CierreCajaModel::resumenEmpresa($usuario->empresa_id, Carbon::today());
     }
 
     public function getHistorialReciente()
