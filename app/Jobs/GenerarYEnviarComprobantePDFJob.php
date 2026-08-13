@@ -37,6 +37,13 @@ class GenerarYEnviarComprobantePDFJob implements ShouldQueue
     public function handle(): void
     {
         try {
+            if (empty($this->phoneNumber)) {
+                \Log::info('GenerarYEnviarComprobantePDFJob omitido porque el cliente no tiene teléfono', [
+                    'datosPDF' => $this->datosPDF,
+                ]);
+                return;
+            }
+
             $whatsappService = app()->make(WhatsAppService::class, [
                 'instanciaWS' => $this->instanciaWS,
                 'tokenWS' => $this->tokenWS,

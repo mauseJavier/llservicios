@@ -16,7 +16,7 @@ class ProcesarPagoJob implements ShouldQueue
     public $backoff = 5;
     public $timeout = 120;
 
-    protected string $phoneNumber;
+    protected ?string $phoneNumber;
     protected string $mensajeTexto;
     protected ?string $instanciaWS;
     protected ?string $tokenWS;
@@ -25,7 +25,7 @@ class ProcesarPagoJob implements ShouldQueue
     protected int $idServicioPagar;
 
     public function __construct(
-        string $phoneNumber,
+        ?string $phoneNumber,
         string $mensajeTexto,
         ?string $instanciaWS,
         ?string $tokenWS,
@@ -46,8 +46,8 @@ class ProcesarPagoJob implements ShouldQueue
     public function handle(): void
     {
 
-    // si la instanciaws es = null no se envia el mensaje de texto por whatsapp y no se envia el pdf por whatsapp pero si se envia el correo
-        if ($this->instanciaWS) {
+    // si la instanciaws es = null o no hay telefono no se envia el mensaje de texto por whatsapp y no se envia el pdf por whatsapp pero si se envia el correo
+        if ($this->instanciaWS && $this->phoneNumber) {
             GenerarYEnviarComprobantePDFJob::dispatch(
                 $this->phoneNumber,
                 $this->datosPDF,
@@ -56,7 +56,7 @@ class ProcesarPagoJob implements ShouldQueue
                 $this->mensajeTexto
             );
         }else {
-            \Log::info('No se envió mensaje de texto ni PDF por WhatsApp porque instanciaWS es null', [
+            \Log::info('No se envió mensaje de texto ni PDF por WhatsApp porque instanciaWS es null o el cliente no tiene teléfono', [
                 'phoneNumber' => $this->phoneNumber,
                 'mensajeTexto' => $this->mensajeTexto,
                 'idServicioPagar' => $this->idServicioPagar,

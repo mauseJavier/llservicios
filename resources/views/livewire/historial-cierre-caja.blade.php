@@ -15,13 +15,15 @@
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 10px;">
             <div>
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">Desde</label>
-                <input type="date" wire:model.live="fechaDesde"
-                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                <input type="date" wire:model.change.live="fechaDesde"
+                       value="{{ $fechaDesde }}"
+                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; color-scheme: light;">
             </div>
             <div>
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">Hasta</label>
-                <input type="date" wire:model.live="fechaHasta"
-                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                <input type="date" wire:model.change.live="fechaHasta"
+                       value="{{ $fechaHasta }}"
+                       style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; color-scheme: light;">
             </div>
             <div>
                 <label style="display: block; margin-bottom: 5px; font-weight: bold;">Movimiento</label>
