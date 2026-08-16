@@ -158,8 +158,14 @@ class ClienteApiController extends Controller
             });
 
             // Determinar el estado del cliente
+            // El cliente está al día solo si no tiene servicios impagos cuya
+            // fecha de vencimiento ya pasó (fuera de la fecha límite de pago)
             $cantidadImpagos = $serviciosImpagos->count();
-            $estadoCliente = $cantidadImpagos > 0 ? false : true;
+            $tieneImpagosVencidos = $serviciosImpagos->contains(function ($servicioPagar) {
+                return isset($servicioPagar['fecha_vencimiento'])
+                    && $servicioPagar['fecha_vencimiento']->lt(now()->startOfDay());
+            });
+            $estadoCliente = $tieneImpagosVencidos ? false : true;
 
             // Construir la respuesta
             $response = [
@@ -220,6 +226,7 @@ class ClienteApiController extends Controller
                 'telefono' => 'nullable|string|max:255',
                 'dni' => 'nullable|integer',
                 'domicilio' => 'nullable|string|max:255',
+                'aplicar_recargos' => 'nullable|boolean',
                 'empresa_id' => 'required|integer|exists:empresas,id',
             ]);
 
@@ -294,6 +301,7 @@ class ClienteApiController extends Controller
                 'telefono' => $validated['telefono'] ?? null,
                 'dni' => $validated['dni'] ?? null,
                 'domicilio' => $validated['domicilio'] ?? null,
+                'aplicar_recargos' => $validated['aplicar_recargos'] ?? false,
             ]);
 
             // Vincular el cliente con la empresa

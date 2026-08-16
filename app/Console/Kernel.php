@@ -39,6 +39,9 @@ class Kernel extends ConsoleKernel
             $schedule->command('app:cobrador-semanal')->weekly()->appendOutputTo(storage_path('logs/tareasSemana.log'));
             $schedule->command('app:cobrador-mensual')->monthly()->appendOutputTo(storage_path('logs/tareasMes.log'));
 
+            //Aplica el recargo por mora a los servicios impagos vencidos
+            $schedule->command('app:aplicar-incremento-mora')->daily()->appendOutputTo(storage_path('logs/tareasMora.log'));
+
             //NOTIFICACION MENSUAL SE EJECUTA 2 Y 7 A LAS 13 
             $schedule->command('app:notificacion-mensual')->twiceMonthly(2, 7, '13:00')->appendOutputTo(storage_path('logs/notificacionMensual.log'));
             

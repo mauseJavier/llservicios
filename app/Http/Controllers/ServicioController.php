@@ -106,6 +106,8 @@ class ServicioController extends Controller
             'descripcion'=> $request->descripcion,
             'tiempo' => $request->tiempo,
             'diasVencimiento' => $request->diasVencimiento ?? 10,
+            'incremento_mora_tipo' => $request->boolean('aplicarIncrementoMora') ? $request->incremento_mora_tipo : null,
+            'incremento_mora_valor' => $request->boolean('aplicarIncrementoMora') ? round($request->incremento_mora_valor ?? 0, 2) : null,
             'empresa_id'=> $usuario->empresa_id,
             'linkPago' => $request->linkPago,
             'imagen' => $request->imagen
@@ -148,6 +150,8 @@ class ServicioController extends Controller
                             'precio3'=> $request->precio3 ? round($request->precio3,2) : null,
                             'tiempo'=> $request->tiempo,
                             'diasVencimiento' => $request->diasVencimiento ?? 10,
+                            'incremento_mora_tipo' => $request->boolean('aplicarIncrementoMora') ? $request->incremento_mora_tipo : null,
+                            'incremento_mora_valor' => $request->boolean('aplicarIncrementoMora') ? round($request->incremento_mora_valor ?? 0, 2) : null,
                             'linkPago' => $request->linkPago,
                             'imagen' => $request->imagen
                         

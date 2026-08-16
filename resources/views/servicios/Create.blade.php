@@ -98,8 +98,59 @@
           </label>
 
         </div>
-      
-     
+
+        <!-- Recargo por mora -->
+        <div class="grid">
+          <label>
+            <input type="hidden" name="aplicarIncrementoMora" value="0">
+            <input name="aplicarIncrementoMora" id="aplicarIncrementoMora" type="checkbox" role="switch" value="1"
+              {{ old('aplicarIncrementoMora') ? 'checked' : '' }} />
+            Aplicar recargo por mora
+          </label>
+        </div>
+
+        <div id="incrementoMoraContainer" style="display: none;">
+          <div class="grid">
+            <label for="incremento_mora_tipo">
+              Tipo de Recargo
+              <select id="incremento_mora_tipo" name="incremento_mora_tipo">
+                <option value="">-- Seleccionar --</option>
+                <option value="fijo" {{ old('incremento_mora_tipo') == 'fijo' ? 'selected' : '' }}>Monto Fijo ($)</option>
+                <option value="porcentaje" {{ old('incremento_mora_tipo') == 'porcentaje' ? 'selected' : '' }}>Porcentaje (%)</option>
+              </select>
+            </label>
+
+            <label for="incremento_mora_valor">
+              Valor del Recargo
+              <input type="number" id="incremento_mora_valor" name="incremento_mora_valor" step="0.01" min="0" placeholder="0.00" value="{{old('incremento_mora_valor')}}">
+            </label>
+          </div>
+        </div>
+
+        <script>
+          document.addEventListener('DOMContentLoaded', function() {
+            const aplicarIncrementoMoraCheckbox = document.getElementById('aplicarIncrementoMora');
+            const incrementoMoraContainer = document.getElementById('incrementoMoraContainer');
+            const incrementoMoraTipo = document.getElementById('incremento_mora_tipo');
+            const incrementoMoraValor = document.getElementById('incremento_mora_valor');
+
+            function toggleIncrementoMora() {
+              if (aplicarIncrementoMoraCheckbox.checked) {
+                incrementoMoraContainer.style.display = 'block';
+                incrementoMoraTipo.required = true;
+                incrementoMoraValor.required = true;
+              } else {
+                incrementoMoraContainer.style.display = 'none';
+                incrementoMoraTipo.required = false;
+                incrementoMoraValor.required = false;
+              }
+            }
+
+            aplicarIncrementoMoraCheckbox.addEventListener('change', toggleIncrementoMora);
+            toggleIncrementoMora();
+          });
+        </script>
+
         <!-- Button -->
         <button type="submit">Guardar</button>
       

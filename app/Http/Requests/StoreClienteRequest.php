@@ -24,6 +24,7 @@ class StoreClienteRequest extends FormRequest
         return [
             'nombre' => 'required',
             'dni' => 'required',// 'numeric|unique:App\Models\Cliente,dni',
+            'aplicar_recargos' => 'nullable|boolean',
             // 'correo' =>'required', // 'unique:App\Models\Cliente,correo'
         ];
     }

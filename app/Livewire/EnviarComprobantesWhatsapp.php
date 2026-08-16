@@ -292,7 +292,7 @@ class EnviarComprobantesWhatsapp extends Component
         $total = number_format(($datos->importe ?? 0) + ($datos->importe2 ?? 0), 2);
         $fecha = \Carbon\Carbon::parse($datos->created_at)->format('d/m/Y H:i');
 
-        return "Recibo A4\nServicio: {$datos->Servicio}\nCliente: {$datos->Cliente}\nPago ID: {$this->pagoId}\nServicio ID: {$this->idServicioPagar}\nTotal: $$total\nFecha: {$fecha}";
+        return "Recibo A4\nEmpresa: {$this->empresa->nombre}\nServicio: {$datos->Servicio}\nCliente: {$datos->Cliente}\nPago ID: {$this->pagoId}\nServicio ID: {$this->idServicioPagar}\nTotal: $$total\nFecha: {$fecha}";
     }
 
     private function construirMensajeFactura($datos): string
@@ -300,7 +300,7 @@ class EnviarComprobantesWhatsapp extends Component
         $total = number_format(($datos->importe ?? 0) + ($datos->importe2 ?? 0), 2);
         $fecha = \Carbon\Carbon::parse($datos->created_at)->format('d/m/Y H:i');
 
-        return "Factura AFIP A4\nServicio: {$datos->Servicio}\nCliente: {$datos->Cliente}\nPago ID: {$this->pagoId}\nServicio ID: {$this->idServicioPagar}\nTotal: $$total\nFecha: {$fecha}";
+        return "Factura AFIP A4\nEmpresa: {$this->empresa->nombre}\nServicio: {$datos->Servicio}\nCliente: {$datos->Cliente}\nPago ID: {$this->pagoId}\nServicio ID: {$this->idServicioPagar}\nTotal: $$total\nFecha: {$fecha}";
     }
 
     private function nombreArchivoRecibo($datos): string

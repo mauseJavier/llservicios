@@ -171,6 +171,7 @@ class NotificacionMensualWS extends Command
 
                     $datosCliente = [
                         'nombreCliente' => $cliente->nombre,
+                        'nombreEmpresa' => $empresa->nombre,
                         'cantidad' => $serviciosImpagos->count(),
                         'servicios' => [],
                         'total' => 0
@@ -240,8 +241,8 @@ class NotificacionMensualWS extends Command
     private function generarMensajeWhatsApp(array $datos): string
     {
         
-        $mensaje .= "Hola *{$datos['nombreCliente']}*,\n\n";
-        $mensaje .= "Ya están disponibles tus servicios para su pago.\n\n";
+        $mensaje = "Hola *{$datos['nombreCliente']}*,\n\n";
+        $mensaje .= "Le informamos desde *{$datos['nombreEmpresa']}* que ya están disponibles tus servicios para su pago.\n\n";
         $mensaje .= "Cantidad: *{$datos['cantidad']}* servicio(s):\n\n";
         
         foreach ($datos['servicios'] as $servicio) {
@@ -261,7 +262,7 @@ class NotificacionMensualWS extends Command
         $mensaje .= "Para registrarse, visite: " . env('APP_URL') . "/registro\n\n";
         
         $mensaje .= "Cualquier consulta, no dudes en contactarnos.\n\n";
-        $mensaje .= "_Mensaje automático - " . config('app.name') . "_";
+        $mensaje .= "_Mensaje automático - " . $datos['nombreEmpresa'] . "_";
         
         return $mensaje;
     }

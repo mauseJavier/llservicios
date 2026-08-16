@@ -100,7 +100,7 @@ class EnviarWhatsAppNuevoServicioJob implements ShouldQueue
             $resultado = $whatsappService->sendButtons(
                 $datosServicio->telefonoCliente,
                 '📢 Nuevo Servicio Registrado',
-                "Hola {$datosServicio->nombreCliente}, se ha registrado un nuevo servicio a su nombre:\n\n• Servicio: {$datosServicio->nombreServicio}\n• Cantidad: {$datosServicio->cantidadServicio}\n• Precio unitario: \$" . number_format($datosServicio->precioServicio, 2, ',', '.') . "\n• Fecha: {$fechaFormateada}\n\n💰 Total a pagar: \${$total}",
+                "Hola {$datosServicio->nombreCliente}, le informamos desde {$datosServicio->nombreEmpresa} que se ha registrado un nuevo servicio a su nombre:\n\n• Servicio: {$datosServicio->nombreServicio}\n• Cantidad: {$datosServicio->cantidadServicio}\n• Precio unitario: \$" . number_format($datosServicio->precioServicio, 2, ',', '.') . "\n• Fecha: {$fechaFormateada}\n\n💰 Total a pagar: \${$total}",
                 'Gracias por su atención',
                 [
                     ['type' => 'reply', 'displayText' => '💳 Pagar ahora', 'id' => 'pagar_servicio'],

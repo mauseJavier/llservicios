@@ -25,6 +25,7 @@ class ServicioPagar extends Model
         'cantidad',
         'precio',
         'estado',
+        'incremento_mora_aplicado',
         'mp_preference_id',
         'mp_payment_id',
         'fecha_vencimiento',
@@ -38,6 +39,7 @@ class ServicioPagar extends Model
     protected $casts = [
         'cantidad' => 'decimal:2',
         'precio' => 'decimal:2',
+        'incremento_mora_aplicado' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'fecha_vencimiento' => 'date',

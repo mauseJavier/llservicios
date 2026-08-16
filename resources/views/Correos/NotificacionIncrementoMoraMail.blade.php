@@ -1,18 +1,23 @@
 {{-- [
-  {
-    "nombreCliente": "Victoria Beier",
-    "nombreServicio": "Dr. Elian Lueilwitz Jr.",
-    "cantidadServicio": 1,
-    "precioServicio": 4366.85,
-    "fechaServicio": "19-12-2023"
-  }
+    {
+        "nombreCliente": "Victoria Beier",
+        "nombreServicio": "Dr. Elian Lueilwitz Jr.",
+        "cantidadServicio": 1,
+        "precioOriginal": 100.00,
+        "totalOriginal": 100.00,
+        "tipoRecargo": "porcentaje",
+        "valorRecargo": 10.00,
+        "montoRecargo": 10.00,
+        "totalConRecargo": 110.00,
+        "fechaVencimiento": "16-08-2026"
+    }
 ] --}}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notificación de Nueva Cuota de Servicio</title>
+    <title>Aviso de Recargo por Mora</title>
     <style>
         body {
             margin: 0;
@@ -35,7 +40,7 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #f2994a 0%, #f2c94c 100%);
             padding: 40px 30px;
             text-align: center;
         }
@@ -56,12 +61,12 @@
             font-weight: 500;
         }
         .highlight {
-            color: #667eea;
+            color: #e67e22;
             font-weight: 600;
         }
         .info-box {
-            background-color: #f8f9ff;
-            border-left: 4px solid #667eea;
+            background-color: #fff8f0;
+            border-left: 4px solid #f2994a;
             padding: 20px;
             margin: 25px 0;
             border-radius: 6px;
@@ -71,9 +76,29 @@
             line-height: 1.8;
             color: #555555;
         }
+        .recargo-box {
+            background-color: #fff3f3;
+            border: 1px solid #f5c6c6;
+            border-left: 4px solid #dc3545;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 6px;
+        }
+        .recargo-box p {
+            margin: 0;
+            line-height: 1.8;
+            color: #555555;
+        }
         .amount {
             font-size: 24px;
-            color: #667eea;
+            color: #e67e22;
+            font-weight: 700;
+            display: inline-block;
+            margin: 5px 0;
+        }
+        .total-new {
+            font-size: 26px;
+            color: #dc3545;
             font-weight: 700;
             display: inline-block;
             margin: 5px 0;
@@ -85,7 +110,7 @@
         .btn {
             display: inline-block;
             padding: 14px 32px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #f2994a 0%, #e67e22 100%);
             color: #ffffff;
             text-decoration: none;
             border-radius: 6px;
@@ -103,7 +128,7 @@
             color: #666666;
         }
         .secondary-link a {
-            color: #667eea;
+            color: #e67e22;
             text-decoration: none;
             font-weight: 500;
         }
@@ -137,6 +162,9 @@
             .amount {
                 font-size: 20px;
             }
+            .total-new {
+                font-size: 22px;
+            }
         }
     </style>
 </head>
@@ -144,22 +172,37 @@
     <div class="email-wrapper">
         <div class="container">
             <div class="header">
-                <h1>💳 Notificación de Servicio</h1>
+                <h1>⚠️ Aviso de Recargo por Mora</h1>
             </div>
             
             <div class="content">
-                <p class="greeting">Estimado/a <span class="highlight">{{$datos[0]->nombreCliente}}</span>,</p>
+                <p class="greeting">Estimado/a <span class="highlight">{{$datos['nombreCliente']}}</span>,</p>
                 
                 <div class="info-box">
-                    <p>Le informamos desde <strong>{{$datos[0]->nombreEmpresa}}</strong> que ya se encuentra disponible la cuota de su servicio:</p>
+                    <p>Le informamos desde <strong>{{$datos['nombreEmpresa']}}</strong> que su servicio se encuentra <strong>vencido</strong> y se le ha aplicado un recargo por mora:</p>
                     <p style="margin-top: 15px;">
-                        📋 <strong>Servicio:</strong> <span class="highlight">{{$datos[0]->nombreServicio}}</span>
+                        📋 <strong>Servicio:</strong> <span class="highlight">{{$datos['nombreServicio']}}</span>
                     </p>
                     <p style="margin-top: 10px;">
-                        💰 <strong>Importe a abonar:</strong> <span class="amount">${{number_format($datos[0]->precioServicio * $datos[0]->cantidadServicio, 2, ',', '.')}}</span>
+                        🔢 <strong>Cantidad:</strong> {{$datos['cantidadServicio']}}
+                    </p>
+                    <p style="margin-top: 10px;">
+                        💰 <strong>Total original:</strong> <span class="amount">${{number_format($datos['totalOriginal'], 2, ',', '.')}}</span>
                     </p>
                     <p style="margin-top: 10px;" class="date">
-                        📅 Fecha: {{$datos[0]->fechaServicio}}
+                        📅 Vencimiento: {{$datos['fechaVencimiento']}}
+                    </p>
+                </div>
+                
+                <div class="recargo-box">
+                    <p>📌 <strong>Recargo por mora aplicado:</strong></p>
+                    @if($datos['tipoRecargo'] === 'fijo')
+                        <p style="margin-top: 10px;">💵 <strong>Recargo fijo:</strong> <span class="amount">${{number_format($datos['montoRecargo'], 2, ',', '.')}}</span></p>
+                    @else
+                        <p style="margin-top: 10px;">📈 <strong>Recargo porcentual ({{$datos['valorRecargo']}}%):</strong> <span class="amount">${{number_format($datos['montoRecargo'], 2, ',', '.')}}</span></p>
+                    @endif
+                    <p style="margin-top: 15px;">
+                        💳 <strong>Nuevo total a abonar:</strong> <span class="total-new">${{number_format($datos['totalConRecargo'], 2, ',', '.')}}</span>
                     </p>
                 </div>
                 
@@ -174,7 +217,7 @@
             
             <div class="footer">
                 <p><strong>¡Agradecemos su confianza!</strong></p>
-                <p>Quedamos a su disposición para cualquier consulta.</p>
+                <p>Le recomendamos regularizar su situación para evitar nuevos recargos.</p>
                 <p style="margin-top: 15px;">Gracias por elegir nuestros servicios 🙏</p>
             </div>
         </div>

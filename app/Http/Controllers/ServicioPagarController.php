@@ -386,7 +386,7 @@ class ServicioPagarController extends Controller
 
         // Notificaciones al cliente
         $mensaje = "Hola {$cliente->nombre},\n\n";
-        $mensaje .= "Le informamos que hemos recibido su pago.\n";
+        $mensaje .= "Le informamos desde {$empresa->nombre} que hemos recibido su pago.\n";
         $mensaje .= "Detalles del pago:\n";
         $mensaje .= "• Servicio: {$servicio->nombre}\n";
 

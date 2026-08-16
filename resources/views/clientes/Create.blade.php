@@ -100,6 +100,16 @@
 
           </div>
 
+          <div class="grid">
+            <label>
+              <input type="hidden" name="aplicar_recargos" value="0">
+              <input name="aplicar_recargos" id="aplicar_recargos" type="checkbox" role="switch" value="1"
+                {{ old('aplicar_recargos') ? 'checked' : '' }} />
+              Aplicar recargos por mora
+              <small>Si está desactivado, no se le aplicarán recargos a este cliente aunque venza el pago.</small>
+            </label>
+          </div>
+
 
 
         </details>

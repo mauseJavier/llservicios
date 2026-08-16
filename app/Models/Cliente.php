@@ -16,6 +16,20 @@ class Cliente extends Model
 
     protected $guarded = [];
 
+    protected $casts = [
+        'aplicar_recargos' => 'boolean',
+    ];
+
+    /**
+     * Verifica si el cliente tiene habilitados los recargos por mora
+     *
+     * @return bool
+     */
+    public function aplicaRecargos(): bool
+    {
+        return $this->aplicar_recargos === true;
+    }
+
         /**
          * Las empresas a las que pertenece el cliente
          */

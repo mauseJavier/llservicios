@@ -155,6 +155,7 @@ class ClienteController extends Controller
                                 'correo'=>$request->correo ?? null,
                                 'domicilio'=>$request->domicilio,
                                 'telefono'=>$request->telefono,
+                                'aplicar_recargos'=>$request->boolean('aplicar_recargos'),
                                 ]);
             // return $id->id;
 
@@ -284,8 +285,7 @@ class ClienteController extends Controller
         // dd($clienteExistente);
 
         if ($clienteExistente) {
-            // return redirect()->back()->withErrors(['dni' => 'El DNI ya está en uso por otro cliente.'])->withInput();
-            $mesaje = 'El DNI ya está en uso por otro cliente.';
+            return redirect()->back()->withErrors(['dni' => 'El DNI ya está en uso por otro cliente.'])->withInput();
         }
         
         $Cliente->update(['nombre'=>$request->nombre,
@@ -294,10 +294,11 @@ class ClienteController extends Controller
                             'correo'=>$request->correo,
                             'domicilio'=>$request->domicilio,
                             'telefono'=>$request->telefono,
+                            'aplicar_recargos'=>$request->boolean('aplicar_recargos'),
                         ]);
 
         return redirect()->route('Cliente.index')
-        ->with('status', 'Guardado correcto.' . (isset($mesaje) ? ' Sin embargo, ' . $mesaje : ''));
+        ->with('status', 'Guardado correcto.');
     }
 
     /**

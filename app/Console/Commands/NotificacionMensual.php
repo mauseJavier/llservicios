@@ -205,6 +205,7 @@ class NotificacionMensual extends Command
         
         foreach ($datos['servicios'] as $servicio) {
             $mensaje .= "📋 *{$servicio->nombreServicio}*\n";
+            $mensaje .= "   • Empresa: {$servicio->nombreEmpresa}\n";
             $mensaje .= "   • Cantidad: {$servicio->cantidad}\n";
             $mensaje .= "   • Precio unitario: \${$servicio->precio}\n";
             $mensaje .= "   • Total: \$" . number_format($servicio->total, 2) . "\n";

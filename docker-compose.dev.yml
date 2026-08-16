@@ -33,6 +33,12 @@ services:
     volumes:
       - ./.env:/var/www/html/.env:ro
       - ./storage:/var/www/html/storage
+      - ./app:/var/www/html/app
+      - ./resources:/var/www/html/resources
+      - ./routes:/var/www/html/routes
+      - ./config:/var/www/html/config
+      - ./public:/var/www/html/public
+      - ./database:/var/www/html/database
     entrypoint: ["/bin/sh", "-c", "chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache && while true; do php /var/www/html/artisan schedule:run --no-interaction & sleep 60; done"]
     networks:
       - redPrincipal
@@ -48,6 +54,12 @@ services:
     volumes:
       - ./.env:/var/www/html/.env:ro
       - ./storage:/var/www/html/storage
+      - ./app:/var/www/html/app
+      - ./resources:/var/www/html/resources
+      - ./routes:/var/www/html/routes
+      - ./config:/var/www/html/config
+      - ./public:/var/www/html/public
+      - ./database:/var/www/html/database
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -88,6 +100,12 @@ services:
     volumes:
       - ./.env:/var/www/html/.env:ro
       - ./storage:/var/www/html/storage
+      - ./app:/var/www/html/app
+      - ./resources:/var/www/html/resources
+      - ./routes:/var/www/html/routes
+      - ./config:/var/www/html/config
+      - ./public:/var/www/html/public
+      - ./database:/var/www/html/database
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |

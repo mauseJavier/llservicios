@@ -48,13 +48,15 @@ class EnviarEmailNuvoServicioJob implements ShouldQueue
                     a.cantidad AS cantidadServicio,
                     a.precio AS precioServicio,
                     a.created_at AS fechaServicio,
-                    b.correo as correoCliente
+                    b.correo as correoCliente,
+                    d.nombre AS nombreEmpresa
                 FROM
                     servicio_pagar a,
                     clientes b,
-                    servicios c
+                    servicios c,
+                    empresas d
                 WHERE
-                    a.cliente_id = b.id AND a.servicio_id = c.id AND a.id = ?', [$this->idServicioPagar]);
+                    a.cliente_id = b.id AND a.servicio_id = c.id AND c.empresa_id = d.id AND a.id = ?', [$this->idServicioPagar]);
 
 
             $datos[0]->fechaServicio =  Carbon::parse($datos[0]->fechaServicio)->format('d-m-Y');

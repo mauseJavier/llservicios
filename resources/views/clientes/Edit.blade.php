@@ -53,9 +53,8 @@
         </label>
 
         <!-- Markup example 2: input is after label -->
-        <label for="correo">Correo Electronico</label>
-        <input type="email" id="correo" name="correo" placeholder="Correo Electronico" value="{{$Cliente->correo}}" required>
-        <small>Opcional.</small>
+        <label for="correo">Correo Electronico <small>(Opcional).</small></label>
+        <input type="email" id="correo" name="correo" placeholder="Correo Electronico" value="{{$Cliente->correo}}">
 
         <details>
           <summary>Mas Opciones</summary>
@@ -66,6 +65,16 @@
               <input type="text" id="domicilio" name="domicilio" placeholder="Domicilio Cliente" value="{{$Cliente->domicilio}}" >
             </label>
 
+          </div>
+
+          <div class="grid">
+            <label>
+              <input type="hidden" name="aplicar_recargos" value="0">
+              <input name="aplicar_recargos" id="aplicar_recargos" type="checkbox" role="switch" value="1"
+                {{ ($Cliente->aplicar_recargos ?? false) ? 'checked' : '' }} />
+              Aplicar recargos por mora
+              <small>Si está desactivado, no se le aplicarán recargos a este cliente aunque venza el pago.</small>
+            </label>
           </div>
 
           
