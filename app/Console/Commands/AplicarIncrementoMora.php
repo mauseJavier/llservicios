@@ -35,16 +35,19 @@ class AplicarIncrementoMora extends Command
         $recargosAplicados = 0;
 
         $serviciosPagar = ServicioPagar::with(['servicio', 'cliente'])
-            ->where('estado', 'impago')
-            ->where('incremento_mora_aplicado', false)
-            ->whereNotNull('fecha_vencimiento')
-            ->whereDate('fecha_vencimiento', '<', $hoy)
-            ->whereHas('servicio', function ($query) {
-                $query->whereNotNull('incremento_mora_tipo');
+            ->join('servicios', 'servicio_pagar.servicio_id', '=', 'servicios.id')
+            ->join('cliente_empresa', function ($join) {
+                $join->on('cliente_empresa.cliente_id', '=', 'servicio_pagar.cliente_id')
+                    ->on('cliente_empresa.empresa_id', '=', 'servicios.empresa_id');
             })
-            ->whereHas('cliente', function ($query) {
-                $query->where('aplicar_recargos', true);
-            })
+            ->select('servicio_pagar.*')
+            ->where('servicio_pagar.estado', 'impago')
+            ->where('servicio_pagar.incremento_mora_aplicado', false)
+            ->whereNotNull('servicio_pagar.fecha_vencimiento')
+            ->whereDate('servicio_pagar.fecha_vencimiento', '<', $hoy)
+            ->whereNotNull('servicios.incremento_mora_tipo')
+            ->where('cliente_empresa.aplicar_recargos', true)
+            ->distinct()
             ->get();
 
         $this->info("📊 Se encontraron {$serviciosPagar->count()} servicios vencidos con recargo habilitado.");
@@ -58,7 +61,7 @@ class AplicarIncrementoMora extends Command
                     continue;
                 }
 
-                if (!$cliente || !$cliente->aplicaRecargos()) {
+                if (!$cliente || !$cliente->aplicaRecargos($servicio->empresa_id)) {
                     continue;
                 }
 

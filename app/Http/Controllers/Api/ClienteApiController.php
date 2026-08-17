@@ -243,7 +243,14 @@ class ClienteApiController extends Controller
 
                 if (!$yaVinculado) {
                     // Vincular el cliente existente con la empresa
-                    $clienteExistente->empresas()->attach($validated['empresa_id']);
+                    $clienteExistente->empresas()->attach($validated['empresa_id'], [
+                        'aplicar_recargos' => $validated['aplicar_recargos'] ?? false,
+                    ]);
+                } else {
+                    // Actualizar el flag de recargos específico de la empresa
+                    $clienteExistente->empresas()->updateExistingPivot($validated['empresa_id'], [
+                        'aplicar_recargos' => $validated['aplicar_recargos'] ?? false,
+                    ]);
                 }
 
                 // Cargar la relación de empresas
@@ -301,11 +308,12 @@ class ClienteApiController extends Controller
                 'telefono' => $validated['telefono'] ?? null,
                 'dni' => $validated['dni'] ?? null,
                 'domicilio' => $validated['domicilio'] ?? null,
-                'aplicar_recargos' => $validated['aplicar_recargos'] ?? false,
             ]);
 
-            // Vincular el cliente con la empresa
-            $cliente->empresas()->attach($validated['empresa_id']);
+            // Vincular el cliente con la empresa y guardar el flag de recargos específico
+            $cliente->empresas()->attach($validated['empresa_id'], [
+                'aplicar_recargos' => $validated['aplicar_recargos'] ?? false,
+            ]);
 
             // Cargar la relación de empresas para devolverla en la respuesta
             $cliente->load('empresas');

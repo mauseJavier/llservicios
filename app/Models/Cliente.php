@@ -16,18 +16,36 @@ class Cliente extends Model
 
     protected $guarded = [];
 
-    protected $casts = [
-        'aplicar_recargos' => 'boolean',
-    ];
-
     /**
      * Verifica si el cliente tiene habilitados los recargos por mora
+     * para una empresa determinada (por defecto, la del usuario autenticado).
+     *
+     * @param int|null $empresaId
+     * @return bool
+     */
+    public function aplicaRecargos(?int $empresaId = null): bool
+    {
+        $empresaId = $empresaId ?? auth()->user()->empresa_id ?? null;
+
+        if ($empresaId === null) {
+            return false;
+        }
+
+        return $this->empresas()
+            ->wherePivot('empresa_id', $empresaId)
+            ->wherePivot('aplicar_recargos', true)
+            ->exists();
+    }
+
+    /**
+     * Accessor que expone el valor del pivot para la empresa del usuario autenticado.
+     * Mantiene compatibilidad con las vistas que usan $cliente->aplicar_recargos.
      *
      * @return bool
      */
-    public function aplicaRecargos(): bool
+    public function getAplicarRecargosAttribute(): bool
     {
-        return $this->aplicar_recargos === true;
+        return $this->aplicaRecargos();
     }
 
         /**
@@ -35,7 +53,7 @@ class Cliente extends Model
          */
         public function empresas(): BelongsToMany
         {
-            return $this->belongsToMany(Empresa::class, 'cliente_empresa', 'cliente_id', 'empresa_id');
+            return $this->belongsToMany(Empresa::class, 'cliente_empresa', 'cliente_id', 'empresa_id')->withPivot('aplicar_recargos');
         }
 
      /**

@@ -90,6 +90,7 @@ class ServicioPagarController extends Controller
                                 ROUND(a.precio * a.cantidad, 2) AS total,
                                 a.cantidad as cantidad,
                                 a.estado,
+                                a.fecha_vencimiento,
                                 a.created_at AS fechaCreacion
                             FROM
                                 servicio_pagar a,
@@ -148,6 +149,7 @@ class ServicioPagarController extends Controller
                                 c.nombre AS nombreEmpresa,
                                 a.precio,
                                 a.estado,
+                                a.fecha_vencimiento,
                                 a.created_at AS fechaCreacion,
                                 
 

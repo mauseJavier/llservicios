@@ -63,7 +63,12 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
         Route::delete('/logs', [LogController::class, 'clear'])->name('logs.clear');
-       
+
+        Route::get('/reparto-ventas', function () {
+            return response(file_get_contents(base_path('reparto_ventas.html')))
+                ->header('Content-Type', 'text/html');
+        })->name('reparto-ventas');
+
     });
 
     Route::middleware(['RolAdmin'])->group(function () {//AK CREAR UN MIDDELWARE PARA ADDMIN

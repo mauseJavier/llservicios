@@ -155,13 +155,13 @@ class ClienteController extends Controller
                                 'correo'=>$request->correo ?? null,
                                 'domicilio'=>$request->domicilio,
                                 'telefono'=>$request->telefono,
-                                'aplicar_recargos'=>$request->boolean('aplicar_recargos'),
                                 ]);
             // return $id->id;
 
             $idVinculado = DB::table('cliente_empresa')->insertGetId([
                 'cliente_id' => $id->id,
                 'empresa_id' => $usuario->empresa_id,
+                'aplicar_recargos' => $request->boolean('aplicar_recargos'),
                 'created_at' => date('y-m-d H:i:s'),
                 'updated_at' => date('y-m-d H:i:s'),
             ]);
@@ -188,6 +188,7 @@ class ClienteController extends Controller
                 $id = DB::table('cliente_empresa')->insertGetId([
                     'cliente_id' => $cliente[0]->id,
                     'empresa_id' => $usuario->empresa_id,
+                    'aplicar_recargos' => $request->boolean('aplicar_recargos'),
                     'created_at' => date('y-m-d H:i:s'),
                     'updated_at' => date('y-m-d H:i:s'),
                 ]);
@@ -294,8 +295,20 @@ class ClienteController extends Controller
                             'correo'=>$request->correo,
                             'domicilio'=>$request->domicilio,
                             'telefono'=>$request->telefono,
-                            'aplicar_recargos'=>$request->boolean('aplicar_recargos'),
                         ]);
+
+        // El flag de recargos por mora es específico de cada empresa, se guarda en la pivot
+        DB::table('cliente_empresa')
+            ->updateOrInsert(
+                [
+                    'cliente_id' => $Cliente->id,
+                    'empresa_id' => auth()->user()->empresa_id,
+                ],
+                [
+                    'aplicar_recargos' => $request->boolean('aplicar_recargos'),
+                    'updated_at' => now(),
+                ]
+            );
 
         return redirect()->route('Cliente.index')
         ->with('status', 'Guardado correcto.');
@@ -341,6 +354,7 @@ class ClienteController extends Controller
                     $idVinculado = DB::table('cliente_empresa')->insertGetId([
                         'cliente_id' => $clienteExiste[0]->id,
                         'empresa_id' => $usuario->empresa_id,
+                        'aplicar_recargos' => false,
                         'created_at' => date('y-m-d H:i:s'),
                         'updated_at' => date('y-m-d H:i:s'),
                     ]);
@@ -368,6 +382,7 @@ class ClienteController extends Controller
                 $idVinculado = DB::table('cliente_empresa')->insertGetId([
                     'cliente_id' => $idCliente->id,
                     'empresa_id' => $usuario->empresa_id,
+                    'aplicar_recargos' => false,
                     'created_at' => date('y-m-d H:i:s'),
                     'updated_at' => date('y-m-d H:i:s'),
                 ]);

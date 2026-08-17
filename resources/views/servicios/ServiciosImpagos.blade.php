@@ -64,6 +64,7 @@
             <th scope="col">Servicio</th>  
             <th scope="col">Total</th>        
             <th scope="col">Estado</th>  
+            <th scope="col">Vencimiento</th>
             <th scope="col">Fecha</th>
             <th scope="col">Acciones</th>
           </tr>
@@ -71,12 +72,21 @@
         <tbody>
      
           @foreach ($servicios as $e)
-            <tr>   
+            @php
+                $vencido = $e->fecha_vencimiento && \Carbon\Carbon::parse($e->fecha_vencimiento)->startOfDay()->lt(\Carbon\Carbon::today());
+            @endphp
+            <tr style="@if($vencido) background-color: #ffe6e6; @endif">   
               <td>{{$e->idServicioPagar}}</td>           
               <td>{{$e->nombreCliente}}({{$e->dniCliente}})</td>
               <td>{{$e->nombreServicio}}</td>
               <td>({{$e->cantidad}}U.)${{$e->total}}</td>
               <td>{{$e->estado}}</td>
+              <td>
+                @if ($vencido)
+                  <strong style="color: #d32f2f;">VENCIDO</strong><br>
+                @endif
+                {{ $e->fecha_vencimiento ? \Carbon\Carbon::parse($e->fecha_vencimiento)->format('d/m/Y') : 'Sin vencimiento' }}
+              </td>
               <td>{{$e->fechaCreacion}}</td>
               
                 <td style="white-space: nowrap;">                  
