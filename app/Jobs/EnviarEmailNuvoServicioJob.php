@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Mail\NotificacionCuotaMail;
 use App\Mail\NotificacionTodosServiciosMail;
+use App\Services\MercadoPago\MercadoPagoLinkService;
 use Illuminate\Support\Facades\Mail;
 
 class EnviarEmailNuvoServicioJob implements ShouldQueue
@@ -60,6 +61,9 @@ class EnviarEmailNuvoServicioJob implements ShouldQueue
 
 
             $datos[0]->fechaServicio =  Carbon::parse($datos[0]->fechaServicio)->format('d-m-Y');
+
+            // Link firmado de pago MercadoPago (individual; la app re-valida al hacer clic)
+            $datos[0]->linkPago = MercadoPagoLinkService::urlEnlaceIndividual((int) $this->idServicioPagar);
 
             // return $datos;
 

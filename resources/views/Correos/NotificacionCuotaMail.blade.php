@@ -164,7 +164,7 @@
                 </div>
                 
                 <div class="button-container">
-                    <a href="{{env('APP_URL')}}" class="btn">Realizar Pago</a>
+                    <a href="{{ !empty($datos[0]->linkPago) ? $datos[0]->linkPago : env('APP_URL') }}" class="btn">{{ !empty($datos[0]->linkPago) ? 'Pagar con MercadoPago' : 'Realizar Pago' }}</a>
                 </div>
                 
                 <div class="secondary-link">

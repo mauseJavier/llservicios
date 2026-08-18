@@ -868,74 +868,58 @@ class PagosController extends Controller
                 return redirect()->back()->with('error', 'La empresa no tiene configuradas las credenciales de MercadoPago.');
             }
 
-            // Configurar el SDK oficial
-            \MercadoPago\MercadoPagoConfig::setAccessToken($empresa->MP_ACCESS_TOKEN);
+            // Generar preferencia con el token de la empresa (Checkout Pro)
+            $apiService = new \App\Services\MercadoPago\MercadoPagoApiService();
 
-            $isSandbox = config('services.mercadopago.sandbox', true);
-            $baseUrl = config('app.env') === 'local' ? 'https://prepositionally-vacciniaceous-irving.ngrok-free.dev' : config('app.url');
+            $baseUrl = \App\Services\MercadoPago\MercadoPagoApiService::getBaseUrl();
             $successUrl = $baseUrl . "/pago/success/" . $servicioPagar->id;
             $failureUrl = $baseUrl . "/pago/failure/" . $servicioPagar->id;
             $pendingUrl = $baseUrl . "/pago/pending/" . $servicioPagar->id;
             $webhookUrl = $baseUrl . "/mercadopago/webhook";
 
-            $items = [
+            $items = \App\Services\MercadoPago\MercadoPagoApiService::itemsDesdeServiciosPagar([$servicioPagar]);
+
+            $result = $apiService->crearPreferenciaCheckout(
+                $items,
+                'servicio_pagar_' . $servicioPagar->id,
+                $servicioPagar->cliente->correo ?? null,
+                $empresa->MP_ACCESS_TOKEN,
                 [
-                    "title" => $servicioPagar->servicio->nombre,
-                    "quantity" => (int) $servicioPagar->cantidad,
-                    "unit_price" => (float) $servicioPagar->precio
-                ]
-            ];
-
-            $preferenceData = [
-                "items" => $items,
-                "external_reference" => 'servicio_pagar_' . $servicioPagar->id,
-                "back_urls" => [
-                    "success" => $successUrl,
-                    "failure" => $failureUrl,
-                    "pending" => $pendingUrl
+                    'success' => $successUrl,
+                    'failure' => $failureUrl,
+                    'pending' => $pendingUrl,
                 ],
-                "auto_return" => "approved",
-                "notification_url" => $webhookUrl,
-            ];
+                $webhookUrl
+            );
 
-            $client = new \MercadoPago\Client\Preference\PreferenceClient();
-            $preference = $client->create($preferenceData);
-
-            if ($preference->id) {
-                $servicioPagar->update([
-                    'mp_preference_id' => $preference->id
+            if (empty($result['success'])) {
+                \Log::error('Error al crear preferencia de pago', [
+                    'servicio_pagar_id' => $servicioPagar->id,
+                    'error' => $result['error'] ?? 'desconocido'
                 ]);
-
-                $checkoutUrl = $isSandbox
-                    ? ($preference->sandbox_init_point ?? $preference->init_point)
-                    : $preference->init_point;
-
-                if (!$checkoutUrl) {
-                    \Log::error('No se pudo obtener URL de checkout', [
-                        'preference_id' => $preference->id,
-                        'init_point' => $preference->init_point ?? null,
-                        'sandbox_init_point' => $preference->sandbox_init_point ?? null
-                    ]);
-                    return redirect()->back()->with('error', 'Error al obtener la URL de pago.');
-                }
-
-                return redirect($checkoutUrl);
-            } else {
-                \Log::error('Error al crear preferencia: Sin ID de preferencia');
-                return redirect()->back()->with('error', 'Error al crear la preferencia de pago. Intenta nuevamente.');
+                return redirect()->back()->with('error', $result['error'] ?? 'Error al crear la preferencia de pago. Intenta nuevamente.');
             }
 
-        } catch (\MercadoPago\Exceptions\MPApiException $e) {
-            \Log::error('Error de API MercadoPago: ' . $e->getMessage(), [
-                'servicio_pagar_id' => $servicioPagar->id,
-                'status_code' => $e->getApiResponse()->getStatusCode(),
-                'api_response' => $e->getApiResponse()->getContent(),
-                'error_trace' => $e->getTraceAsString()
+            $servicioPagar->update([
+                'mp_preference_id' => $result['preference_id']
             ]);
-            return redirect()->back()->with('error', 'Error de la API de MercadoPago: ' . $e->getMessage());
+
+            $checkoutUrl = $result['checkout_url'] ?? null;
+
+            if (!$checkoutUrl) {
+                \Log::error('No se pudo obtener URL de checkout', [
+                    'preference_id' => $result['preference_id'] ?? null,
+                    'init_point' => $result['init_point'] ?? null,
+                    'sandbox_init_point' => $result['sandbox_init_point'] ?? null
+                ]);
+                return redirect()->back()->with('error', 'Error al obtener la URL de pago.');
+            }
+
+            return redirect($checkoutUrl);
+
         } catch (\Exception $e) {
-            \Log::error('Error al generar pago con SDK MercadoPago: ' . $e->getMessage(), [
-                'servicio_pagar_id' => $servicioPagar->id,
+            \Log::error('Error al generar pago con MercadoPago: ' . $e->getMessage(), [
+                'servicio_pagar_id' => $servicioPagar->id ?? null,
                 'usuario_id' => Auth::id(),
                 'error' => $e->getTraceAsString()
             ]);

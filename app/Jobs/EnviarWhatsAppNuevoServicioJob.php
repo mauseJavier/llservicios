@@ -12,6 +12,7 @@ use Illuminate\Queue\SerializesModels;
 // NECESARIO
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Services\MercadoPago\MercadoPagoLinkService;
 use App\Services\WhatsAppService;
 use Illuminate\Support\Facades\Log;
 
@@ -97,15 +98,22 @@ class EnviarWhatsAppNuevoServicioJob implements ShouldQueue
 
             $total = number_format($datosServicio->precioServicio * $datosServicio->cantidadServicio, 2, ',', '.');
 
+            // Link firmado de pago MercadoPago (individual; la app re-valida al hacer clic)
+            $linkPago = MercadoPagoLinkService::urlEnlaceIndividual((int) $this->idServicioPagar);
+
+            $mensaje = "Hola {$datosServicio->nombreCliente}, le informamos desde {$datosServicio->nombreEmpresa} que se ha registrado un nuevo servicio a su nombre:\n\n• Servicio: {$datosServicio->nombreServicio}\n• Cantidad: {$datosServicio->cantidadServicio}\n• Precio unitario: \$" . number_format($datosServicio->precioServicio, 2, ',', '.') . "\n• Fecha: {$fechaFormateada}\n\n💰 Total a pagar: \${$total}";
+
+            if ($linkPago) {
+                $mensaje .= "\n\n💳 Realice el pago aquí: {$linkPago}";
+            }
+
             $resultado = $whatsappService->sendButtons(
                 $datosServicio->telefonoCliente,
                 '📢 Nuevo Servicio Registrado',
-                "Hola {$datosServicio->nombreCliente}, le informamos desde {$datosServicio->nombreEmpresa} que se ha registrado un nuevo servicio a su nombre:\n\n• Servicio: {$datosServicio->nombreServicio}\n• Cantidad: {$datosServicio->cantidadServicio}\n• Precio unitario: \$" . number_format($datosServicio->precioServicio, 2, ',', '.') . "\n• Fecha: {$fechaFormateada}\n\n💰 Total a pagar: \${$total}",
+                $mensaje,
                 'Gracias por su atención',
                 [
-                    ['type' => 'reply', 'displayText' => '💳 Pagar ahora', 'id' => 'pagar_servicio'],
-                    ['type' => 'reply', 'displayText' => '📞 Contactar', 'id' => 'contactar'],
-                    ['type' => 'reply', 'displayText' => 'Gracias por la información', 'id' => 'info_recibida'],
+                    ['type' => 'reply', 'displayText' => 'Información Recibida', 'id' => 'info_recibida'],
                 ]
             );
 

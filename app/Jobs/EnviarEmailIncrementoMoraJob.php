@@ -9,6 +9,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
 use App\Mail\NotificacionIncrementoMoraMail;
+use App\Services\MercadoPago\MercadoPagoLinkService;
 use Illuminate\Support\Facades\Mail;
 
 class EnviarEmailIncrementoMoraJob implements ShouldQueue
@@ -32,6 +33,9 @@ class EnviarEmailIncrementoMoraJob implements ShouldQueue
         }
 
         try {
+            // Link firmado de pago MercadoPago (individual; la app re-valida al hacer clic)
+            $this->datos['linkPago'] = MercadoPagoLinkService::urlEnlaceIndividual((int) $this->idServicioPagar);
+
             if (isset($this->datos['correoCliente']) && $this->datos['correoCliente'] != 'correo@correo.com') {
                 $emailEnviado = false;
 

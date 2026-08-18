@@ -7,6 +7,7 @@ use App\Models\ServicioPagar;
 use Illuminate\Support\Facades\Log;
 use App\Jobs\EnviarEmailIncrementoMoraJob;
 use App\Jobs\EnviarWhatsAppJob;
+use App\Services\MercadoPago\MercadoPagoLinkService;
 
 class AplicarIncrementoMora extends Command
 {
@@ -127,6 +128,9 @@ class AplicarIncrementoMora extends Command
         try {
             $empresa = $servicio->empresa;
 
+            // Link firmado de pago MercadoPago (individual; la app re-valida al hacer clic)
+            $linkPago = MercadoPagoLinkService::urlEnlaceIndividual($servicioPagar->id);
+
             $datos = [
                 'idServicioPagar' => $servicioPagar->id,
                 'nombreCliente' => $cliente->nombre,
@@ -143,12 +147,17 @@ class AplicarIncrementoMora extends Command
                 'fechaVencimiento' => $servicioPagar->fecha_vencimiento ? date('d-m-Y', strtotime($servicioPagar->fecha_vencimiento)) : '',
                 'nombreEmpresa' => $empresa->nombre ?? '',
                 'empresaId' => $empresa->id ?? null,
+                'linkPago' => $linkPago,
             ];
 
             EnviarEmailIncrementoMoraJob::dispatch($servicioPagar->id, $datos);
 
             if (!empty($cliente->telefono) && $empresa && !empty($empresa->instanciaWS) && !empty($empresa->tokenWS)) {
                 $mensajeWhatsApp = $this->generarMensajeWhatsAppMora($datos);
+
+                $buttons = [
+                    ['type' => 'reply', 'displayText' => 'Informacion recibida', 'id' => 'info_recibida'],
+                ];
 
                 EnviarWhatsAppJob::dispatch([
                     'phoneNumber' => $cliente->telefono,
@@ -157,9 +166,7 @@ class AplicarIncrementoMora extends Command
                     'additionalData' => [
                         'title' => 'Aviso de recargo por mora',
                         'footer' => $datos['nombreEmpresa'],
-                        'buttons' => [
-                            ['type' => 'reply', 'displayText' => 'Informacion recibida', 'id' => 'info_recibida'],
-                        ],
+                        'buttons' => $buttons,
                     ],
                     'instanciaWS' => $empresa->instanciaWS,
                     'tokenWS' => $empresa->tokenWS,
@@ -197,7 +204,11 @@ class AplicarIncrementoMora extends Command
         $mensaje .= "*NUEVO TOTAL: \$" . number_format($datos['totalConRecargo'], 2) . "*\n";
         $mensaje .= "━━━━━━━━━━━━━━━━━━━━━\n\n";
 
-        $mensaje .= "Realice el pago del servicio en la plataforma: " . env('APP_URL') . ".\n\n";
+        if (!empty($datos['linkPago'])) {
+            $mensaje .= "💳 Realice el pago aquí: {$datos['linkPago']}\n\n";
+        } else {
+            $mensaje .= "Realice el pago del servicio en la plataforma: " . env('APP_URL') . ".\n\n";
+        }
 
         $mensaje .= "Cualquier consulta, no dudes en contactarnos.\n\n";
         $mensaje .= "_Mensaje automático - " . $datos['nombreEmpresa'] . "_";

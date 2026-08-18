@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Pago Fallido - {{ env('APP_NAME') }}</title>
+    <title>{{ $titulo }} - {{ env('APP_NAME') }}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
     <style>
       body {
@@ -27,23 +27,11 @@
   <body>
     <main class="pago-container">
       <article>
-        <div class="icono">&#10007;</div>
+        <div class="icono">&#10003;</div>
         <hgroup style="text-align: center;">
-          <h3>No se pudo procesar su pago</h3>
-          <p>Por favor, verifique sus datos e intente nuevamente.</p>
+          <h3>{{ $titulo }}</h3>
+          <p>{{ $mensaje }}</p>
         </hgroup>
-
-        @if(isset($paymentId))
-            <p><strong>ID del Pago:</strong> {{ $paymentId }}</p>
-        @endif
-
-        @if(isset($status))
-            <p><strong>Estado:</strong> {{ $status }}</p>
-        @endif
-
-        @if(isset($externalReference))
-            <p><strong>Referencia:</strong> {{ $externalReference }}</p>
-        @endif
 
         <a href="{{ route('inicio') }}" role="button">Volver al Inicio</a>
       </article>

@@ -16,6 +16,7 @@ services:
       - ./config:/var/www/html/config
       - ./public:/var/www/html/public
       - ./database:/var/www/html/database
+      - ./tests:/var/www/html/tests
     networks:
       - redPrincipal
     restart: always

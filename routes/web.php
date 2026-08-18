@@ -33,6 +33,7 @@ use App\Jobs\TutorialJob;
 use App\Http\Controllers\MercadoPago\MercadoPagoController;
 // use App\Http\Controllers\MercadoPago\PaymentFormController; // Controlador pendiente de crear
 use App\Http\Controllers\MercadoPago\MercadoPagoWebhookController;
+use App\Http\Controllers\MercadoPago\EnlacePagoController;
 
 
 
@@ -231,11 +232,6 @@ Route::middleware('auth')->group(function () {
         // Route::get('/payment-form', [PaymentFormController::class, 'show'])->name('mercadopago.payment-form');
         // Route::post('/payment-form', [PaymentFormController::class, 'processPayment'])->name('mercadopago.process-payment');
         
-        // URLs de retorno después del pago
-        Route::get('/success', [MercadoPagoController::class, 'success'])->name('mercadopago.success');
-        Route::get('/pending', [MercadoPagoController::class, 'pending'])->name('mercadopago.pending');
-        Route::get('/failure', [MercadoPagoController::class, 'failure'])->name('mercadopago.failure');
-        
         // Ruta para obtener información de pago usando el nuevo servicio API
         Route::get('/payment-info/{paymentId}', [PagosController::class, 'obtenerInfoPago'])->name('mercadopago.payment-info');
         
@@ -244,6 +240,25 @@ Route::middleware('auth')->group(function () {
 
    
 });
+
+// URLs de retorno después del pago (sin middleware auth: el cliente paga desde el link sin sesión)
+Route::prefix('mercadopago')->group(function () {
+    Route::get('/success', [MercadoPagoController::class, 'success'])->name('mercadopago.success');
+    Route::get('/pending', [MercadoPagoController::class, 'pending'])->name('mercadopago.pending');
+    Route::get('/failure', [MercadoPagoController::class, 'failure'])->name('mercadopago.failure');
+});
+
+// Enlaces de pago públicos con URL firmada (se re-valida el estado al hacer clic)
+Route::get('/pago/enlace/individual/{servicioPagar}', [EnlacePagoController::class, 'individual'])
+    ->name('pago.enlace.individual')
+    ->whereNumber('servicioPagar')
+    ->middleware('signed');
+
+Route::get('/pago/enlace/cliente/{clienteId}/{empresaId}', [EnlacePagoController::class, 'cliente'])
+    ->name('pago.enlace.cliente')
+    ->whereNumber('clienteId')
+    ->whereNumber('empresaId')
+    ->middleware('signed');
 
 // Webhook para notificaciones de MercadoPago (sin middleware auth)
 Route::post('/mercadopago/webhook', [MercadoPagoWebhookController::class, 'handleNotification'])

@@ -109,7 +109,19 @@
         </table>
         <p>Total a abonar: <strong>${{$datos['total']}}</strong></p>
                 
-        <p>Realice el pago del servicio en la plataforma: {{env('APP_URL')}}</p>
+        @if (!empty($datos['linksPago']) && count($datos['linksPago']) > 0)
+            @foreach ($datos['linksPago'] as $linkPagoItem)
+                <p style="text-align: center; margin: 15px 0;">
+                    <a href="{{ $linkPagoItem['url'] }}" style="display: inline-block; background: #28a745; color: #ffffff; padding: 14px 32px; border-radius: 6px; font-weight: 600; font-size: 16px; text-decoration: none;">Pagar {{ $linkPagoItem['empresa'] }} con MercadoPago</a>
+                </p>
+            @endforeach
+        @elseif (!empty($datos['linkPago']))
+            <p style="text-align: center; margin: 30px 0;">
+                <a href="{{ $datos['linkPago'] }}" style="display: inline-block; background: #28a745; color: #ffffff; padding: 14px 32px; border-radius: 6px; font-weight: 600; font-size: 16px; text-decoration: none;">Pagar con MercadoPago</a>
+            </p>
+        @else
+            <p>Realice el pago del servicio en la plataforma: {{env('APP_URL')}}</p>
+        @endif
         
         <p>Para registrarse, visite: {{env('APP_URL')}}/registro</p>
 

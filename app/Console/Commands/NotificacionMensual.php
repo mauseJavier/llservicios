@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Mail\NotificacionTodosServiciosMail;
 use Illuminate\Support\Facades\Mail;
 use App\Jobs\EnviarWhatsAppJob;
+use App\Services\MercadoPago\MercadoPagoLinkService;
 use App\Models\Cliente;
 
 use Illuminate\Support\Facades\Log;
@@ -107,6 +108,10 @@ class NotificacionMensual extends Command
         foreach ($serviciosImpagos as $key => $datos) {
             $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             $this->info("📤 Procesando cliente: {$datos['nombreCliente']}");
+
+            // Generar links de pago firmados agrupados por empresa (la app resuelve los impagos al hacer clic)
+            $datos['linksPago'] = $this->generarLinksImpagos($datos);
+            $datos['linkPago'] = count($datos['linksPago']) === 1 ? $datos['linksPago'][0]['url'] : null;
             
             // Enviar email
             if (empty($datos['correoCliente'])) {
@@ -189,6 +194,30 @@ class NotificacionMensual extends Command
         $this->guardarLog($serviciosImpagos, $emailsEnviados, $whatsappsEnviados, $errores);
 
         $this->info('✅ Proceso completado exitosamente');
+    }
+
+    /**
+     * Generar links de pago firmados agrupados por empresa para un cliente.
+     *
+     * @return array<int, array{empresa: string, url: string}>
+     */
+    private function generarLinksImpagos(array $datos): array
+    {
+        $links = [];
+
+        $porEmpresa = collect($datos['servicios'])->groupBy('empresa_id');
+
+        foreach ($porEmpresa as $empresaId => $serviciosEmpresa) {
+            $links[] = [
+                'empresa' => $serviciosEmpresa->first()->nombreEmpresa ?? 'nuestra empresa',
+                'url' => MercadoPagoLinkService::urlEnlaceCliente(
+                    (int) $datos['cliente_id'],
+                    (int) $empresaId
+                ),
+            ];
+        }
+
+        return $links;
     }
 
     /**

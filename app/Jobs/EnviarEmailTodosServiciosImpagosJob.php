@@ -11,6 +11,7 @@ use Illuminate\Queue\SerializesModels;
 
 //NECESARIO 
 use App\Mail\NotificacionTodosServiciosMail;
+use App\Services\MercadoPago\MercadoPagoLinkService;
 use Illuminate\Support\Facades\Mail;
 
 class EnviarEmailTodosServiciosImpagosJob implements ShouldQueue
@@ -30,6 +31,16 @@ class EnviarEmailTodosServiciosImpagosJob implements ShouldQueue
      */
     public function handle(): void
     {
+        // Link firmado de pago agrupado (la app resuelve los impagos al hacer clic)
+        if (!empty($this->datos['cliente_id']) && !empty($this->datos['empresa_id'])) {
+            $this->datos['linkPago'] = MercadoPagoLinkService::urlEnlaceCliente(
+                (int) $this->datos['cliente_id'],
+                (int) $this->datos['empresa_id']
+            );
+        } else {
+            $this->datos['linkPago'] = null;
+        }
+
         $emailEnviado = false;
         
         // Intenta primero con SMTP

@@ -90,6 +90,7 @@ class EnviarCorreoController extends Controller
             $serviciosImpagos [$i]['nombreCliente'] =$valor->nombreCliente;
             $serviciosImpagos [$i]['correoCliente'] =$valor->correoCliente;
             $serviciosImpagos[$i]['cantidad'] = $valor->cantidad;
+            $serviciosImpagos[$i]['empresa_id'] = $usuario->empresa_id;
 
             $serviciosImpagos[$i]['servicios'] = DB::select('SELECT
                                                                 b.nombre AS nombreServicio,
@@ -206,6 +207,7 @@ class EnviarCorreoController extends Controller
             $serviciosImpagos[$i]['telefonoCliente'] = $valor->telefonoCliente;
             $serviciosImpagos[$i]['nombreEmpresa'] = $valor->nombreEmpresa;
             $serviciosImpagos[$i]['cantidad'] = $valor->cantidad;
+            $serviciosImpagos[$i]['empresa_id'] = $usuario->empresa_id;
 
             // Obtener los servicios impagos del cliente
             $serviciosImpagos[$i]['servicios'] = DB::select('SELECT

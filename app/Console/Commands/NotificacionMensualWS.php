@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Jobs\EnviarWhatsAppJob;
 use App\Models\Cliente;
 use App\Models\Empresa;
+use App\Services\MercadoPago\MercadoPagoLinkService;
 
 
 use Illuminate\Support\Facades\Log;
@@ -170,8 +171,10 @@ class NotificacionMensualWS extends Command
                 if($serviciosImpagos->count() > 0){
 
                     $datosCliente = [
+                        'cliente_id' => $cliente->id,
                         'nombreCliente' => $cliente->nombre,
                         'nombreEmpresa' => $empresa->nombre,
+                        'empresa_id' => $empresa->id,
                         'cantidad' => $serviciosImpagos->count(),
                         'servicios' => [],
                         'total' => 0
@@ -184,10 +187,17 @@ class NotificacionMensualWS extends Command
                             'precio' => $servicio->precio,
                             'total' => $servicio->cantidad * $servicio->precio,
                             'fecha' => $servicio->created_at->format('Y-m-d'),
+                            'empresa_id' => $empresa->id,
                         ];
 
                         $datosCliente['total'] += $servicio->cantidad * $servicio->precio;
                     }
+
+                    // Link firmado de pago agrupado para la empresa (la app resuelve los impagos al hacer clic)
+                    $datosCliente['linkPago'] = MercadoPagoLinkService::urlEnlaceCliente(
+                        $cliente->id,
+                        $empresa->id
+                    );
 
                     // Enviar WhatsApp si tiene teléfono
                     if (!empty($cliente->telefono)) {
@@ -257,7 +267,11 @@ class NotificacionMensualWS extends Command
         $mensaje .= "*TOTAL: \$" . number_format($datos['total'], 2) . "*\n";
         $mensaje .= "━━━━━━━━━━━━━━━━━━━━━\n\n";
 
-        $mensaje .= "Realice el pago del servicio en la plataforma: " . env('APP_URL') . ".\n\n"; 
+        if (!empty($datos['linkPago'])) {
+            $mensaje .= "💳 *Realice el pago aquí:*\n{$datos['linkPago']}\n\n";
+        } else {
+            $mensaje .= "Realice el pago del servicio en la plataforma: " . env('APP_URL') . ".\n\n";
+        }
         
         $mensaje .= "Para registrarse, visite: " . env('APP_URL') . "/registro\n\n";
         

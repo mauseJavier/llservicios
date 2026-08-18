@@ -1,47 +1,52 @@
-@extends("layouts.app")
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pago Pendiente - {{ env('APP_NAME') }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
+    <style>
+      body {
+        display: flex;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        background: #f8f9fa;
+      }
+      .pago-container {
+        max-width: 480px;
+        margin: 0 auto;
+        padding: 1rem;
+      }
+      .icono {
+        font-size: 4rem;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="pago-container">
+      <article>
+        <div class="icono">&#9200;</div>
+        <hgroup style="text-align: center;">
+          <h3>Su pago está siendo procesado</h3>
+          <p>El pago está pendiente de confirmación. Le notificaremos una vez que sea aprobado.</p>
+        </hgroup>
 
-@section("title", "Pago Pendiente")
+        @if(isset($paymentId))
+            <p><strong>ID del Pago:</strong> {{ $paymentId }}</p>
+        @endif
 
-@section("content")
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header bg-warning text-dark">
-                    <h4 class="mb-0"><i class="fas fa-clock"></i> Pago Pendiente de Confirmación</h4>
-                </div>
-                <div class="card-body text-center">
-                    <div class="mb-4">
-                        <i class="fas fa-clock text-warning" style="font-size: 4rem;"></i>
-                    </div>
-                    
-                    <h5 class="mb-3">Su pago está siendo procesado</h5>
-                    <p class="text-muted">El pago está pendiente de confirmación. Le notificaremos una vez que sea aprobado.</p>
-                    
-                    @if(isset($paymentId))
-                        <p><strong>ID del Pago:</strong> {{ $paymentId }}</p>
-                    @endif
-                    
-                    @if(isset($status))
-                        <p><strong>Estado:</strong> {{ $status }}</p>
-                    @endif
-                    
-                    @if(isset($externalReference))
-                        <p><strong>Referencia:</strong> {{ $externalReference }}</p>
-                    @endif
-                    
-                    <div class="mt-4">
-                        <a href="{{ route("servicios") }}" class="btn btn-primary">
-                            <i class="fas fa-home"></i> Volver al Inicio
-                        </a>
-                        
-                        <a href="{{ route("mercadopago.payment-form") }}" class="btn btn-warning ml-2">
-                            <i class="fas fa-plus"></i> Realizar Otro Pago
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-@endsection
+        @if(isset($status))
+            <p><strong>Estado:</strong> {{ $status }}</p>
+        @endif
+
+        @if(isset($externalReference))
+            <p><strong>Referencia:</strong> {{ $externalReference }}</p>
+        @endif
+
+        <a href="{{ route('inicio') }}" role="button">Volver al Inicio</a>
+      </article>
+    </main>
+  </body>
+</html>
