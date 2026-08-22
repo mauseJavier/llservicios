@@ -7,6 +7,7 @@ services:
     container_name: localllservicios-v2
     environment:
       - MIGRATE=true
+      - MERCADOPAGO_TEST=true
     volumes:
       - ./.env:/var/www/html/.env:ro
       - ./storage:/var/www/html/storage
@@ -40,6 +41,8 @@ services:
       - ./config:/var/www/html/config
       - ./public:/var/www/html/public
       - ./database:/var/www/html/database
+    environment:
+      - MERCADOPAGO_TEST=true
     entrypoint: ["/bin/sh", "-c", "chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache && while true; do php /var/www/html/artisan schedule:run --no-interaction & sleep 60; done"]
     networks:
       - redPrincipal
@@ -61,6 +64,8 @@ services:
       - ./config:/var/www/html/config
       - ./public:/var/www/html/public
       - ./database:/var/www/html/database
+    environment:
+      - MERCADOPAGO_TEST=true
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -107,6 +112,8 @@ services:
       - ./config:/var/www/html/config
       - ./public:/var/www/html/public
       - ./database:/var/www/html/database
+    environment:
+      - MERCADOPAGO_TEST=true
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |

@@ -37,15 +37,14 @@ class MercadoPagoApiService
 
     /**
      * Obtener la URL base para back_urls y notification_url.
-     * En desarrollo local se usa el túnel ngrok para que MercadoPago pueda alcanzar los callbacks.
      */
     public static function getBaseUrl(): string
     {
-        if (config('app.env') === 'local') {
-            return 'https://prepositionally-vacciniaceous-irving.ngrok-free.dev';
+        if (env('MERCADOPAGO_TEST', true)) {
+            return rtrim('https://prepositionally-vacciniaceous-irving.ngrok-free.dev', '/');
         }
 
-        return config('app.url');
+        return rtrim((string) config('app.url'), '/');
     }
 
     /**
@@ -576,25 +575,13 @@ class MercadoPagoApiService
      */
     public static function getValidUrls(array $baseRoutes = []): array
     {
-        $appUrl = config('app.url');
-        $isLocalhost = $appUrl === 'http://localhost' || strpos($appUrl, '://localhost') !== false;
-        
-        if ($isLocalhost && config('app.env') === 'local') {
-            // En desarrollo local, usar URLs de prueba
-            return [
-                'success' => 'https://httpbin.org/get?success=true&app=' . urlencode(config('app.name')),
-                'failure' => 'https://httpbin.org/get?failure=true&app=' . urlencode(config('app.name')),
-                'pending' => 'https://httpbin.org/get?pending=true&app=' . urlencode(config('app.name')),
-                'webhook' => 'https://httpbin.org/post'
-            ];
-        }
-        
-        // En producción, usar URLs reales
+        $baseUrl = self::getBaseUrl();
+
         return [
-            'success' => $appUrl . '/mercadopago/success',
-            'failure' => $appUrl . '/mercadopago/failure', 
-            'pending' => $appUrl . '/mercadopago/pending',
-            'webhook' => $appUrl . '/mercadopago/webhook'
+            'success' => $baseUrl . '/mercadopago/success',
+            'failure' => $baseUrl . '/mercadopago/failure',
+            'pending' => $baseUrl . '/mercadopago/pending',
+            'webhook' => $baseUrl . '/mercadopago/webhook'
         ];
     }
 }
