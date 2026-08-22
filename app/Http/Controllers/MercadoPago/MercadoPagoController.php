@@ -5,6 +5,7 @@ namespace App\Http\Controllers\MercadoPago;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Services\MercadoPago\MercadoPagoService;
+use App\Services\MercadoPago\MercadoPagoApiService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
@@ -134,6 +135,8 @@ class MercadoPagoController extends Controller
         $status = $request->input('status');
         $externalReference = $request->input('external_reference');
 
+        $this->procesarRetornoConFallback($paymentId, $externalReference, 'success');
+
         return view('mercadopago.success', compact('paymentId', 'status', 'externalReference'));
     }
 
@@ -145,6 +148,8 @@ class MercadoPagoController extends Controller
         $paymentId = $request->input('payment_id');
         $status = $request->input('status');
         $externalReference = $request->input('external_reference');
+
+        $this->procesarRetornoConFallback($paymentId, $externalReference, 'pending');
 
         return view('mercadopago.pending', compact('paymentId', 'status', 'externalReference'));
     }
@@ -158,7 +163,52 @@ class MercadoPagoController extends Controller
         $status = $request->input('status');
         $externalReference = $request->input('external_reference');
 
+        $this->procesarRetornoConFallback($paymentId, $externalReference, 'failure');
+
         return view('mercadopago.failure', compact('paymentId', 'status', 'externalReference'));
+    }
+
+    private function procesarRetornoConFallback($paymentId, $externalReference, string $routeType): void
+    {
+        if (empty($paymentId)) {
+            Log::warning('Retorno MercadoPago sin payment_id', [
+                'event' => 'mp_back_url_without_payment_id',
+                'route_type' => $routeType,
+                'external_reference' => $externalReference,
+            ]);
+            return;
+        }
+
+        Log::info('Fallback retorno MercadoPago iniciado', [
+            'event' => 'mp_back_url_fallback_start',
+            'route_type' => $routeType,
+            'payment_id' => (string) $paymentId,
+            'external_reference' => $externalReference,
+            'mercadopago_test' => env('MERCADOPAGO_TEST', true),
+            'app_url' => config('app.url'),
+            'base_url_efectiva' => MercadoPagoApiService::getBaseUrl(),
+            'config_cache' => app()->configurationIsCached(),
+        ]);
+
+        try {
+            $procesado = app(MercadoPagoWebhookController::class)
+                ->procesarPagoDesdeRetorno((string) $paymentId, $externalReference ? (string) $externalReference : null);
+
+            Log::info('Fallback retorno MercadoPago finalizado', [
+                'event' => 'mp_back_url_fallback_end',
+                'route_type' => $routeType,
+                'payment_id' => (string) $paymentId,
+                'processed' => (bool) $procesado,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error en fallback de retorno MercadoPago', [
+                'event' => 'mp_back_url_fallback_error',
+                'route_type' => $routeType,
+                'payment_id' => (string) $paymentId,
+                'external_reference' => $externalReference,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

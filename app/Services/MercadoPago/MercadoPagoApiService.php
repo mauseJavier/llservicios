@@ -139,6 +139,16 @@ class MercadoPagoApiService
             'notification_url' => $notificationUrl ?? self::getBaseUrl() . '/mercadopago/webhook',
         ];
 
+        Log::info('MercadoPagoAPI - Configuración de URLs de preferencia', [
+            'external_reference' => $externalReference,
+            'mercadopago_test' => env('MERCADOPAGO_TEST', true),
+            'app_url' => config('app.url'),
+            'base_url_efectiva' => self::getBaseUrl(),
+            'back_urls' => $preferenceData['back_urls'],
+            'notification_url' => $preferenceData['notification_url'],
+            'config_cache' => app()->configurationIsCached(),
+        ]);
+
         if (!empty($payerEmail)) {
             $preferenceData['payer'] = ['email' => $payerEmail];
         }
