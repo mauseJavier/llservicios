@@ -7,7 +7,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Cache;
 
 class ProcesarPagoJob implements ShouldQueue
 {
@@ -46,19 +45,6 @@ class ProcesarPagoJob implements ShouldQueue
 
     public function handle(): void
     {
-        // Idempotencia: verificar que no se haya procesado ya este pago para este cliente y teléfono
-        if ($this->phoneNumber && $this->idServicioPagar) {
-            $cacheKey = 'whatsapp_pago_procesado_' . $this->idServicioPagar . '_' . $this->phoneNumber;
-            if (!Cache::add($cacheKey, 1, 604800)) {
-                \Log::info('ProcesarPagoJob omitido por idempotencia (ya procesado previamente)', [
-                    'phoneNumber' => $this->phoneNumber,
-                    'idServicioPagar' => $this->idServicioPagar,
-                    'cacheKey' => $cacheKey,
-                ]);
-                return; // Salir sin enviar duplicados
-            }
-        }
-
         // si la instanciaws es = null o no hay telefono no se envia el mensaje de texto por whatsapp y no se envia el pdf por whatsapp pero si se envia el correo
         if ($this->instanciaWS && $this->phoneNumber) {
             GenerarYEnviarComprobantePDFJob::dispatch(

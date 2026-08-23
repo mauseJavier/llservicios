@@ -39,6 +39,11 @@ class GenerarYEnviarComprobantePDFJob implements ShouldQueue
 
     public function handle(): void
     {
+        $phoneNormalized = preg_replace('/[^0-9]/', '', (string) $this->phoneNumber);
+        $baseKey = 'whatsapp_comprobante_pago_' . $this->idServicioPagar . '_' . $phoneNormalized;
+        $lockKey = $baseKey . '_lock';
+        $deliveredKey = $baseKey . '_delivered';
+
         try {
             if (empty($this->phoneNumber)) {
                 \Log::info('GenerarYEnviarComprobantePDFJob omitido porque el cliente no tiene teléfono', [
@@ -47,13 +52,20 @@ class GenerarYEnviarComprobantePDFJob implements ShouldQueue
                 return;
             }
 
-            // Idempotencia: verificar que no se haya enviado ya este comprobante para este servicio y teléfono
-            $cacheKey = 'whatsapp_comprobante_pago_' . $this->idServicioPagar . '_' . $this->phoneNumber;
-            if (!Cache::add($cacheKey, 1, 86400)) {
+            if (Cache::has($deliveredKey)) {
                 \Log::info('GenerarYEnviarComprobantePDFJob omitido por idempotencia (ya enviado previamente)', [
                     'phoneNumber' => $this->phoneNumber,
                     'idServicioPagar' => $this->idServicioPagar,
-                    'cacheKey' => $cacheKey,
+                    'cacheKey' => $deliveredKey,
+                ]);
+                return;
+            }
+
+            if (!Cache::add($lockKey, 1, 120)) {
+                \Log::info('GenerarYEnviarComprobantePDFJob omitido por lock activo (concurrencia)', [
+                    'phoneNumber' => $this->phoneNumber,
+                    'idServicioPagar' => $this->idServicioPagar,
+                    'cacheKey' => $lockKey,
                 ]);
                 return;
             }
@@ -63,8 +75,9 @@ class GenerarYEnviarComprobantePDFJob implements ShouldQueue
                 'tokenWS' => $this->tokenWS,
             ]);
 
+            $buttonResult = ['success' => true, 'message' => 'not_sent'];
             if ($this->mensajeTexto) {
-                $whatsappService->sendButtons(
+                $buttonResult = $whatsappService->sendButtons(
                     $this->phoneNumber,
                     '🧾 Comprobante de Pago',
                     $this->mensajeTexto,
@@ -77,7 +90,7 @@ class GenerarYEnviarComprobantePDFJob implements ShouldQueue
 
             $pdfBase64 = $this->generarComprobantePagoPDFBase64($this->datosPDF);
 
-            $whatsappService->sendDocument(
+            $pdfResult = $whatsappService->sendDocument(
                 $this->phoneNumber,
                 'Comprobante de Pago adjunto.',
                 'comprobante_pago.pdf',
@@ -86,8 +99,27 @@ class GenerarYEnviarComprobantePDFJob implements ShouldQueue
                 $pdfBase64
             );
 
+            $buttonSuccess = (bool) ($buttonResult['success'] ?? false);
+            $pdfSuccess = (bool) ($pdfResult['success'] ?? false);
+
+            \Log::info('Resultado envío WhatsApp comprobante', [
+                'idServicioPagar' => $this->idServicioPagar,
+                'phoneNumber' => $this->phoneNumber,
+                'button_success' => $buttonSuccess,
+                'pdf_success' => $pdfSuccess,
+            ]);
+
+            if (!$buttonSuccess || !$pdfSuccess) {
+                throw new \RuntimeException('Fallo envío WhatsApp comprobante (botón o PDF).');
+            }
+
+            Cache::put($deliveredKey, 1, 60 * 60 * 24 * 7);
+            Cache::forget($lockKey);
+
         } catch (\Exception $e) {
+            Cache::forget($lockKey);
             \Log::error('Error generando y enviando comprobante PDF', [
+                'idServicioPagar' => $this->idServicioPagar,
                 'phoneNumber' => $this->phoneNumber,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
