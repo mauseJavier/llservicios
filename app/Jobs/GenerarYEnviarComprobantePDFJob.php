@@ -7,6 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Services\WhatsAppService;
 
@@ -23,8 +24,9 @@ class GenerarYEnviarComprobantePDFJob implements ShouldQueue
     protected $instanciaWS;
     protected $tokenWS;
     protected $mensajeTexto;
+    protected ?int $idServicioPagar;
 
-    public function __construct($phoneNumber, array $datosPDF, $instanciaWS = null, $tokenWS = null, $mensajeTexto = null)
+    public function __construct($phoneNumber, array $datosPDF, $instanciaWS = null, $tokenWS = null, $mensajeTexto = null, ?int $idServicioPagar = null)
     {
         $this->onQueue('notificaciones');
         $this->phoneNumber = $phoneNumber;
@@ -32,6 +34,7 @@ class GenerarYEnviarComprobantePDFJob implements ShouldQueue
         $this->instanciaWS = $instanciaWS;
         $this->tokenWS = $tokenWS;
         $this->mensajeTexto = $mensajeTexto;
+        $this->idServicioPagar = $idServicioPagar;
     }
 
     public function handle(): void
@@ -40,6 +43,21 @@ class GenerarYEnviarComprobantePDFJob implements ShouldQueue
             if (empty($this->phoneNumber)) {
                 \Log::info('GenerarYEnviarComprobantePDFJob omitido porque el cliente no tiene teléfono', [
                     'datosPDF' => $this->datosPDF,
+                ]);
+                return;
+            }
+
+            // Idempotencia: verificar que no se haya enviado ya este comprobante para este servicio y teléfono
+            $cacheKey = 'whatsapp_comprobante_pago_' . $this->idServicioPagar . '_' . $this->phoneNumber;
+            $alreadySent = Cache::remember($cacheKey, 86400, function () {
+                return false; // Primera vez, devuelve false y continúa el flujo
+            });
+
+            if ($alreadySent) {
+                \Log::info('GenerarYEnviarComprobantePDFJob omitido por idempotencia (ya enviado previamente)', [
+                    'phoneNumber' => $this->phoneNumber,
+                    'idServicioPagar' => $this->idServicioPagar,
+                    'cacheKey' => $cacheKey,
                 ]);
                 return;
             }
@@ -71,6 +89,9 @@ class GenerarYEnviarComprobantePDFJob implements ShouldQueue
                 [],
                 $pdfBase64
             );
+
+            // Marcar como enviado en cache para evitar re-envios
+            Cache::put($cacheKey, true, 86400); // 24 hours
 
         } catch (\Exception $e) {
             \Log::error('Error generando y enviando comprobante PDF', [

@@ -53,7 +53,8 @@ class ProcesarPagoJob implements ShouldQueue
                 $this->datosPDF,
                 $this->instanciaWS,
                 $this->tokenWS,
-                $this->mensajeTexto
+                $this->mensajeTexto,
+                $this->idServicioPagar
             );
         }else {
             \Log::info('No se envió mensaje de texto ni PDF por WhatsApp porque instanciaWS es null o el cliente no tiene teléfono', [
