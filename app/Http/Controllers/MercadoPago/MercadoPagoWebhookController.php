@@ -14,6 +14,7 @@ use MercadoPago\Client\Payment\PaymentClient;
 use MercadoPago\Client\MerchantOrder\MerchantOrderClient;
 use MercadoPago\Exceptions\MPApiException;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class MercadoPagoWebhookController extends Controller
 {
@@ -120,6 +121,20 @@ class MercadoPagoWebhookController extends Controller
      */
     private function procesarPagoPorId(string $paymentId, array $contexto = []): bool
     {
+        $lockKey = 'mp_webhook_payment_lock_' . $paymentId;
+        $lockTtl = 120;
+
+        if (!Cache::add($lockKey, 1, $lockTtl)) {
+            Log::info('Webhook pago omitido por lock activo (posible duplicado concurrente)', [
+                'event' => 'mp_webhook_payment_lock_skip',
+                'payment_id' => $paymentId,
+                'contexto' => $contexto,
+            ]);
+
+            return true;
+        }
+
+        try {
         $serviciosPagar = collect();
         $tokenReferencia = null;
 
@@ -230,6 +245,9 @@ class MercadoPagoWebhookController extends Controller
         }
 
         return true;
+        } finally {
+            Cache::forget($lockKey);
+        }
     }
 
     /**
@@ -453,10 +471,24 @@ class MercadoPagoWebhookController extends Controller
         switch ($paymentStatus) {
             case 'approved':
                 if ($servicioPagar->estado !== 'pago') {
-                    $servicioPagar->update([
+                    $updated = ServicioPagar::query()
+                        ->where('id', $servicioPagar->id)
+                        ->where('estado', '!=', 'pago')
+                        ->update([
                         'estado' => 'pago',
                         'mp_payment_id' => $paymentId
                     ]);
+
+                    if ($updated === 0) {
+                        Log::info('Pago aprobado omitido por actualización concurrente', [
+                            'servicio_pagar_id' => $servicioPagar->id,
+                            'payment_id' => $paymentId,
+                        ]);
+                        break;
+                    }
+
+                    $servicioPagar->estado = 'pago';
+                    $servicioPagar->mp_payment_id = (string) $paymentId;
 
                     // Buscar el id de la forma de pago MercadoPago
                     $formaPago = \App\Models\FormaPago::where('nombre', 'MercadoPago')->first();
@@ -536,6 +568,17 @@ class MercadoPagoWebhookController extends Controller
     private function notificarPagoRealizado(ServicioPagar $servicioPagar, string $paymentId, float $montoBruto): void
     {
         try {
+            $notificationKey = 'mp_payment_notification_' . $servicioPagar->id . '_' . $paymentId;
+            if (!Cache::add($notificationKey, 1, 60 * 60 * 24 * 7)) {
+                Log::info('Notificación de pago omitida por idempotencia', [
+                    'servicio_pagar_id' => $servicioPagar->id,
+                    'payment_id' => $paymentId,
+                    'cache_key' => $notificationKey,
+                ]);
+
+                return;
+            }
+
             $cliente = $servicioPagar->cliente;
             $servicio = $servicioPagar->servicio;
 

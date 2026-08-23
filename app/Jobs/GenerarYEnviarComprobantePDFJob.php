@@ -49,11 +49,7 @@ class GenerarYEnviarComprobantePDFJob implements ShouldQueue
 
             // Idempotencia: verificar que no se haya enviado ya este comprobante para este servicio y teléfono
             $cacheKey = 'whatsapp_comprobante_pago_' . $this->idServicioPagar . '_' . $this->phoneNumber;
-            $alreadySent = Cache::remember($cacheKey, 86400, function () {
-                return false; // Primera vez, devuelve false y continúa el flujo
-            });
-
-            if ($alreadySent) {
+            if (!Cache::add($cacheKey, 1, 86400)) {
                 \Log::info('GenerarYEnviarComprobantePDFJob omitido por idempotencia (ya enviado previamente)', [
                     'phoneNumber' => $this->phoneNumber,
                     'idServicioPagar' => $this->idServicioPagar,
@@ -89,9 +85,6 @@ class GenerarYEnviarComprobantePDFJob implements ShouldQueue
                 [],
                 $pdfBase64
             );
-
-            // Marcar como enviado en cache para evitar re-envios
-            Cache::put($cacheKey, true, 86400); // 24 hours
 
         } catch (\Exception $e) {
             \Log::error('Error generando y enviando comprobante PDF', [

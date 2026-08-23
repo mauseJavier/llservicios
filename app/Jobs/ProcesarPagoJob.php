@@ -49,11 +49,7 @@ class ProcesarPagoJob implements ShouldQueue
         // Idempotencia: verificar que no se haya procesado ya este pago para este cliente y teléfono
         if ($this->phoneNumber && $this->idServicioPagar) {
             $cacheKey = 'whatsapp_pago_procesado_' . $this->idServicioPagar . '_' . $this->phoneNumber;
-            $alreadyProcessed = Cache::remember($cacheKey, 604800, function () {
-                return false; // Primera vez, retorna false y continúa el flujo normal
-            });
-
-            if ($alreadyProcessed) {
+            if (!Cache::add($cacheKey, 1, 604800)) {
                 \Log::info('ProcesarPagoJob omitido por idempotencia (ya procesado previamente)', [
                     'phoneNumber' => $this->phoneNumber,
                     'idServicioPagar' => $this->idServicioPagar,
@@ -85,12 +81,6 @@ class ProcesarPagoJob implements ShouldQueue
             $this->idServicioPagar,
             $this->datosCorreo
         );
-
-        // Marcar como procesado en cache para evitar re-procesos (TTL: 7 días)
-        if ($this->phoneNumber && $this->idServicioPagar) {
-            $cacheKey = 'whatsapp_pago_procesado_' . $this->idServicioPagar . '_' . $this->phoneNumber;
-            Cache::put($cacheKey, true, 604800); // 7 days
-        }
     }
 
     public function failed(\Throwable $exception): void
