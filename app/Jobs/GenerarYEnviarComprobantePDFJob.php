@@ -137,19 +137,71 @@ class GenerarYEnviarComprobantePDFJob implements ShouldQueue
      */
     private function generarComprobantePagoPDFBase64(array $datosPago)
     {
-        // Plantilla simple en HTML para el PDF
-        $html = view('pdf.comprobante_pago', $datosPago)->render();
+        $datosPago = $this->normalizarLogoParaPdf($datosPago);
 
-        // Generar el PDF usando DomPDF
-        $pdf = Pdf::loadHTML($html)->setPaper('a6'); // a6: pequeño
+        try {
+            // Plantilla simple en HTML para el PDF
+            $html = view('pdf.comprobante_pago', $datosPago)->render();
 
-        // Obtener el contenido binario del PDF
-        $output = $pdf->output();
+            // Generar el PDF usando DomPDF
+            $pdf = Pdf::loadHTML($html)->setPaper('a6'); // a6: pequeño
 
-        // Codificar en base64
-        $base64 = base64_encode($output);
+            // Obtener el contenido binario del PDF
+            $output = $pdf->output();
 
-        return $base64;
+            // Codificar en base64
+            return base64_encode($output);
+        } catch (\Throwable $e) {
+            // Fallback defensivo: reintentar sin logo para no cortar el envío del comprobante.
+            $datosPagoSinLogo = $datosPago;
+            $datosPagoSinLogo['logoEmpresa'] = null;
+
+            \Log::warning('Fallo al generar PDF con logo, reintentando sin logo', [
+                'idServicioPagar' => $this->idServicioPagar,
+                'phoneNumber' => $this->phoneNumber,
+                'error' => $e->getMessage(),
+            ]);
+
+            $html = view('pdf.comprobante_pago', $datosPagoSinLogo)->render();
+            $pdf = Pdf::loadHTML($html)->setPaper('a6');
+
+            return base64_encode($pdf->output());
+        }
+    }
+
+    private function normalizarLogoParaPdf(array $datosPago): array
+    {
+        $logo = $datosPago['logoEmpresa'] ?? null;
+
+        if (empty($logo)) {
+            return $datosPago;
+        }
+
+        if (!function_exists('imagecreatefromwebp') && $this->esLogoWebp((string) $logo)) {
+            \Log::warning('Logo WebP omitido por falta de soporte GD WebP en runtime', [
+                'idServicioPagar' => $this->idServicioPagar,
+                'phoneNumber' => $this->phoneNumber,
+                'logo' => $logo,
+            ]);
+
+            $datosPago['logoEmpresa'] = null;
+        }
+
+        return $datosPago;
+    }
+
+    private function esLogoWebp(string $logo): bool
+    {
+        if (str_starts_with($logo, 'data:image/webp')) {
+            return true;
+        }
+
+        $path = parse_url($logo, PHP_URL_PATH);
+        if (!is_string($path) || $path === '') {
+            $path = $logo;
+        }
+
+        return str_ends_with(strtolower($path), '.webp');
     }
 
     /**
