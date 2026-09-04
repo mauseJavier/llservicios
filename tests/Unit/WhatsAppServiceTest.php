@@ -266,4 +266,95 @@ class WhatsAppServiceTest extends TestCase
         $this->assertFalse($resultado['success']);
         $this->assertStringContainsString('remoteJid', $resultado['error']);
     }
+
+    /** @test */
+    public function puede_conectar_instancia()
+    {
+        Http::fake([
+            '*' => Http::response([
+                'pairingCode' => null,
+                'code' => '2@exemple',
+                'base64' => 'data:image/png;base64,abc123',
+                'count' => 1,
+            ], 200)
+        ]);
+
+        $resultado = $this->whatsappService->connect('test-instance-id');
+
+        $this->assertTrue($resultado['success']);
+        $this->assertEquals('data:image/png;base64,abc123', $resultado['base64']);
+        $this->assertArrayHasKey('data', $resultado);
+
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), '/instance/connect/test-instance-id');
+        });
+    }
+
+    /** @test */
+    public function maneja_errores_al_conectar_instancia()
+    {
+        Http::fake([
+            '*' => Http::response([
+                'success' => false,
+                'error' => ['code' => 'NOT_FOUND', 'message' => 'Instance not found'],
+            ], 404)
+        ]);
+
+        $resultado = $this->whatsappService->connect('instancia-inexistente');
+
+        $this->assertFalse($resultado['success']);
+        $this->assertStringContainsString('Error al conectar', $resultado['message']);
+    }
+
+    /** @test */
+    public function puede_desconectar_instancia()
+    {
+        Http::fake([
+            '*' => Http::response([
+                'success' => true,
+                'message' => 'Instance logged out successfully',
+            ], 200)
+        ]);
+
+        $resultado = $this->whatsappService->logout('test-instance-id');
+
+        $this->assertTrue($resultado['success']);
+        $this->assertStringContainsString('desconectada', $resultado['message']);
+
+        Http::assertSent(function ($request) {
+            return $request->method() === 'DELETE' && str_contains($request->url(), '/instance/logout/test-instance-id');
+        });
+    }
+
+    /** @test */
+    public function maneja_errores_al_desconectar_instancia()
+    {
+        Http::fake([
+            '*' => Http::response([
+                'success' => false,
+                'error' => ['code' => 'NOT_FOUND', 'message' => 'Instance not found'],
+            ], 404)
+        ]);
+
+        $resultado = $this->whatsappService->logout('instancia-inexistente');
+
+        $this->assertFalse($resultado['success']);
+        $this->assertStringContainsString('Error al desconectar', $resultado['message']);
+    }
+
+    /** @test */
+    public function puede_obtener_instancias_del_servidor()
+    {
+        Http::fake([
+            '*' => Http::response([
+                ['instance' => ['instanceName' => 'instancia-1', 'status' => 'open']],
+                ['instance' => ['instanceName' => 'instancia-2', 'status' => 'close']],
+            ], 200)
+        ]);
+
+        $resultado = $this->whatsappService->getInstances();
+
+        $this->assertTrue($resultado['success']);
+        $this->assertCount(2, $resultado['data']);
+    }
 }

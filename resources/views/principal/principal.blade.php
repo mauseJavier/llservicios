@@ -253,6 +253,35 @@
 
 </script>
 
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+      document.addEventListener('livewire:init', () => {
+        Livewire.on('swal', ({ tipo, titulo, texto }) => {
+          Swal.fire({
+            icon: tipo,
+            title: titulo,
+            text: texto ?? '',
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+          });
+        });
+
+        Livewire.on('swal-centro', ({ titulo, texto }) => {
+          Swal.fire({
+            icon: 'success',
+            title: titulo,
+            text: texto ?? '',
+            confirmButtonText: 'Aceptar',
+            confirmButtonColor: '#28a745',
+          });
+        });
+      });
+    </script>
+
     @stack('scripts')
 
 

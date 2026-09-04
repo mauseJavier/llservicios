@@ -93,6 +93,9 @@ Route::middleware('auth')->group(function () {
             // Gestión de QR MercadoPago (Livewire)
             Route::get('/mercadopago/qr-manager', \App\Livewire\MercadoPagoQrManager::class)->name('mercadopago.qr-manager');
 
+            // Administración de WhatsApp (Livewire)
+            Route::get('/whatsapp/admin', \App\Livewire\WhatsAppManager::class)->name('whatsapp.admin');
+
 
             // Pago mediante QR MercadoPago (Livewire) ejemplo
             Route::get('/mercadopago/qrEjemplo', \App\Livewire\QRPayment::class)->name('mercadopago.qrEjemplo');

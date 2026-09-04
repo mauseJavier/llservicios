@@ -437,6 +437,110 @@ class WhatsAppService
     }
 
     /**
+     * Conectar la instancia a WhatsApp (genera el QR de vinculación)
+     *
+     * GET /instance/connect/{instanceName}
+     *
+     * @param string|null $instanceName Nombre de la instancia
+     * @return array
+     */
+    public function connect(?string $instanceName = null): array
+    {
+        $instanceName = $instanceName ?? $this->instanceId;
+
+        try {
+            $response = $this->makeRequest('GET', '/instance/connect/' . $instanceName);
+
+            return [
+                'success' => true,
+                'message' => 'Conexión iniciada. Escaneá el QR con WhatsApp.',
+                'data' => $response,
+                'base64' => $response['base64'] ?? null,
+                'pairingCode' => $response['pairingCode'] ?? null,
+                'code' => $response['code'] ?? null,
+            ];
+        } catch (Exception $e) {
+            Log::error('WhatsApp - Error iniciando conexión', [
+                'instance' => $instanceName,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Error al conectar: ' . $e->getMessage(),
+                'data' => null,
+            ];
+        }
+    }
+
+    /**
+     * Desconectar / cerrar sesión de la instancia
+     *
+     * DELETE /instance/logout/{instanceName}
+     *
+     * @param string|null $instanceName Nombre de la instancia
+     * @return array
+     */
+    public function logout(?string $instanceName = null): array
+    {
+        $instanceName = $instanceName ?? $this->instanceId;
+
+        try {
+            $response = $this->makeRequest('DELETE', '/instance/logout/' . $instanceName);
+
+            return [
+                'success' => true,
+                'message' => 'Instancia desconectada correctamente',
+                'data' => $response,
+            ];
+        } catch (Exception $e) {
+            Log::error('WhatsApp - Error al desconectar instancia', [
+                'instance' => $instanceName,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Error al desconectar: ' . $e->getMessage(),
+                'data' => null,
+            ];
+        }
+    }
+
+    /**
+     * Listar todas las instancias del servidor
+     *
+     * GET /instance/fetchInstances
+     *
+     * @return array
+     */
+    public function getInstances(): array
+    {
+        try {
+            $response = $this->makeRequest('GET', '/instance/fetchInstances');
+
+            return [
+                'success' => true,
+                'message' => 'Instancias obtenidas correctamente',
+                'data' => $response,
+            ];
+        } catch (Exception $e) {
+            Log::error('WhatsApp - Error obteniendo instancias', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Error al obtener instancias: ' . $e->getMessage(),
+                'data' => null,
+            ];
+        }
+    }
+
+    /**
      * Generar ID único para el mensaje
      * 
      * @return string

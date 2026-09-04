@@ -15,7 +15,9 @@
             </a>
             @if(isset($whatsappState))
               <div style="display: inline-flex; align-items: center; margin-left: 8px;">
-                <i class="fab fa-whatsapp" style="font-size: 1.4rem; color: {{ $whatsappState === 'open' ? '#22c55e' : ($whatsappState === 'close' ? '#ef4444' : ($whatsappState === 'connecting' ? '#eab308' : '#6b7280')) }};"></i>
+                <a href="{{route('whatsapp.admin')}}" title="Administración de WhatsApp" style="text-decoration: none; cursor: pointer;">
+                  <i class="fab fa-whatsapp" style="font-size: 1.4rem; color: {{ $whatsappState === 'open' ? '#22c55e' : ($whatsappState === 'close' ? '#ef4444' : ($whatsappState === 'connecting' ? '#eab308' : '#6b7280')) }};"></i>
+                </a>
               </div>
             @endif
           </li>

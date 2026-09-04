@@ -1,19 +1,6 @@
 <div class="container">
     <h1>Gestión de Caja</h1>
 
-    {{-- Mensajes --}}
-    @if (session()->has('message'))
-        <div class="alert alert-success" style="background: #28a745; color: white; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
-            {{ session('message') }}
-        </div>
-    @endif
-
-    @if (session()->has('error'))
-        <div class="alert alert-danger" style="background: #dc3545; color: white; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
-            {{ session('error') }}
-        </div>
-    @endif
-
     {{-- Estado actual de la caja --}}
     <div class="card" style="padding: 20px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; background: #32408dff;">
         <h3>Estado Actual de la Caja</h3>
@@ -48,9 +35,20 @@
     {{-- Resumen de movimientos del día --}}
     @if(!empty($calculoCaja))
         <div class="card" style="padding: 20px; margin-bottom: 20px; border: 1px solid #007BFF; border-radius: 8px; background: #32408dff;">
-            <h3 style="color: #007BFF; margin-bottom: 20px;">
-                <i class="fas fa-calculator"></i> Resumen del Día - {{ $resumenDia['fecha'] ?? '' }}
-            </h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                <h3 style="color: #007BFF; margin: 0;">
+                    <i class="fas fa-calculator"></i> Resumen del Día - {{ $resumenDia['fecha'] ?? '' }}
+                </h3>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <label for="usuarioId" style="font-weight: bold; color: #6c757d;">Usuario:</label>
+                    <select id="usuarioId" wire:model.live="usuarioId"
+                            style="padding: 8px; border: 1px solid #ddd; border-radius: 6px; background: #fff; color: #333; min-width: 180px;">
+                        @foreach($usuarios as $usuarioFiltro)
+                            <option value="{{ $usuarioFiltro->id }}">{{ $usuarioFiltro->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
                 {{-- Columna de Movimientos --}}
@@ -124,11 +122,25 @@
     @if(!$mostrarFormulario)
         <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
             @if(!$cajaActiva)
-                <button wire:click="iniciarCaja" class="btn-success" style="background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer;">
+                <button wire:click="iniciarCaja"
+                        class="btn-success" style="background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer;">
                     <i class="fas fa-play"></i> Iniciar Caja
                 </button>
             @else
-                <button wire:click="cerrarCaja" class="btn-danger" style="background: #dc3545; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer;">
+                <button wire:key="btn-cerrar"
+                        x-data="{}"
+                        x-on:click.prevent="
+                            Swal.fire({
+                                title: '¿Cerrar caja?',
+                                html: 'Se abrirá el formulario para registrar el importe final de la caja.',
+                                icon: 'warning',
+                                showCancelButton: true,
+                                confirmButtonText: 'Sí, cerrar',
+                                cancelButtonText: 'Cancelar',
+                                confirmButtonColor: '#dc3545'
+                            }).then((result) => { if (result.isConfirmed) $wire.cerrarCaja(); });
+                        "
+                        class="btn-danger" style="background: #dc3545; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer;">
                     <i class="fas fa-stop"></i> Cerrar Caja
                 </button>
             @endif
