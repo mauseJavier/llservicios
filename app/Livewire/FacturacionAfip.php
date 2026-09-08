@@ -71,10 +71,29 @@ class FacturacionAfip extends Component
         $user = Auth::user();
         $this->puntoVenta = $user?->afip_punto_venta ?? config('afip.default_punto_venta', 1);
         // $this->tipoComprobante = config('afip.default_tipo_comprobante', 6);
-        $this->condicionIvaReceptorId = $this->pago?->servicioPagar?->cliente?->condicion_iva_id
-            ?? config('afip.default_condicion_iva_receptor', 5);
+        $condiciones = $this->obtenerCondicionesIvaReceptor();
+        $condicionDelCliente = (int) ($this->pago?->servicioPagar?->cliente?->condicion_iva_id
+            ?? config('afip.default_condicion_iva_receptor', 5));
+
+        $this->condicionIvaReceptorId = array_key_exists($condicionDelCliente, $condiciones)
+            ? $condicionDelCliente
+            : (array_key_exists(5, $condiciones) ? 5 : array_key_first($condiciones));
         $this->tipoDocumentoReceptor = $this->pago?->servicioPagar?->cliente?->tipo_documento_id
             ?? config('afip.default_tipo_documento_receptor', 80);
+    }
+
+    /**
+     * Obtener condiciones frente al IVA del receptor (RG 5616) para la UI.
+     */
+    protected function obtenerCondicionesIvaReceptor()
+    {
+        if (!$this->empresa) {
+            return AfipService::tiposContribuyentes();
+        }
+
+        $afipService = new AfipService($this->empresa->id, false);
+
+        return $afipService->obtenerCondicionesIvaReceptor();
     }
 
     /**
@@ -427,7 +446,7 @@ class FacturacionAfip extends Component
     public function render()
     {
         $tiposComprobantes = AfipService::tiposComprobantesComunes($this->empresa?->condicion_iva_id);
-        $tiposContribuyentes = AfipService::tiposContribuyentes();
+        $tiposContribuyentes = $this->obtenerCondicionesIvaReceptor();
 
         $tiposDocumentosComunes = AfipService::tiposDocumentosComunes();
         

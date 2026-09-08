@@ -22,6 +22,7 @@ class ClienteImport implements ToModel, WithHeadingRow
             'dni'=> $row['dni'],
             'domicilio'=> $row['domicilio'],
             'telefono'=> $row['telefono'],
+            'condicion_iva_id'=> $row['condicion_iva_id'] ?? 5,
         ]);
     }
 }

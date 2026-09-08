@@ -48,6 +48,19 @@ class Cliente extends Model
         return $this->aplicaRecargos();
     }
 
+    /**
+     * Accessor que devuelve la descripción de la condición frente al IVA.
+     * Compatible con las vistas PDF que usan $cliente->condicion_iva.
+     *
+     * @return string|null
+     */
+    public function getCondicionIvaAttribute(): ?string
+    {
+        $condiciones = \App\Services\AfipService::tiposContribuyentes();
+
+        return $condiciones[(int) ($this->condicion_iva_id ?? 5)]['Desc'] ?? null;
+    }
+
         /**
          * Las empresas a las que pertenece el cliente
          */

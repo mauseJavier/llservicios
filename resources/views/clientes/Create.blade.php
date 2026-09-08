@@ -101,6 +101,19 @@
           </div>
 
           <div class="grid">
+            <label for="condicion_iva_id">
+              Condición frente al IVA <small>(Receptor).</small>
+              <select id="condicion_iva_id" name="condicion_iva_id">
+                @foreach(\App\Services\AfipService::tiposContribuyentes() as $codigo => $info)
+                  <option value="{{ $codigo }}" {{ old('condicion_iva_id', 5) == $codigo ? 'selected' : '' }}>
+                    {{ $info['Desc'] }} ({{ $info['Cmp_Clase'] }})
+                  </option>
+                @endforeach
+              </select>
+            </label>
+          </div>
+
+          <div class="grid">
             <label>
               <input type="hidden" name="aplicar_recargos" value="0">
               <input name="aplicar_recargos" id="aplicar_recargos" type="checkbox" role="switch" value="1"

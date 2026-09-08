@@ -27,6 +27,7 @@ class UpdateClienteRequest extends FormRequest
             'nombre' => 'required',
             'dni' => ['required', Rule::unique('clientes', 'dni')->ignore($this->route('Cliente'))],
             'aplicar_recargos' => 'nullable|boolean',
+            'condicion_iva_id' => 'nullable|integer|in:1,6,13,16,4,5,7,8,9,10,15',
         ];
     }
 }

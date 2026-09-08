@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "89f555328c8782b557a26f2002a51a4d",
+    "content-hash": "fddc4d098b662e0129fe8cdae4bb626f",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -2418,12 +2418,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/mauseJavier/arcaWSiaMause.git",
-                "reference": "9e606d8c34cd7b9d6e9d5fb562107113975cf340"
+                "reference": "a5aeef7586af3df6850f3b1a50aeb3214229be3f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mauseJavier/arcaWSiaMause/zipball/9e606d8c34cd7b9d6e9d5fb562107113975cf340",
-                "reference": "9e606d8c34cd7b9d6e9d5fb562107113975cf340",
+                "url": "https://api.github.com/repos/mauseJavier/arcaWSiaMause/zipball/a5aeef7586af3df6850f3b1a50aeb3214229be3f",
+                "reference": "a5aeef7586af3df6850f3b1a50aeb3214229be3f",
                 "shasum": ""
             },
             "require": {
@@ -2462,9 +2462,9 @@
             "description": "Laravel package scaffold for AFIP/ARCA integrations.",
             "support": {
                 "issues": "https://github.com/mauseJavier/arcaWSiaMause/issues",
-                "source": "https://github.com/mauseJavier/arcaWSiaMause/tree/main"
+                "source": "https://github.com/mauseJavier/arcaWSiaMause/tree/v1.1.0"
             },
-            "time": "2026-07-08T18:39:13+00:00"
+            "time": "2026-09-08T00:38:05+00:00"
         },
         {
             "name": "mercadopago/dx-php",
@@ -9043,5 +9043,8 @@
         "php": "^8.1"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "platform-overrides": {
+        "php": "8.4"
+    },
+    "plugin-api-version": "2.9.0"
 }

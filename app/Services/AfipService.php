@@ -273,7 +273,9 @@ class AfipService
             $response = ArcaWsfev1::requestCae($this->empresa->cuit, $invoice);
 
             if (!$response || isset($response['error'])) {
-                throw new Exception($response['error'] ?? 'Error desconocido al solicitar CAE');
+                $mensaje = $response['error'] ?? 'Error desconocido al solicitar CAE';
+                $mensaje = $this->mensajeErrorArca($mensaje);
+                throw new Exception($mensaje);
             }
 
             $cae = trim((string) ($response['cae'] ?? ''));
@@ -287,7 +289,7 @@ class AfipService
                     'invoice' => $invoice,
                 ]);
 
-                throw new Exception('ARCA no devolvió CAE para el comprobante. Revisar datos fiscales del receptor/comprobante.');
+                throw new Exception($this->mensajeErrorArca('ARCA no devolvió CAE para el comprobante. Revisar datos fiscales del receptor/comprobante.'));
             }
 
             Log::info('CAE obtenido exitosamente desde ARCA', [
@@ -716,6 +718,48 @@ class AfipService
     }
 
     /**
+     * Obtener las condiciones frente al IVA del receptor habilitadas por ARCA
+     * (método FEParamGetCondicionIvaReceptor, RG 5616).
+     *
+     * Devuelve la lista en el formato usado por la UI:
+     * [id => ['Desc' => string, 'Cmp_Clase' => string]]
+     * Si ARCA no responde, devuelve el listado estático de tiposContribuyentes().
+     *
+     * @return array<int, array{Desc:string, Cmp_Clase:string}>
+     */
+    public function obtenerCondicionesIvaReceptor()
+    {
+        try {
+            $condiciones = ArcaWsfev1::getCondicionIvaReceptor($this->empresa->cuit);
+
+            if (is_array($condiciones) && count($condiciones) > 0) {
+                $normalizadas = [];
+                foreach ($condiciones as $condicion) {
+                    $id = (int) ($condicion['id'] ?? 0);
+                    if ($id <= 0) {
+                        continue;
+                    }
+                    $normalizadas[$id] = [
+                        'Desc' => (string) ($condicion['desc'] ?? $condicion['Desc'] ?? ''),
+                        'Cmp_Clase' => (string) ($condicion['cmp_clase'] ?? $condicion['Cmp_Clase'] ?? ''),
+                    ];
+                }
+
+                if (count($normalizadas) > 0) {
+                    return $normalizadas;
+                }
+            }
+        } catch (Exception $e) {
+            Log::warning('No se pudieron obtener condiciones IVA receptor desde ARCA', [
+                'empresa_id' => $this->empresa->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return self::tiposContribuyentes();
+    }
+
+    /**
      * Verificar certificados y conectividad con ARCA
      * 
      * @return array
@@ -954,6 +998,28 @@ class AfipService
             96 => 'DNI',
             99 => 'Sin identificar'
         ];
+    }
+
+    /**
+     * Traduce mensajes de error de ARCA (RG 5616) a mensajes claros en español.
+     */
+    protected function mensajeErrorArca(string $mensaje): string
+    {
+        $mensajeLimpio = trim(strip_tags($mensaje));
+
+        // Error 10242: Condición IVA receptor obligatoria / valor inválido (RG 5616)
+        if (str_contains($mensajeLimpio, '10242')
+            || stripos($mensajeLimpio, 'Condicion IVA receptor') !== false
+            || stripos($mensajeLimpio, 'Condición IVA receptor') !== false) {
+            return 'ARCA rechazó el comprobante: la Condición frente al IVA del receptor es obligatoria o no es válida (Error 10242, RG 5616). Verificá la condición frente al IVA del cliente en su ficha.';
+        }
+
+        // Error 10245: Condición IVA receptor será obligatoria (observación)
+        if (str_contains($mensajeLimpio, '10245')) {
+            return 'ARCA observó el comprobante: la Condición frente al IVA del receptor será obligatoria (Error 10245, RG 5616). Verificá la condición frente al IVA del cliente.';
+        }
+
+        return $mensajeLimpio;
     }
 
 }

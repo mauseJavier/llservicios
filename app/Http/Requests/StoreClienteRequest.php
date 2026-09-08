@@ -25,6 +25,7 @@ class StoreClienteRequest extends FormRequest
             'nombre' => 'required',
             'dni' => 'required',// 'numeric|unique:App\Models\Cliente,dni',
             'aplicar_recargos' => 'nullable|boolean',
+            'condicion_iva_id' => 'nullable|integer|in:1,6,13,16,4,5,7,8,9,10,15',
             // 'correo' =>'required', // 'unique:App\Models\Cliente,correo'
         ];
     }

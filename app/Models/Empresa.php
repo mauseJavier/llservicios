@@ -38,6 +38,19 @@ class Empresa extends Model
     }
 
     /**
+     * Accessor que devuelve la descripción de la condición frente al IVA.
+     * Compatible con las vistas PDF que usan $empresa->condicion_iva.
+     *
+     * @return string|null
+     */
+    public function getCondicionIvaAttribute(): ?string
+    {
+        $condiciones = \App\Services\AfipService::tiposContribuyentes();
+
+        return $condiciones[(int) ($this->condicion_iva_id ?? 1)]['Desc'] ?? null;
+    }
+
+    /**
      * Relación con tiendas de MercadoPago
      */
     public function mercadopagoStores(): HasMany

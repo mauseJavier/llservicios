@@ -155,6 +155,7 @@ class ClienteController extends Controller
                                 'correo'=>$request->correo ?? null,
                                 'domicilio'=>$request->domicilio,
                                 'telefono'=>$request->telefono,
+                                'condicion_iva_id'=>$request->condicion_iva_id ?? 5,
                                 ]);
             // return $id->id;
 
@@ -295,6 +296,7 @@ class ClienteController extends Controller
                             'correo'=>$request->correo,
                             'domicilio'=>$request->domicilio,
                             'telefono'=>$request->telefono,
+                            'condicion_iva_id'=>$request->condicion_iva_id ?? 5,
                         ]);
 
         // El flag de recargos por mora es específico de cada empresa, se guarda en la pivot
@@ -374,7 +376,8 @@ class ClienteController extends Controller
                     'correo'=> $value['correo'],
                     'dni'=> $value['dni'],
                     'domicilio'=> $value['domicilio'],
-                    'telefono'=> $value['telefono']
+                    'telefono'=> $value['telefono'],
+                    'condicion_iva_id'=> $value['condicion_iva_id'] ?? 5,
                 ]);
 
                
