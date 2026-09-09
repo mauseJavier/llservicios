@@ -88,6 +88,27 @@ class MercadoPagoLinkServiceTest extends TestCase
         });
     }
 
+    public function test_link_individual_incluye_empresa_id_en_notification_url()
+    {
+        Http::fake([
+            'api.mercadopago.com/checkout/preferences' => Http::response([
+                'id' => 'pref-individual-notif-1',
+                'init_point' => 'https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=pref-individual-notif-1',
+                'sandbox_init_point' => 'https://sandbox.mercadopago.com.ar/checkout/v1/redirect?pref_id=pref-individual-notif-1'
+            ], 201)
+        ]);
+
+        $url = $this->linkService->linkIndividual($this->servicioPagar);
+
+        $this->assertNotNull($url);
+
+        Http::assertSent(function ($request) {
+            $body = $request->data();
+
+            return str_contains($body['notification_url'], 'empresa_id=' . $this->empresa->id);
+        });
+    }
+
     public function test_link_individual_devuelve_null_sin_token_empresa()
     {
         $this->empresa->update(['MP_ACCESS_TOKEN' => null]);

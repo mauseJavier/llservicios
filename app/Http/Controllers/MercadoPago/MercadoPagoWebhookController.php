@@ -4,21 +4,37 @@ namespace App\Http\Controllers\MercadoPago;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use App\Models\Empresa;
 use App\Models\ServicioPagar;
 use App\Models\Pagos;
 use App\Jobs\ProcesarPagoJob;
 use App\Services\MercadoPago\MercadoPagoApiService;
-use MercadoPago\MercadoPagoConfig;
-use MercadoPago\Client\Payment\PaymentClient;
-use MercadoPago\Client\MerchantOrder\MerchantOrderClient;
-use MercadoPago\Exceptions\MPApiException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 class MercadoPagoWebhookController extends Controller
 {
     private const USUARIO_PAGO_ONLINE_EMAIL = 'pago.online@example.com';
+
+    /**
+     * Resultado: pago procesado correctamente.
+     */
+    private const RESULTADO_PROCESADO = 'procesado';
+
+    /**
+     * Resultado: error transitorio; el webhook debe responder 500 para que MP reintente.
+     */
+    private const RESULTADO_RETRY = 'retry';
+
+    /**
+     * Resultado: notificación que no se puede procesar (pago ajeno, ya procesado,
+     * o tipo no soportado). Se responde 200 para no generar reintentos infinitos.
+     */
+    private const RESULTADO_IGNORADO = 'ignorado';
+
+    private const BASE_URL_MP = 'https://api.mercadopago.com';
 
     private function resolverUsuarioSistemaId(): int
     {
@@ -45,6 +61,7 @@ class MercadoPagoWebhookController extends Controller
             // y "Feed v2.0" (campo topic + id al nivel raíz). Se soportan ambos.
             $data = $request->input('data', []);
             $tipo = $request->input('type') ?? $request->input('topic');
+            $empresaId = $request->input('empresa_id');
             $paymentId = null;
             $merchantOrderId = null;
 
@@ -58,12 +75,13 @@ class MercadoPagoWebhookController extends Controller
                     return response()->json(['error' => 'Payment ID missing'], 400);
                 }
 
-                $this->procesarPagoPorId($paymentId, [
+                $resultado = $this->procesarPagoPorId($paymentId, [
                     'source' => 'webhook_payment',
                     'user_id' => $userId,
+                    'empresa_id' => $empresaId,
                 ]);
 
-                return response()->json(['status' => 'ok'], 200);
+                return $this->respuestaWebhook($resultado);
             }
 
             if ($tipo === 'merchant_order') {
@@ -75,24 +93,17 @@ class MercadoPagoWebhookController extends Controller
                     return response()->json(['error' => 'Merchant order ID missing'], 400);
                 }
 
-                $this->procesarMerchantOrder($merchantOrderId, [
+                $resultado = $this->procesarMerchantOrder($merchantOrderId, [
                     'source' => 'webhook_merchant_order',
                     'user_id' => $userId,
+                    'empresa_id' => $empresaId,
                 ]);
 
-                return response()->json(['status' => 'ok'], 200);
+                return $this->respuestaWebhook($resultado);
             }
 
             Log::info('Webhook ignorado - tipo no soportado', ['type' => $tipo]);
             return response()->json(['status' => 'ok'], 200);
-
-        } catch (MPApiException $e) {
-            Log::error('Error de API MercadoPago en webhook', [
-                'payment_id' => $paymentId ?? null,
-                'status_code' => $e->getApiResponse()->getStatusCode(),
-                'error' => $e->getMessage()
-            ]);
-            return response()->json(['error' => 'API error'], 500);
 
         } catch (\Exception $e) {
             Log::error('Error procesando webhook MercadoPago', [
@@ -104,6 +115,20 @@ class MercadoPagoWebhookController extends Controller
     }
 
     /**
+     * Traducir el resultado de procesamiento a la respuesta HTTP esperada por
+     * MercadoPago: 200 si se resolvió (para no reintentar) o 500 si es un error
+     * transitorio (MP reintentará la notificación más adelante).
+     */
+    private function respuestaWebhook(string $resultado): JsonResponse
+    {
+        if ($resultado === self::RESULTADO_RETRY) {
+            return response()->json(['error' => 'Procesamiento pendiente, reintentar'], 500);
+        }
+
+        return response()->json(['status' => 'ok'], 200);
+    }
+
+    /**
      * Procesamiento reutilizable desde callbacks de retorno (success/pending/failure)
      * para cubrir escenarios en donde el webhook se retrasa o no llega.
      */
@@ -112,14 +137,16 @@ class MercadoPagoWebhookController extends Controller
         return $this->procesarPagoPorId($paymentId, [
             'source' => 'back_url',
             'external_reference' => $externalReference,
-        ]);
+        ]) === self::RESULTADO_PROCESADO;
     }
 
     /**
      * Procesar un pago de MercadoPago a partir de su ID: obtiene el pago,
      * resuelve los servicios asociados, distribuye importes y actualiza/notifica.
+     *
+     * @return string uno de RESULTADO_PROCESADO / RESULTADO_RETRY / RESULTADO_IGNORADO
      */
-    private function procesarPagoPorId(string $paymentId, array $contexto = []): bool
+    private function procesarPagoPorId(string $paymentId, array $contexto = []): string
     {
         $lockKey = 'mp_webhook_payment_lock_' . $paymentId;
         $lockTtl = 120;
@@ -131,122 +158,214 @@ class MercadoPagoWebhookController extends Controller
                 'contexto' => $contexto,
             ]);
 
-            return true;
+            return self::RESULTADO_IGNORADO;
         }
 
         try {
-        $serviciosPagar = collect();
-        $tokenReferencia = null;
+            $serviciosPagar = collect();
 
-        if (!empty($contexto['external_reference'])) {
-            $serviciosPagar = $this->resolverServiciosPorReferencia((string) $contexto['external_reference']);
-            $tokenReferencia = $this->resolverTokenDesdeServicios($serviciosPagar);
-        }
+            // Resolver los servicios por referencia externa cuando viene del retorno
+            // del navegador o de la reconciliación.
+            if (!empty($contexto['external_reference'])) {
+                $serviciosPagar = $this->resolverServiciosPorReferencia((string) $contexto['external_reference']);
+            }
 
-        $tokenPorUserId = $this->resolverTokenEmpresaPorUserId($contexto['user_id'] ?? null);
-        $tokenGlobal = (string) config('services.mercadopago.access_token');
+            $accessToken = $this->resolverAccessToken($contexto, $serviciosPagar);
 
-        $accessToken = $tokenReferencia ?: ($tokenPorUserId ?: $tokenGlobal);
+            if (empty($accessToken)) {
+                Log::error('MercadoPago webhook sin token resoluble para procesar pago', [
+                    'event' => 'mp_webhook_token_resolution_error',
+                    'payment_id' => $paymentId,
+                    'contexto' => $contexto,
+                    'token_por_empresa_id' => !empty($contexto['empresa_id']),
+                    'token_por_referencia' => !$serviciosPagar->isEmpty(),
+                    'token_por_user_id' => !empty($contexto['user_id']),
+                    'token_global_configurado' => !empty(config('services.mercadopago.access_token')),
+                ]);
+                $this->logConfiguracionEntorno('token_resolution_error_payment', ['payment_id' => $paymentId]);
 
-        if (empty($accessToken)) {
-            Log::error('MercadoPago webhook sin token resoluble para procesar pago', [
-                'event' => 'mp_webhook_token_resolution_error',
+                return self::RESULTADO_RETRY;
+            }
+
+            // Obtener el pago. Si falla con el token inicial, se reintenta con el
+            // token de cada empresa (cubre preferencias viejas sin empresa_id y
+            // webhooks sin user_id resoluble).
+            $payment = $this->obtenerPagoReintentando($paymentId, $accessToken);
+
+            if (!$payment) {
+                Log::error('Error obteniendo payment en webhook/retorno', [
+                    'event' => 'mp_webhook_payment_fetch_error',
+                    'payment_id' => $paymentId,
+                    'contexto' => $contexto,
+                ]);
+
+                return self::RESULTADO_RETRY;
+            }
+
+            Log::info('Pago obtenido via webhook', [
                 'payment_id' => $paymentId,
-                'contexto' => $contexto,
-                'token_por_referencia' => !empty($tokenReferencia),
-                'token_por_user_id' => !empty($tokenPorUserId),
-                'token_global_configurado' => !empty($tokenGlobal),
-            ]);
-            $this->logConfiguracionEntorno('token_resolution_error_payment', ['payment_id' => $paymentId]);
-            return false;
-        }
-
-        MercadoPagoConfig::setAccessToken($accessToken);
-        MercadoPagoConfig::setRuntimeEnviroment(
-            config('services.mercadopago.sandbox', true)
-                ? MercadoPagoConfig::LOCAL
-                : MercadoPagoConfig::SERVER
-        );
-
-        // Obtener información del pago
-        $paymentClient = new PaymentClient();
-
-        try {
-            $payment = $paymentClient->get($paymentId);
-        } catch (\Throwable $e) {
-            Log::error('Error obteniendo payment en webhook/retorno', [
-                'event' => 'mp_webhook_payment_fetch_error',
-                'payment_id' => $paymentId,
-                'contexto' => $contexto,
-                'error' => $e->getMessage(),
-            ]);
-            return false;
-        }
-
-        Log::info('Pago obtenido via webhook', [
-            'payment_id' => $paymentId,
-            'status' => $payment->status,
-            'external_reference' => $payment->external_reference
-        ]);
-
-        // Buscar los servicios asociados por referencia externa
-        if ($serviciosPagar->isEmpty()) {
-            $serviciosPagar = $this->resolverServiciosPorReferencia($payment->external_reference ?? '');
-        }
-
-        if ($serviciosPagar->isEmpty()) {
-            Log::warning('Webhook sin servicios asociados', [
-                'payment_id' => $paymentId,
+                'status' => $payment->status ?? null,
                 'external_reference' => $payment->external_reference ?? null
             ]);
-            return false;
-        }
 
-        // Multi-tenant: usar el token de la empresa que posee el servicio
-        $empresa = $serviciosPagar->first()->servicio->empresa ?? null;
-        $empresaToken = $empresa->MP_ACCESS_TOKEN ?? null;
+            // Buscar los servicios asociados por referencia externa
+            if ($serviciosPagar->isEmpty()) {
+                $serviciosPagar = $this->resolverServiciosPorReferencia($payment->external_reference ?? '');
+            }
 
-        if (empty($empresaToken)) {
-            Log::error('Empresa sin MP_ACCESS_TOKEN al procesar pago de webhook', [
-                'event' => 'mp_webhook_company_token_missing',
-                'payment_id' => $paymentId,
-                'empresa_id' => $empresa->id ?? null,
-                'external_reference' => $payment->external_reference ?? null,
-            ]);
-            return false;
-        }
-
-        if ($empresaToken !== $accessToken) {
-            MercadoPagoConfig::setAccessToken($empresaToken);
-
-            try {
-                $payment = $paymentClient->get($paymentId);
-            } catch (\Throwable $e) {
-                Log::warning('No se pudo reconsultar payment con token de empresa', [
+            if ($serviciosPagar->isEmpty()) {
+                Log::warning('Webhook sin servicios asociados', [
                     'payment_id' => $paymentId,
-                    'empresa_id' => $empresa->id ?? null,
-                    'error' => $e->getMessage(),
+                    'external_reference' => $payment->external_reference ?? null
                 ]);
+
+                return self::RESULTADO_IGNORADO;
+            }
+
+            // Multi-tenant: reconsultar el pago con el token de la empresa que posee
+            // el servicio si el token usado difiere (best effort).
+            $empresa = $serviciosPagar->first()->servicio->empresa ?? null;
+            $empresaToken = $empresa->MP_ACCESS_TOKEN ?? null;
+
+            if (!empty($empresaToken) && $empresaToken !== $accessToken) {
+                $paymentReconsultado = $this->obtenerPagoConToken($paymentId, (string) $empresaToken);
+
+                if ($paymentReconsultado) {
+                    $payment = $paymentReconsultado;
+                } else {
+                    Log::warning('No se pudo reconsultar payment con token de empresa', [
+                        'payment_id' => $paymentId,
+                        'empresa_id' => $empresa->id ?? null,
+                    ]);
+                }
+            }
+
+            $esAgregado = $serviciosPagar->count() > 1;
+            $importesPorServicio = [];
+
+            if ($esAgregado) {
+                $montoNeto = (float) ($payment->transaction_details->net_received_amount ?? $payment->transaction_amount ?? 0);
+                $importesPorServicio = $this->distribuirImportes($serviciosPagar, $montoNeto);
+            }
+
+            foreach ($serviciosPagar as $servicioPagar) {
+                $this->processPaymentNotification($servicioPagar, $payment, [
+                    'importe' => $esAgregado ? ($importesPorServicio[$servicioPagar->id] ?? null) : null,
+                ]);
+            }
+
+            return self::RESULTADO_PROCESADO;
+        } finally {
+            Cache::forget($lockKey);
+        }
+    }
+
+    /**
+     * Resolver el access token a usar para consultar un pago, en orden de prioridad:
+     * 1. Token de la empresa indicada por ?empresa_id= en la notification_url.
+     * 2. Token de la empresa derivada de la external_reference (retorno/reconciliación).
+     * 3. Token de la empresa por user_id del payload del webhook.
+     * 4. Token global configurado en el .env.
+     */
+    private function resolverAccessToken(array $contexto, $serviciosPagar): ?string
+    {
+        if (!empty($contexto['empresa_id'])) {
+            $empresa = Empresa::find((int) $contexto['empresa_id']);
+
+            if ($empresa && !empty($empresa->MP_ACCESS_TOKEN)) {
+                return (string) $empresa->MP_ACCESS_TOKEN;
             }
         }
 
-        $esAgregado = $serviciosPagar->count() > 1;
-        $importesPorServicio = [];
+        if (!$serviciosPagar->isEmpty()) {
+            $tokenReferencia = $this->resolverTokenDesdeServicios($serviciosPagar);
 
-        if ($esAgregado) {
-            $montoNeto = (float) ($payment->transaction_details->net_received_amount ?? $payment->transaction_amount ?? 0);
-            $importesPorServicio = $this->distribuirImportes($serviciosPagar, $montoNeto);
+            if (!empty($tokenReferencia)) {
+                return (string) $tokenReferencia;
+            }
         }
 
-        foreach ($serviciosPagar as $servicioPagar) {
-            $this->processPaymentNotification($servicioPagar, $payment, [
-                'importe' => $esAgregado ? ($importesPorServicio[$servicioPagar->id] ?? null) : null,
+        $tokenPorUserId = $this->resolverTokenEmpresaPorUserId($contexto['user_id'] ?? null);
+
+        if (!empty($tokenPorUserId)) {
+            return (string) $tokenPorUserId;
+        }
+
+        $tokenGlobal = (string) config('services.mercadopago.access_token');
+
+        return $tokenGlobal !== '' ? $tokenGlobal : null;
+    }
+
+    /**
+     * Intentar obtener el pago con el token dado y, si falla, con el token de cada
+     * empresa que tenga credenciales configuradas. Esto hace que el webhook funcione
+     * aunque el payload no incluya user_id ni la notification_url tenga empresa_id.
+     */
+    private function obtenerPagoReintentando(string $paymentId, string $accessToken): ?object
+    {
+        $payment = $this->obtenerPagoConToken($paymentId, $accessToken);
+
+        if ($payment) {
+            return $payment;
+        }
+
+        $empresas = Empresa::query()
+            ->whereNotNull('MP_ACCESS_TOKEN')
+            ->where('MP_ACCESS_TOKEN', '!=', '')
+            ->get(['MP_ACCESS_TOKEN']);
+
+        foreach ($empresas as $empresa) {
+            $token = (string) $empresa->MP_ACCESS_TOKEN;
+
+            if ($token === $accessToken) {
+                continue;
+            }
+
+            $payment = $this->obtenerPagoConToken($paymentId, $token);
+
+            if ($payment) {
+                Log::info('Pago obtenido con token de empresa alternativo', [
+                    'payment_id' => $paymentId,
+                    'empresa_id' => $empresa->id ?? null,
+                ]);
+
+                return $payment;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Obtener un pago de MercadoPago vía API con un token específico.
+     * Devuelve el pago como objeto stdClass o null si no se pudo obtener.
+     */
+    private function obtenerPagoConToken(string $paymentId, string $accessToken): ?object
+    {
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $accessToken,
+                'Content-Type' => 'application/json',
+            ])->get(self::BASE_URL_MP . '/v1/payments/' . $paymentId);
+
+            if (!$response->successful()) {
+                Log::info('Fallo al obtener payment con token', [
+                    'payment_id' => $paymentId,
+                    'status_code' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+
+                return null;
+            }
+
+            return json_decode($response->body());
+        } catch (\Throwable $e) {
+            Log::info('Excepción al obtener payment con token', [
+                'payment_id' => $paymentId,
+                'error' => $e->getMessage(),
             ]);
-        }
 
-        return true;
-        } finally {
-            Cache::forget($lockKey);
+            return null;
         }
     }
 
@@ -258,60 +377,83 @@ class MercadoPagoWebhookController extends Controller
      * Si la cuenta no tiene habilitado el API de merchant orders (por ejemplo
      * respuesta 403 de PolicyAgent), se registra el evento y se responde 200:
      * el webhook de tipo "payment" sigue siendo la vía confiable de confirmación.
+     *
+     * @return string uno de RESULTADO_PROCESADO / RESULTADO_RETRY / RESULTADO_IGNORADO
      */
-    private function procesarMerchantOrder(string $merchantOrderId, array $contexto = []): bool
+    private function procesarMerchantOrder(string $merchantOrderId, array $contexto = []): string
     {
-        $tokenPorUserId = $this->resolverTokenEmpresaPorUserId($contexto['user_id'] ?? null);
-        $tokenGlobal = (string) config('services.mercadopago.access_token');
-        $accessToken = $tokenPorUserId ?: $tokenGlobal;
+        $accessToken = $this->resolverAccessToken($contexto, collect());
 
         if (empty($accessToken)) {
             Log::error('MercadoPago webhook sin token resoluble para merchant order', [
                 'event' => 'mp_webhook_token_resolution_error_merchant_order',
                 'merchant_order_id' => $merchantOrderId,
                 'contexto' => $contexto,
-                'token_por_user_id' => !empty($tokenPorUserId),
-                'token_global_configurado' => !empty($tokenGlobal),
             ]);
             $this->logConfiguracionEntorno('token_resolution_error_merchant_order', ['merchant_order_id' => $merchantOrderId]);
-            return false;
+
+            return self::RESULTADO_RETRY;
         }
 
-        MercadoPagoConfig::setAccessToken($accessToken);
-        MercadoPagoConfig::setRuntimeEnviroment(
-            config('services.mercadopago.sandbox', true)
-                ? MercadoPagoConfig::LOCAL
-                : MercadoPagoConfig::SERVER
-        );
+        $orden = null;
+        $statusCode = null;
 
         try {
-            $merchantOrderClient = new MerchantOrderClient();
-            $order = $merchantOrderClient->get($merchantOrderId);
-        } catch (MPApiException $e) {
-            Log::warning('No se pudo obtener merchant order via webhook (API no disponible o sin acceso)', [
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $accessToken,
+                'Content-Type' => 'application/json',
+            ])->get(self::BASE_URL_MP . '/merchant_orders/' . $merchantOrderId);
+
+            $statusCode = $response->status();
+
+            if ($response->successful()) {
+                $orden = json_decode($response->body());
+            } else {
+                Log::warning('No se pudo obtener merchant order via webhook (API no disponible o sin acceso)', [
+                    'merchant_order_id' => $merchantOrderId,
+                    'status_code' => $statusCode,
+                    'body' => $response->body(),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Excepción obteniendo merchant order via webhook', [
                 'merchant_order_id' => $merchantOrderId,
-                'status_code' => $e->getApiResponse()->getStatusCode(),
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            return false;
         }
 
-        $pagosAprobados = $this->extraerPagosAprobados($order->payments ?? []);
+        // 403 (PolicyAgent) o 404 (orden ajena): el webhook de tipo "payment" cubre
+        // este caso, no tiene sentido reintentar esta orden.
+        if (!$orden && in_array($statusCode, [403, 404], true)) {
+            return self::RESULTADO_IGNORADO;
+        }
+
+        if (!$orden) {
+            return self::RESULTADO_RETRY;
+        }
+
+        $pagosAprobados = $this->extraerPagosAprobados($orden->payments ?? []);
 
         Log::info('Merchant order obtenida via webhook', [
             'merchant_order_id' => $merchantOrderId,
-            'status' => $order->status ?? null,
-            'payments_count' => count($order->payments ?? []),
+            'status' => $orden->status ?? null,
+            'payments_count' => count($orden->payments ?? []),
             'approved_count' => count($pagosAprobados)
         ]);
 
+        $resultadoGlobal = self::RESULTADO_PROCESADO;
+
         foreach ($pagosAprobados as $paymentId) {
-            $this->procesarPagoPorId($paymentId, $contexto + [
+            $resultado = $this->procesarPagoPorId($paymentId, $contexto + [
                 'source' => 'merchant_order',
             ]);
+
+            if ($resultado === self::RESULTADO_RETRY) {
+                $resultadoGlobal = self::RESULTADO_RETRY;
+            }
         }
 
-        return true;
+        return $resultadoGlobal;
     }
 
     private function resolverTokenEmpresaPorUserId($userId): ?string

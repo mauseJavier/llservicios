@@ -111,9 +111,14 @@ class MercadoPagoApiService
      * @param string $externalReference Referencia externa para el webhook (ej: servicio_pagar_5 | cliente_impagos_3)
      * @param string|null $payerEmail Correo del cliente para mejorar el checkout
      * @param string|null $accessToken Token de la empresa (multi-tenant)
+     * @param array|null $backUrls URLs de retorno personalizadas
+     * @param string|null $notificationUrl URL de notificación personalizada
+     * @param int|null $empresaId ID de la empresa que recibe el pago. Se agrega a la
+     *                           notification_url como query param (?empresa_id=X) para que el
+     *                           webhook pueda resolver el token correcto sin depender de user_id.
      * @return array ['success' => bool, 'checkout_url' => ?string, 'preference_id' => ?string, ...]
      */
-    public function crearPreferenciaCheckout(array $items, string $externalReference, ?string $payerEmail = null, ?string $accessToken = null, ?array $backUrls = null, ?string $notificationUrl = null): array
+    public function crearPreferenciaCheckout(array $items, string $externalReference, ?string $payerEmail = null, ?string $accessToken = null, ?array $backUrls = null, ?string $notificationUrl = null, ?int $empresaId = null): array
     {
         if (empty($items)) {
             Log::warning('MercadoPagoAPI - No hay items para crear la preferencia');
@@ -127,6 +132,13 @@ class MercadoPagoApiService
             return ['success' => false, 'error' => 'La empresa no tiene configuradas las credenciales de MercadoPago.'];
         }
 
+        $notificationUrl = $notificationUrl ?? self::getBaseUrl() . '/mercadopago/webhook';
+
+        if (!empty($empresaId)) {
+            $separator = str_contains($notificationUrl, '?') ? '&' : '?';
+            $notificationUrl .= $separator . 'empresa_id=' . (int) $empresaId;
+        }
+
         $preferenceData = [
             'items' => $items,
             'external_reference' => $externalReference,
@@ -136,7 +148,7 @@ class MercadoPagoApiService
                 'failure' => self::getBaseUrl() . '/mercadopago/failure',
                 'pending' => self::getBaseUrl() . '/mercadopago/pending',
             ],
-            'notification_url' => $notificationUrl ?? self::getBaseUrl() . '/mercadopago/webhook',
+            'notification_url' => $notificationUrl,
         ];
 
         Log::info('MercadoPagoAPI - Configuración de URLs de preferencia', [
@@ -245,6 +257,69 @@ class MercadoPagoApiService
                 'data' => null
             ];
         }
+    }
+
+    /**
+     * Buscar pagos aprobados de MercadoPago por referencia externa.
+     * Se usa en la reconciliación para recuperar pagos cuyo webhook no llegó o falló.
+     *
+     * @return string[] IDs de pagos aprobados
+     */
+    public function searchApprovedPayments(string $externalReference, ?string $accessToken = null): array
+    {
+        $this->setAccessToken($accessToken);
+
+        if (empty($this->accessToken)) {
+            Log::warning('MercadoPagoAPI - Sin access token para buscar pagos', [
+                'external_reference' => $externalReference,
+            ]);
+
+            return [];
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->accessToken,
+                'Content-Type' => 'application/json'
+            ])->get($this->baseUrl . '/v1/payments/search', [
+                'external_reference' => $externalReference,
+                'status' => 'approved',
+                'limit' => 5,
+                'sort' => 'date_approved',
+                'criteria' => 'desc',
+            ]);
+
+            if ($response->successful()) {
+                $results = $response->json('results') ?? [];
+
+                $ids = collect($results)
+                    ->pluck('id')
+                    ->map(fn ($id) => (string) $id)
+                    ->filter(fn ($id) => $id !== '')
+                    ->values()
+                    ->all();
+
+                Log::info('MercadoPagoAPI - Búsqueda de pagos aprobados', [
+                    'external_reference' => $externalReference,
+                    'found' => count($ids),
+                ]);
+
+                return $ids;
+            }
+
+            Log::warning('MercadoPagoAPI - Error buscando pagos aprobados', [
+                'external_reference' => $externalReference,
+                'status_code' => $response->status(),
+                'body' => $response->body(),
+            ]);
+        } catch (Exception $e) {
+            Log::error('MercadoPagoAPI - Excepción buscando pagos aprobados', [
+                'external_reference' => $externalReference,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return [];
     }
 
     /**

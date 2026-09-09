@@ -77,7 +77,10 @@ class MercadoPagoLinkService
             $items,
             'servicio_pagar_' . $servicioPagar->id,
             $servicioPagar->cliente->correo ?? null,
-            $empresa->MP_ACCESS_TOKEN
+            $empresa->MP_ACCESS_TOKEN,
+            null,
+            null,
+            (int) $empresa->id
         );
 
         if (empty($result['success'])) {
@@ -124,7 +127,10 @@ class MercadoPagoLinkService
             $items,
             'cliente_impagos_' . $clienteId . '_' . $empresaId,
             $cliente->correo ?? null,
-            $empresa->MP_ACCESS_TOKEN
+            $empresa->MP_ACCESS_TOKEN,
+            null,
+            null,
+            (int) $empresa->id
         );
 
         if (empty($result['success'])) {

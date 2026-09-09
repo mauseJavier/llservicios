@@ -13,6 +13,8 @@ use App\Models\Servicio;
 use App\Models\ServicioPagar;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Config;
 
 class MercadoPagoWebhookControllerTest extends TestCase
 {
@@ -82,6 +84,9 @@ class MercadoPagoWebhookControllerTest extends TestCase
         ]);
 
         FormaPago::create(['nombre' => 'MercadoPago']);
+
+        Config::set('services.mercadopago.access_token', 'TEST-123456789-global-token');
+        Config::set('services.mercadopago.sandbox', true);
 
         $this->controller = new MercadoPagoWebhookController();
     }
@@ -371,5 +376,192 @@ class MercadoPagoWebhookControllerTest extends TestCase
         $method->setAccessible(true);
 
         return $method->invoke($this->controller, $payments);
+    }
+
+    public function test_resuelve_token_por_empresa_id()
+    {
+        $token = $this->invocarResolvedorToken([
+            'empresa_id' => $this->empresa->id,
+        ], collect());
+
+        $this->assertEquals('TEST-123456789-empresa-a', $token);
+    }
+
+    public function test_resuelve_token_por_referencia_externa()
+    {
+        $servicios = collect([$this->servicioImpago]);
+
+        $token = $this->invocarResolvedorToken([
+            'external_reference' => 'servicio_pagar_' . $this->servicioImpago->id,
+        ], $servicios);
+
+        $this->assertEquals('TEST-123456789-empresa-a', $token);
+    }
+
+    public function test_resuelve_token_por_user_id()
+    {
+        $this->empresa->update(['MP_USER_ID' => '12345']);
+
+        $token = $this->invocarResolvedorToken([
+            'user_id' => '12345',
+        ], collect());
+
+        $this->assertEquals('TEST-123456789-empresa-a', $token);
+    }
+
+    public function test_resuelve_token_global_como_fallback()
+    {
+        $token = $this->invocarResolvedorToken([], collect());
+
+        $this->assertEquals('TEST-123456789-global-token', $token);
+    }
+
+    public function test_respuesta_webhook_retry_devuelve_500()
+    {
+        $method = new \ReflectionMethod($this->controller, 'respuestaWebhook');
+        $method->setAccessible(true);
+
+        $respuesta = $method->invoke($this->controller, 'retry');
+
+        $this->assertEquals(500, $respuesta->getStatusCode());
+    }
+
+    public function test_respuesta_webhook_procesado_devuelve_200()
+    {
+        $method = new \ReflectionMethod($this->controller, 'respuestaWebhook');
+        $method->setAccessible(true);
+
+        $respuesta = $method->invoke($this->controller, 'procesado');
+
+        $this->assertEquals(200, $respuesta->getStatusCode());
+    }
+
+    public function test_webhook_payment_devuelve_500_si_no_puede_obtener_el_pago()
+    {
+        Http::fake([
+            'api.mercadopago.com/v1/payments/*' => Http::response(['message' => 'not found'], 404),
+        ]);
+
+        $respuesta = $this->postJson('/mercadopago/webhook', [
+            'type' => 'payment',
+            'data' => ['id' => '999999999'],
+        ]);
+
+        $respuesta->assertStatus(500);
+    }
+
+    public function test_webhook_payment_sin_servicios_devuelve_200()
+    {
+        Http::fake([
+            'api.mercadopago.com/v1/payments/888888888' => Http::response([
+                'id' => '888888888',
+                'status' => 'approved',
+                'external_reference' => 'referencia-desconocida',
+                'transaction_amount' => 100.0,
+                'transaction_details' => ['net_received_amount' => 98.0],
+            ], 200),
+        ]);
+
+        $respuesta = $this->postJson('/mercadopago/webhook', [
+            'type' => 'payment',
+            'data' => ['id' => '888888888'],
+        ]);
+
+        $respuesta->assertStatus(200);
+        $respuesta->assertJson(['status' => 'ok']);
+    }
+
+    public function test_webhook_payment_procesa_pago_con_token_de_empresa_por_empresa_id()
+    {
+        Queue::fake();
+
+        $paymentId = '777777777';
+
+        Http::fake([
+            'api.mercadopago.com/v1/payments/*' => Http::response([
+                'id' => $paymentId,
+                'status' => 'approved',
+                'external_reference' => 'servicio_pagar_' . $this->servicioImpago->id,
+                'transaction_amount' => 1000.0,
+                'transaction_details' => ['net_received_amount' => 980.0],
+            ], 200),
+        ]);
+
+        $respuesta = $this->postJson('/mercadopago/webhook', [
+            'type' => 'payment',
+            'data' => ['id' => $paymentId],
+            'empresa_id' => $this->empresa->id,
+        ]);
+
+        $respuesta->assertStatus(200);
+
+        $this->assertEquals('pago', $this->servicioImpago->fresh()->estado);
+        $this->assertEquals($paymentId, $this->servicioImpago->fresh()->mp_payment_id);
+
+        $pago = Pagos::where('id_servicio_pagar', $this->servicioImpago->id)->first();
+        $this->assertNotNull($pago);
+
+        Queue::assertPushed(ProcesarPagoJob::class);
+    }
+
+    public function test_webhook_payment_sin_empresa_id_intenta_con_todas_las_empresas()
+    {
+        Queue::fake();
+
+        // La empresa dueña del pago es otra distinta del token global y sin MP_USER_ID,
+        // por lo que el webhook solo puede resolver el token probando cada empresa.
+        $otraEmpresa = Empresa::create([
+            'nombre' => 'Empresa Dueña',
+            'cuit' => 32345678901,
+            'correo' => 'duena@test.com',
+            'MP_ACCESS_TOKEN' => 'TEST-123456789-duena-token',
+        ]);
+
+        $servicioDuena = Servicio::create([
+            'nombre' => 'Servicio Dueña',
+            'descripcion' => 'Desc',
+            'precio' => 500.00,
+            'empresa_id' => $otraEmpresa->id,
+        ]);
+
+        $servicioImpagoDuena = ServicioPagar::create([
+            'cliente_id' => $this->cliente->id,
+            'servicio_id' => $servicioDuena->id,
+            'estado' => 'impago',
+            'precio' => 500.00,
+            'cantidad' => 1,
+        ]);
+
+        $paymentId = '555555555';
+
+        Http::fake([
+            // Fallo con el token global
+            'api.mercadopago.com/v1/payments/555555555' => Http::sequence()
+                ->push(['message' => 'not found'], 404)   // token global
+                ->push(['message' => 'not found'], 404)   // empresa-a
+                ->push([
+                    'id' => $paymentId,
+                    'status' => 'approved',
+                    'external_reference' => 'servicio_pagar_' . $servicioImpagoDuena->id,
+                    'transaction_amount' => 500.0,
+                    'transaction_details' => ['net_received_amount' => 490.0],
+                ], 200),                                  // token duena
+        ]);
+
+        $respuesta = $this->postJson('/mercadopago/webhook', [
+            'type' => 'payment',
+            'data' => ['id' => $paymentId],
+        ]);
+
+        $respuesta->assertStatus(200);
+        $this->assertEquals('pago', $servicioImpagoDuena->fresh()->estado);
+    }
+
+    private function invocarResolvedorToken(array $contexto, $serviciosPagar)
+    {
+        $method = new \ReflectionMethod($this->controller, 'resolverAccessToken');
+        $method->setAccessible(true);
+
+        return $method->invoke($this->controller, $contexto, $serviciosPagar);
     }
 }
