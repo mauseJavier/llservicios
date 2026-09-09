@@ -159,13 +159,17 @@ class ClienteController extends Controller
                                 ]);
             // return $id->id;
 
-            $idVinculado = DB::table('cliente_empresa')->insertGetId([
-                'cliente_id' => $id->id,
-                'empresa_id' => $usuario->empresa_id,
-                'aplicar_recargos' => $request->boolean('aplicar_recargos'),
-                'created_at' => date('y-m-d H:i:s'),
-                'updated_at' => date('y-m-d H:i:s'),
-            ]);
+            DB::table('cliente_empresa')->updateOrInsert(
+                [
+                    'cliente_id' => $id->id,
+                    'empresa_id' => $usuario->empresa_id,
+                ],
+                [
+                    'aplicar_recargos' => $request->boolean('aplicar_recargos'),
+                    'created_at' => date('y-m-d H:i:s'),
+                    'updated_at' => date('y-m-d H:i:s'),
+                ]
+            );
 
             // Vincular con servicio si se seleccionó uno
             if ($request->servicio_id) {
@@ -186,20 +190,24 @@ class ClienteController extends Controller
             if($cantidadFilas == 0){ //se vincula 
 
                 // return $cliente[0]->id; //EL ID CLIENTE PARA VINCULAR 
-                $id = DB::table('cliente_empresa')->insertGetId([
-                    'cliente_id' => $cliente[0]->id,
-                    'empresa_id' => $usuario->empresa_id,
-                    'aplicar_recargos' => $request->boolean('aplicar_recargos'),
-                    'created_at' => date('y-m-d H:i:s'),
-                    'updated_at' => date('y-m-d H:i:s'),
-                ]);
+                DB::table('cliente_empresa')->updateOrInsert(
+                    [
+                        'cliente_id' => $cliente[0]->id,
+                        'empresa_id' => $usuario->empresa_id,
+                    ],
+                    [
+                        'aplicar_recargos' => $request->boolean('aplicar_recargos'),
+                        'created_at' => date('y-m-d H:i:s'),
+                        'updated_at' => date('y-m-d H:i:s'),
+                    ]
+                );
 
                 // Vincular con servicio si se seleccionó uno
                 if ($request->servicio_id) {
                     $this->vincularClienteServicio($cliente[0]->id, $request->servicio_id, $request->vencimiento, $request->cantidad ?? 1);
                 }
 
-                return redirect()->route('Cliente.index')->with('status','Cliente vinculado: '.$cliente[0]->nombre.' agregado id:'.$id);
+                return redirect()->route('Cliente.index')->with('status','Cliente vinculado: '.$cliente[0]->nombre);
             }else{
                 return redirect()->route('Cliente.index')->with('status','Cliente ya vinculado: '.$cliente[0]->nombre);
             }
@@ -353,13 +361,17 @@ class ClienteController extends Controller
                $clienteSiVinculado= DB::select('select * from cliente_empresa where cliente_id = ? and empresa_id = ?', [$clienteExiste[0]->id,$usuario->empresa_id]);
 
                if (count( $clienteSiVinculado) == 0){
-                    $idVinculado = DB::table('cliente_empresa')->insertGetId([
-                        'cliente_id' => $clienteExiste[0]->id,
-                        'empresa_id' => $usuario->empresa_id,
-                        'aplicar_recargos' => false,
-                        'created_at' => date('y-m-d H:i:s'),
-                        'updated_at' => date('y-m-d H:i:s'),
-                    ]);
+                    DB::table('cliente_empresa')->updateOrInsert(
+                        [
+                            'cliente_id' => $clienteExiste[0]->id,
+                            'empresa_id' => $usuario->empresa_id,
+                        ],
+                        [
+                            'aplicar_recargos' => false,
+                            'created_at' => date('y-m-d H:i:s'),
+                            'updated_at' => date('y-m-d H:i:s'),
+                        ]
+                    );
 
                     $totalImportado ++;
 
@@ -380,15 +392,17 @@ class ClienteController extends Controller
                     'condicion_iva_id'=> $value['condicion_iva_id'] ?? 5,
                 ]);
 
-               
-
-                $idVinculado = DB::table('cliente_empresa')->insertGetId([
-                    'cliente_id' => $idCliente->id,
-                    'empresa_id' => $usuario->empresa_id,
-                    'aplicar_recargos' => false,
-                    'created_at' => date('y-m-d H:i:s'),
-                    'updated_at' => date('y-m-d H:i:s'),
-                ]);
+                DB::table('cliente_empresa')->updateOrInsert(
+                    [
+                        'cliente_id' => $idCliente->id,
+                        'empresa_id' => $usuario->empresa_id,
+                    ],
+                    [
+                        'aplicar_recargos' => false,
+                        'created_at' => date('y-m-d H:i:s'),
+                        'updated_at' => date('y-m-d H:i:s'),
+                    ]
+                );
 
                 $totalImportado ++;
 
