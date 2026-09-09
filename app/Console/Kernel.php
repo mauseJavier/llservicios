@@ -28,6 +28,9 @@ class Kernel extends ConsoleKernel
             // agregar cobrador por minuto
             // $schedule->command('app:cobrador-minuto')->everyMinute()->appendOutputTo(storage_path('logs/tareasMinuto.log'));
 
+            //Reconciliación de pagos de MercadoPago aprobados que no se procesaron por webhook/back_url
+            $schedule->command('mp:reconciliar-pagos')->everyTenMinutes()->appendOutputTo(storage_path('logs/reconciliarPagos.log'));
+
         }else{
 
             //¡¡¡¡¡¡¡¡¡¡¡¡¡QUITAR PARA PRUDUCCION¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¿
