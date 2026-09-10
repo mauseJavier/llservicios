@@ -46,10 +46,10 @@ class Kernel extends ConsoleKernel
             $schedule->command('app:aplicar-incremento-mora')->daily()->appendOutputTo(storage_path('logs/tareasMora.log'));
 
             //NOTIFICACION MENSUAL SE EJECUTA 2 Y 7 A LAS 13 
-            $schedule->command('app:notificacion-mensual')->twiceMonthly(7, '13:00')->appendOutputTo(storage_path('logs/notificacionMensual.log'));
+            $schedule->command('app:notificacion-mensual')->monthlyOn(7, '13:00')->appendOutputTo(storage_path('logs/notificacionMensual.log'));
             
             //NOTIFICACION MENSUAL WHATSAPP SE EJECUTA 2 Y 7 A LAS 14:00
-            $schedule->command('app:notificacion-mensual-ws')->twiceMonthly(7, '14:00')->appendOutputTo(storage_path('logs/notificacionMensualWS.log'));
+            $schedule->command('app:notificacion-mensual-ws')->monthlyOn(7, '14:00')->appendOutputTo(storage_path('logs/notificacionMensualWS.log'));
 
             //Reconciliación de pagos de MercadoPago aprobados que no se procesaron por webhook/back_url
             $schedule->command('mp:reconciliar-pagos')->everyTenMinutes()->appendOutputTo(storage_path('logs/reconciliarPagos.log'));
