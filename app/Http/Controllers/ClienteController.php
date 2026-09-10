@@ -19,7 +19,6 @@ use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
 
 use App\Imports\ClienteImport;
-use App\Exports\ClientesExports;
 use Maatwebsite\Excel\Facades\Excel;
 
 
@@ -424,13 +423,34 @@ class ClienteController extends Controller
 
     }
 
-    public function ExportarClientes (){
+    public function ExportarClientes()
+    {
+        $empresaId = Auth::user()->empresa_id;
+        $nombreArchivo = 'clientes_' . now()->format('Ymd_His') . '.csv';
 
+        return response()->streamDownload(function () use ($empresaId) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // BOM UTF-8 para Excel
+            fputcsv($out, ['nombre', 'titular', 'correo', 'telefono', 'dni', 'domicilio', 'condicion_iva_id']);
 
-        return Excel::download(new ClientesExports, 'ClientesCSV.csv');
-        
-        
-        // return response()->json('hola', 200);
+            Cliente::whereHas('empresas', fn ($q) => $q->where('empresa_id', $empresaId))
+                ->orderBy('id')
+                ->cursor()
+                ->each(function ($c) use ($out) {
+                    fputcsv($out, [
+                        $c->nombre,
+                        $c->titular,
+                        $c->correo,
+                        $c->telefono,
+                        $c->dni,
+                        $c->domicilio,
+                        $c->condicion_iva_id,
+                    ]);
+                });
 
+            fclose($out);
+        }, $nombreArchivo, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 }

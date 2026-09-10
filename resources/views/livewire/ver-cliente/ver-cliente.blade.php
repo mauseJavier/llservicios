@@ -42,6 +42,10 @@
                 Importar
             </a>
 
+            <a href="{{ route('ExportarClientes') }}" role="button" data-tooltip="Exportar CSV" style="background-color: #FFD43B; color: #333;">
+                Exportar
+            </a>
+
         </article>
 
 
