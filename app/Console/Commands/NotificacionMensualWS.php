@@ -20,7 +20,7 @@ class NotificacionMensualWS extends Command
      *
      * @var string
      */
-    protected $signature = 'app:notificacion-mensual-ws';
+    protected $signature = 'app:notificacion-mensual-ws {empresa? : ID de la empresa a notificar}';
 
     /**
      * The console command description.
@@ -35,20 +35,14 @@ class NotificacionMensualWS extends Command
     public function handle()
     {
         $this->info('🔄 Iniciando notificación mensual WhatsApp de servicios impagos...');
-        
 
-        if( env('APP_ENV') == 'local'){
+        $empresaId = $this->argument('empresa');
 
-            // $empresas = Empresa::where('id', 2)->get();
-            $empresas = Empresa::all();
-
-            
-        }else{
-            
-            $empresas = Empresa::all();
+        $query = Empresa::query();
+        if ($empresaId) {
+            $query->where('id', $empresaId);
         }
-
-        
+        $empresas = $query->get();
 
         if (empty($empresas)) {
             $this->info('✅ No hay empresas con servicios impagos.');

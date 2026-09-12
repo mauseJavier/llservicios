@@ -33,6 +33,7 @@ class StoreempresaRequest extends FormRequest
             'MP_USER_ID' => 'nullable|string|max:255',
             'client_secret' => 'nullable|string|max:255',
             'client_id' => 'nullable|string|max:255',
+            'dia_notificacion' => 'nullable|integer|min:1|max:28',
         ];
     }
 }

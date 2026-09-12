@@ -35,6 +35,7 @@ class UpdateempresaRequest extends FormRequest
             'client_id' => 'nullable|string|max:255',
             'instanciaWS' => 'nullable|string|max:255',
             'tokenWS' => 'nullable|string|max:255',
+            'dia_notificacion' => 'nullable|integer|min:1|max:28',
         ];
     }
 }

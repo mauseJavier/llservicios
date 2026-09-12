@@ -22,7 +22,7 @@ class NotificacionMensual extends Command
      *
      * @var string
      */
-    protected $signature = 'app:notificacion-mensual';
+    protected $signature = 'app:notificacion-mensual {empresa? : ID de la empresa a notificar}';
 
     /**
      * The console command description.
@@ -37,7 +37,15 @@ class NotificacionMensual extends Command
     public function handle()
     {
         $this->info('🔄 Iniciando notificación mensual de servicios impagos...');
-        
+
+        $empresaId = $this->argument('empresa');
+
+        $filtroEmpresa = $empresaId ? ' AND d.id = ?' : '';
+        $paramsClientes = ['impago'];
+        if ($empresaId) {
+            $paramsClientes[] = $empresaId;
+        }
+
         $clientes = DB::select('SELECT
                 COUNT(*) AS cantidad,
                 a.cliente_id AS cliente_id,
@@ -52,9 +60,9 @@ class NotificacionMensual extends Command
                 servicios c,
                 empresas d
             WHERE
-                a.cliente_id = b.id AND a.servicio_id = c.id AND c.empresa_id = d.id AND a.estado = ? 
+                a.cliente_id = b.id AND a.servicio_id = c.id AND c.empresa_id = d.id AND a.estado = ?' . $filtroEmpresa . '
             GROUP BY
-                a.cliente_id, b.nombre, b.correo, b.telefono', ['impago']);
+                a.cliente_id, b.nombre, b.correo, b.telefono', $paramsClientes);
 
         if (empty($clientes)) {
             $this->info('✅ No hay clientes con servicios impagos.');
@@ -75,6 +83,12 @@ class NotificacionMensual extends Command
             $serviciosImpagos[$i]['telefonoCliente'] = $valor->telefonoCliente;
             $serviciosImpagos[$i]['cantidad'] = $valor->cantidad;
 
+            $filtroEmpresaServicios = $empresaId ? ' AND c.id = ?' : '';
+            $paramsServicios = [$valor->cliente_id, 'impago'];
+            if ($empresaId) {
+                $paramsServicios[] = $empresaId;
+            }
+
             $serviciosImpagos[$i]['servicios'] = DB::select('SELECT
                                                 b.nombre AS nombreServicio,
                                                 a.cantidad AS cantidad,
@@ -89,7 +103,7 @@ class NotificacionMensual extends Command
                                                 servicios b,
                                                 empresas c
                                             WHERE
-                                                a.servicio_id = b.id AND b.empresa_id = c.id AND a.cliente_id = ? AND a.estado = ?', [$valor->cliente_id, 'impago']);
+                                                a.servicio_id = b.id AND b.empresa_id = c.id AND a.cliente_id = ? AND a.estado = ?' . $filtroEmpresaServicios, $paramsServicios);
 
             foreach ($serviciosImpagos[$i]['servicios'] as $datos) {
                 $totalServicios = $totalServicios + $datos->total;

@@ -17,6 +17,18 @@ class Empresa extends Model
     protected $table = 'empresas';
     protected $guarded = [];
 
+    protected $casts = [
+        'dia_notificacion' => 'integer',
+    ];
+
+    /**
+     * Indica si la empresa debe notificarse en el día del mes indicado.
+     */
+    public function notificaElDia(int $dia): bool
+    {
+        return $this->dia_notificacion !== null && (int) $this->dia_notificacion === $dia;
+    }
+
     // protected $fillable = [
     //     'nombre',
     //     'cuit',

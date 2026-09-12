@@ -86,7 +86,8 @@ class EmpresaController extends Controller
             'client_id',
             'instanciaWS',
             'tokenWS',
-            'clave_fiscal'
+            'clave_fiscal',
+            'dia_notificacion'
         ]));
         return redirect()->route('empresas.index')->with('status','Empresa '.$id->nombre.' agregada id:'.$id->id);
 
@@ -136,7 +137,8 @@ class EmpresaController extends Controller
             'client_id',
             'instanciaWS',
             'tokenWS',
-            'clave_fiscal'
+            'clave_fiscal',
+            'dia_notificacion'
         ]));
         return redirect()->route('empresas.index')
         ->with('status', 'Guardado correcto.');

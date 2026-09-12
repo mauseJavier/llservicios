@@ -135,7 +135,21 @@
             <input type="text" id="tokenWS" name="tokenWS" placeholder="Token WhatsApp" value="{{old('tokenWS')}}">
           </label>
         </div>
-      
+
+        <!-- Sección Notificaciones -->
+        <h3>Notificaciones Mensuales</h3>
+        <small>Día del mes en que se envían el correo y el WhatsApp a los clientes con servicios impagos. Si se deja vacío, la empresa no se notifica.</small>
+
+        <label for="dia_notificacion">
+          Día de notificación mensual
+          <select id="dia_notificacion" name="dia_notificacion">
+            <option value="" {{ old('dia_notificacion') === null || old('dia_notificacion') === '' ? 'selected' : '' }}>Sin notificación mensual</option>
+            @for ($dia = 1; $dia <= 28; $dia++)
+              <option value="{{ $dia }}" {{ (string) old('dia_notificacion') === (string) $dia ? 'selected' : '' }}>Día {{ $dia }}</option>
+            @endfor
+          </select>
+        </label>
+
         <!-- Button -->
         <button type="submit">Guardar</button>
       
