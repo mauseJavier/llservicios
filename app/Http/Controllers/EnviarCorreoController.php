@@ -38,7 +38,7 @@ class EnviarCorreoController extends Controller
         // Enviar WhatsApp
         EnviarWhatsAppNuevoServicioJob::dispatch($idServicioPagar, $instanciaWS, $tokenWS);
 
-        return redirect()->route('ServiciosImpagos')
+        return redirect()->back(302, [], route('ServiciosImpagos'))
         ->with('status','Notificaciones enviadas correctamente (Email y WhatsApp)');
 
 
@@ -145,7 +145,7 @@ class EnviarCorreoController extends Controller
             // LLAMADA A LA FUNCION DE WHATSAPP
             $this->NotificacionWhatsAppTodosServiciosImpagos();
 
-            return redirect()->route('ServiciosImpagos')
+            return redirect()->back(302, [], route('ServiciosImpagos'))
             ->with('status','Mensaje Correcto');
 
         } catch (Exception $e) {
