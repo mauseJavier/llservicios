@@ -77,6 +77,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Tipo de documento del receptor por defecto
+    |--------------------------------------------------------------------------
+    |
+    | Código AFIP del tipo de documento del receptor cuando el cliente no
+    | tiene uno definido y no puede inferirse desde su DNI/CUIT.
+    | 80=CUIT, 86=CUIL, 87=CDI, 96=DNI, 99=Sin identificar.
+    |
+    */
+
+    'default_tipo_documento_receptor' => env('AFIP_TIPO_DOCUMENTO_RECEPTOR', 96),
+
+    /*
+    |--------------------------------------------------------------------------
     | Alícuota IVA por defecto
     |--------------------------------------------------------------------------
     |

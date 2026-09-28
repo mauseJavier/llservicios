@@ -4,6 +4,56 @@ namespace App\Helpers;
 
 class DniHelper
 {
+    public const DOC_CUIT = 80;
+    public const DOC_CUIL = 86;
+    public const DOC_CDI = 87;
+    public const DOC_DNI = 96;
+    public const DOC_SIN_IDENTIFICAR = 99;
+
+    /**
+     * Determina el tipo de documento AFIP del receptor a partir de un DNI/CUIT.
+     *
+     * - 11 dígitos -> CUIT (80)
+     * - 7 a 10 dígitos -> DNI (96)
+     * - vacío o inválido -> Sin identificar (99)
+     *
+     * Acepta valores con guiones o espacios (ej: 20-35833716-4).
+     *
+     * @param string|int|null $valor
+     * @return int Código de tipo de documento AFIP
+     */
+    public static function tipoDocumentoReceptor($valor): int
+    {
+        $limpio = preg_replace('/[\s\-]/', '', (string) ($valor ?? ''));
+
+        if ($limpio === '' || !is_numeric($limpio)) {
+            return self::DOC_SIN_IDENTIFICAR;
+        }
+
+        $longitud = strlen($limpio);
+
+        if ($longitud === 11) {
+            return self::DOC_CUIT;
+        }
+
+        if ($longitud >= 7 && $longitud <= 10) {
+            return self::DOC_DNI;
+        }
+
+        return self::DOC_SIN_IDENTIFICAR;
+    }
+
+    /**
+     * Normaliza un DNI/CUIT dejando solo dígitos (sin guiones ni espacios).
+     *
+     * @param string|int|null $valor
+     * @return string
+     */
+    public static function soloDigitos($valor): string
+    {
+        return preg_replace('/\D/', '', (string) ($valor ?? ''));
+    }
+
     /**
      * Extrae el DNI de 8 dígitos desde un valor que puede ser DNI o CUIT.
      * 

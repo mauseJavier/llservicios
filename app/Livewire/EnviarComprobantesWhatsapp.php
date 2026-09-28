@@ -5,6 +5,7 @@ namespace App\Livewire;
 use Livewire\Component;
 use App\Models\Pagos;
 use App\Models\Empresa;
+use App\Helpers\DniHelper;
 use App\Services\WhatsAppService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Auth;
@@ -246,8 +247,9 @@ class EnviarComprobantesWhatsapp extends Component
         try {
             $fechaEmision = \Carbon\Carbon::parse($pago->updated_at)->format('Y-m-d');
             $importeTotal = (float) (($datos->importe ?? 0) + ($datos->importe2 ?? 0));
-            $dniNormalizado = $cliente?->dni ? ($cliente->dni) : null;
-            $tipoDocRec = $dniNormalizado ? (strlen($dniNormalizado) === 11 ? 80 : 96) : null;
+            $nroDocRec = $cliente?->dni ? DniHelper::soloDigitos($cliente->dni) : null;
+            $tipoDocRec = $cliente?->tipo_documento_id
+                ?? ($nroDocRec !== null ? DniHelper::tipoDocumentoReceptor($cliente->dni) : null);
 
             $qrPayload = [
                 'ver' => 1,
@@ -263,9 +265,9 @@ class EnviarComprobantesWhatsapp extends Component
                 'codAut' => (int) $pago->afip_cae,
             ];
 
-            if ($tipoDocRec && $dniNormalizado) {
+            if ($tipoDocRec && $nroDocRec) {
                 $qrPayload['tipoDocRec'] = (int) $tipoDocRec;
-                $qrPayload['nroDocRec'] = (int) $dniNormalizado;
+                $qrPayload['nroDocRec'] = (int) $nroDocRec;
             }
 
             $qrJson = json_encode($qrPayload, JSON_UNESCAPED_SLASHES);

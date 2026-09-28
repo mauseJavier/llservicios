@@ -114,6 +114,38 @@
           </div>
 
           <div class="grid">
+            <label for="tipo_documento_id">
+              Tipo de Documento <small>(Receptor).</small>
+              <select id="tipo_documento_id" name="tipo_documento_id">
+                @foreach(\App\Services\AfipService::tiposDocumentosComunes() as $codigo => $nombre)
+                  <option value="{{ $codigo }}" {{ old('tipo_documento_id', 96) == $codigo ? 'selected' : '' }}>
+                    {{ $nombre }}
+                  </option>
+                @endforeach
+              </select>
+            </label>
+          </div>
+
+          <script>
+            // Sugerir el tipo de documento AFIP según la longitud del DNI/CUIT
+            (function () {
+              const dniInput = document.getElementById('dni');
+              const tipoDoc = document.getElementById('tipo_documento_id');
+              if (!dniInput || !tipoDoc) return;
+
+              dniInput.addEventListener('input', function () {
+                const limpio = this.value.replace(/[\s-]/g, '');
+                if (!/^\d+$/.test(limpio)) return;
+                if (limpio.length === 11) {
+                  tipoDoc.value = '80';
+                } else if (limpio.length >= 7 && limpio.length <= 10) {
+                  tipoDoc.value = '96';
+                }
+              });
+            })();
+          </script>
+
+          <div class="grid">
             <label>
               <input type="hidden" name="aplicar_recargos" value="0">
               <input name="aplicar_recargos" id="aplicar_recargos" type="checkbox" role="switch" value="1"

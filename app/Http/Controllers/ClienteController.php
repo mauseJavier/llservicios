@@ -155,6 +155,7 @@ class ClienteController extends Controller
                                 'domicilio'=>$request->domicilio,
                                 'telefono'=>$request->telefono,
                                 'condicion_iva_id'=>$request->condicion_iva_id ?? 5,
+                                'tipo_documento_id'=>$request->tipo_documento_id ?: DniHelper::tipoDocumentoReceptor($request->dni),
                                 ]);
             // return $id->id;
 
@@ -304,6 +305,7 @@ class ClienteController extends Controller
                             'domicilio'=>$request->domicilio,
                             'telefono'=>$request->telefono,
                             'condicion_iva_id'=>$request->condicion_iva_id ?? 5,
+                            'tipo_documento_id'=>$request->tipo_documento_id ?: DniHelper::tipoDocumentoReceptor($request->dni),
                         ]);
 
         // El flag de recargos por mora es específico de cada empresa, se guarda en la pivot
@@ -389,6 +391,7 @@ class ClienteController extends Controller
                     'domicilio'=> $value['domicilio'],
                     'telefono'=> $value['telefono'],
                     'condicion_iva_id'=> $value['condicion_iva_id'] ?? 5,
+                    'tipo_documento_id'=> ($value['tipo_documento_id'] ?? null) ?: DniHelper::tipoDocumentoReceptor($value['dni'] ?? null),
                 ]);
 
                 DB::table('cliente_empresa')->updateOrInsert(
@@ -431,7 +434,7 @@ class ClienteController extends Controller
         return response()->streamDownload(function () use ($empresaId) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF"); // BOM UTF-8 para Excel
-            fputcsv($out, ['nombre', 'titular', 'correo', 'telefono', 'dni', 'domicilio', 'condicion_iva_id']);
+            fputcsv($out, ['nombre', 'titular', 'correo', 'telefono', 'dni', 'domicilio', 'condicion_iva_id', 'tipo_documento_id']);
 
             Cliente::whereHas('empresas', fn ($q) => $q->where('empresa_id', $empresaId))
                 ->orderBy('id')
@@ -445,6 +448,7 @@ class ClienteController extends Controller
                         $c->dni,
                         $c->domicilio,
                         $c->condicion_iva_id,
+                        $c->tipo_documento_id,
                     ]);
                 });
 

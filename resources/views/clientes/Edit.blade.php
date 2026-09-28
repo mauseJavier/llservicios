@@ -80,6 +80,23 @@
             </label>
           </div>
 
+          @php
+            $tipoDocumentoActual = $Cliente->tipo_documento_id
+              ?? \App\Helpers\DniHelper::tipoDocumentoReceptor($Cliente->dni);
+          @endphp
+          <div class="grid">
+            <label for="tipo_documento_id">
+              Tipo de Documento <small>(Receptor).</small>
+              <select id="tipo_documento_id" name="tipo_documento_id">
+                @foreach(\App\Services\AfipService::tiposDocumentosComunes() as $codigo => $nombre)
+                  <option value="{{ $codigo }}" {{ (int) $tipoDocumentoActual === (int) $codigo ? 'selected' : '' }}>
+                    {{ $nombre }}
+                  </option>
+                @endforeach
+              </select>
+            </label>
+          </div>
+
           <div class="grid">
             <label>
               <input type="hidden" name="aplicar_recargos" value="0">

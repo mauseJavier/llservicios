@@ -5,6 +5,7 @@ namespace App\Services;
 use Mause\LaravelArca\Facades\ArcaWsaa;
 use Mause\LaravelArca\Facades\ArcaWsfev1;
 use Mause\LaravelArca\Facades\ArcaWsPadron;
+use App\Helpers\DniHelper;
 use Exception;
 use Illuminate\Support\Facades\Log;
 
@@ -545,17 +546,19 @@ class AfipService
         $normalizeImporte = static fn ($value) => round((float) $value, 2);
 
         $pago->load('servicioPagar.cliente');
-        
-        // Determinar tipo de documento del cliente
-        // $dniNormalizado = \App\Helpers\DniHelper::extractDni($pago->servicioPagar->cliente->dni);
-                
-        $dniNormalizado = $pago->servicioPagar->cliente->dni;
 
-        $docTipo = $tipoDocumentoReceptor ?? (strlen($dniNormalizado) === 11 ? 80 : 96); // 80=CUIT, 96=DNI
-        $docNro = $dniNormalizado ?? 0;
+        // Determinar tipo de documento del cliente.
+        // Prioridad: lo enviado desde la UI > lo persistido en el cliente > inferencia por longitud.
+        $cliente = $pago->servicioPagar->cliente;
+        $docTipo = $tipoDocumentoReceptor
+            ?? $cliente->tipo_documento_id
+            ?? DniHelper::tipoDocumentoReceptor($cliente->dni ?? null); // 80=CUIT, 96=DNI
+        $docNro = DniHelper::soloDigitos($cliente->dni ?? null) ?: 0;
 
-        // Calcular montos según el tipo de comprobante
-        $impTotal = $pago->importe;
+        // Calcular montos según el tipo de comprobante.
+        // Se usa el total del pago (importe + importe2) para que la factura coincida
+        // con el QR y con la Nota de Crédito cuando el cobro se divide en dos formas de pago.
+        $impTotal = (float) $pago->total;
         
         // Determinar si el tipo de comprobante discrimina IVA
         // Tipos A y B (1,2,3,4,6,7,8,9) discriminan IVA
@@ -656,15 +659,17 @@ class AfipService
         }
 
         $pagoOriginal->loadMissing('servicioPagar.cliente');
-        $dniNorm = $pagoOriginal->servicioPagar->cliente->dni ?? '0';
-        $docTipo = (strlen((string) $dniNorm) === 11) ? 80 : 96;
+        $clienteOriginal = $pagoOriginal->servicioPagar->cliente;
+        $dniNorm = $clienteOriginal->dni ?? null;
+        $docTipo = $clienteOriginal->tipo_documento_id
+            ?? DniHelper::tipoDocumentoReceptor($dniNorm);
 
         $facturaData = [
             'PtoVta'                 => $puntoVenta,
             'CbteTipo'               => $tipoNc,
             'Concepto'               => 2, // Servicios
             'DocTipo'                => $docTipo,
-            'DocNro'                 => $dniNorm,
+            'DocNro'                 => DniHelper::soloDigitos($dniNorm) ?: 0,
             'ImpTotal'               => $normalizeImporte($impTotal),
             'ImpNeto'                => $normalizeImporte($impNeto),
             'ImpIVA'                 => $normalizeImporte($impIva),

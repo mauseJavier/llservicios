@@ -5,6 +5,7 @@ namespace App\Livewire;
 use Livewire\Component;
 use App\Models\Pagos;
 use App\Models\Empresa;
+use App\Helpers\DniHelper;
 use App\Services\AfipService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -46,7 +47,7 @@ class FacturacionAfip extends Component
         'puntoVenta' => 'required|integer|min:1',
         'tipoComprobante' => 'required|integer|in:1,6,11,3,8,13',
         'condicionIvaReceptorId' => 'required|integer|in:1,6,13,16,4,5,7,8,9,10,15',
-        'tipoDocumentoReceptor' => 'required|integer|in:80,96,99',
+        'tipoDocumentoReceptor' => 'required|integer|in:80,86,87,96,99',
     ];
 
     protected $messages = [
@@ -78,8 +79,9 @@ class FacturacionAfip extends Component
         $this->condicionIvaReceptorId = array_key_exists($condicionDelCliente, $condiciones)
             ? $condicionDelCliente
             : (array_key_exists(5, $condiciones) ? 5 : array_key_first($condiciones));
-        $this->tipoDocumentoReceptor = $this->pago?->servicioPagar?->cliente?->tipo_documento_id
-            ?? config('afip.default_tipo_documento_receptor', 80);
+        $cliente = $this->pago?->servicioPagar?->cliente;
+        $this->tipoDocumentoReceptor = $cliente?->tipo_documento_id
+            ?: DniHelper::tipoDocumentoReceptor($cliente?->dni);
     }
 
     /**
