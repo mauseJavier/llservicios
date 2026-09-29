@@ -105,10 +105,9 @@ Route::middleware('auth')->group(function () {
             Route::resource('Cliente',ClienteController::class);
 
             Route::get('/BuscarCliente', [ClienteController::class, 'BuscarCliente'])->name('BuscarCliente');
-            Route::get('/ImportarClientes', function (){
-                    return view('clientes.ImportarClientes');
+            Route::get('/ImportarClientes', function () {
+                    return redirect()->route('ImportarClientesCSV');
                 })->name('ImportarClientes');
-            Route::post('/ImportarClientes', [ClienteController::class, 'ImportarClientes'])->name('ImportarClientes');
             Route::get('/ExportarClientes', [ClienteController::class, 'ExportarClientes'])->name('ExportarClientes');
     
             Route::resource('Servicios', ServicioController::class);

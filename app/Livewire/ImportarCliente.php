@@ -47,10 +47,10 @@ class ImportarCliente extends Component
 
         try {
             $usuario = Auth::user();
-            
+
             // Obtener la empresa del usuario
             $empresa = Empresa::find($usuario->empresa_id);
-            
+
             if (!$empresa) {
                 session()->flash('error', 'No se encontró la empresa asociada al usuario');
                 $this->procesando = false;
@@ -69,7 +69,7 @@ class ImportarCliente extends Component
 
             // Leer la primera línea (encabezados)
             $headers = fgetcsv($file, 0, ',');
-            
+
             if (!$headers) {
                 session()->flash('error', 'El archivo CSV está vacío o no tiene el formato correcto');
                 fclose($file);
@@ -77,16 +77,33 @@ class ImportarCliente extends Component
                 return;
             }
 
-            // Validar que los encabezados sean correctos
-            $encabezadosEsperados = ['nombre', 'correo', 'telefono', 'dni', 'domicilio'];
-            $headers = array_map('trim', array_map('strtolower', $headers));
-            
-            if ($headers !== $encabezadosEsperados) {
-                session()->flash('error', 'Los encabezados del CSV no son correctos. Formato esperado: nombre,correo,telefono,dni,domicilio');
+            // Normalizar encabezados (sin BOM, minúsculas y sin espacios) para mapear por nombre
+            $headers = array_map(function ($header) {
+                $header = preg_replace('/^\xEF\xBB\xBF/', '', (string) $header);
+                return strtolower(trim($header));
+            }, $headers);
+
+            // Solo se exige la columna "nombre". El resto se mapea por nombre, por lo que
+            // el orden y las columnas extra (p. ej. el CSV exportado) no importan.
+            if (!in_array('nombre', $headers, true)) {
+                session()->flash('error', 'El CSV debe contener al menos la columna "nombre". Columnas reconocidas: nombre, correo, telefono, dni, domicilio, titular, condicion_iva_id, tipo_documento_id.');
                 fclose($file);
                 $this->procesando = false;
                 return;
             }
+
+            // Devuelve el valor de una columna de la fila según el nombre del encabezado
+            $obtener = function (array $fila, string $columna) use ($headers) {
+                $indice = array_search($columna, $headers, true);
+
+                if ($indice === false) {
+                    return null;
+                }
+
+                $valor = $fila[$indice] ?? null;
+
+                return is_string($valor) ? trim($valor) : $valor;
+            };
 
             $estadisticas = [
                 'total_filas' => 0,
@@ -109,13 +126,15 @@ class ImportarCliente extends Component
                     continue;
                 }
 
-                // Crear array asociativo con los datos
+                // Crear array asociativo con los datos (mapeo por nombre de columna)
+                $correo = $obtener($data, 'correo');
+
                 $datosCliente = [
-                    'nombre' => trim($data[0] ?? ''),
-                    'correo' => !empty(trim($data[1] ?? '')) ? trim($data[1]) : 'correo@correo.com',
-                    'telefono' => trim($data[2] ?? null),
-                    'dni' => trim($data[3] ?? null),
-                    'domicilio' => trim($data[4] ?? null),
+                    'nombre' => $obtener($data, 'nombre'),
+                    'correo' => ($correo !== null && $correo !== '') ? $correo : 'correo@correo.com',
+                    'telefono' => $obtener($data, 'telefono'),
+                    'dni' => $obtener($data, 'dni'),
+                    'domicilio' => $obtener($data, 'domicilio'),
                 ];
 
                 // Validar los datos obligatorios
@@ -138,31 +157,50 @@ class ImportarCliente extends Component
                     continue;
                 }
 
+                // Columnas opcionales (solo se aplican si existen en el CSV)
+                $titular = $obtener($data, 'titular');
+                $condicionIva = $obtener($data, 'condicion_iva_id');
+                $tipoDocumento = $obtener($data, 'tipo_documento_id');
+
                 try {
                     // Buscar cliente existente por DNI o nombre (normalizando DNI/CUIT)
                     $clienteExistente = null;
-                    
+
                     if (!empty($datosCliente['dni'])) {
                         $dniNormalizado = DniHelper::extractDni($datosCliente['dni']);
-                        $clienteExistente = Cliente::where(function($query) use ($dniNormalizado) {
+                        $clienteExistente = Cliente::where(function ($query) use ($dniNormalizado) {
                             $query->where('dni', $dniNormalizado)
                                   ->orWhere('dni', 'like', '%' . $dniNormalizado . '%');
                         })->first();
                     }
-                    
+
                     if (!$clienteExistente && !empty($datosCliente['nombre'])) {
                         $clienteExistente = Cliente::where('nombre', $datosCliente['nombre'])->first();
                     }
 
                     if ($clienteExistente) {
                         // Actualizar cliente existente
-                        $clienteExistente->update([
+                        $actualizar = [
                             'nombre' => $datosCliente['nombre'],
                             'correo' => $datosCliente['correo'],
                             'telefono' => $datosCliente['telefono'],
                             'dni' => $datosCliente['dni'],
                             'domicilio' => $datosCliente['domicilio'],
-                        ]);
+                        ];
+
+                        if ($titular !== null) {
+                            $actualizar['titular'] = $titular;
+                        }
+
+                        if ($condicionIva !== null && $condicionIva !== '') {
+                            $actualizar['condicion_iva_id'] = (int) $condicionIva;
+                        }
+
+                        if ($tipoDocumento !== null && $tipoDocumento !== '') {
+                            $actualizar['tipo_documento_id'] = (int) $tipoDocumento;
+                        }
+
+                        $clienteExistente->update($actualizar);
 
                         // Verificar si ya está vinculado a la empresa
                         $yaVinculado = DB::table('cliente_empresa')
@@ -178,7 +216,23 @@ class ImportarCliente extends Component
                         $estadisticas['actualizados']++;
                     } else {
                         // Crear nuevo cliente
-                        $nuevoCliente = Cliente::create($datosCliente);
+                        $nuevo = [
+                            'nombre' => $datosCliente['nombre'],
+                            'correo' => $datosCliente['correo'],
+                            'telefono' => $datosCliente['telefono'],
+                            'dni' => $datosCliente['dni'],
+                            'domicilio' => $datosCliente['domicilio'],
+                            'condicion_iva_id' => ($condicionIva !== null && $condicionIva !== '') ? (int) $condicionIva : 5,
+                            'tipo_documento_id' => ($tipoDocumento !== null && $tipoDocumento !== '')
+                                ? (int) $tipoDocumento
+                                : DniHelper::tipoDocumentoReceptor($datosCliente['dni'] ?? null),
+                        ];
+
+                        if ($titular !== null) {
+                            $nuevo['titular'] = $titular;
+                        }
+
+                        $nuevoCliente = Cliente::create($nuevo);
 
                         // Vincular a la empresa del usuario
                         $nuevoCliente->empresas()->attach($empresa->id);
@@ -223,9 +277,9 @@ class ImportarCliente extends Component
     public function descargarPlantilla()
     {
         $nombreArchivo = 'plantilla_importar_clientes.csv';
-        $contenido = "nombre,correo,telefono,dni,domicilio\n";
-        $contenido .= "Juan Pérez,juan.perez@email.com,3516123456,12345678,Av. Siempre Viva 123\n";
-        $contenido .= "María González,maria.gonzalez@email.com,3517654321,87654321,Calle Falsa 456\n";
+        $contenido = "nombre,correo,telefono,dni,domicilio,titular,condicion_iva_id,tipo_documento_id\n";
+        $contenido .= "Juan Pérez,juan.perez@email.com,3516123456,12345678,Av. Siempre Viva 123,Juan Pérez,5,1\n";
+        $contenido .= "María González,maria.gonzalez@email.com,3517654321,87654321,Calle Falsa 456,,5,\n";
 
         return response()->streamDownload(function () use ($contenido) {
             echo $contenido;

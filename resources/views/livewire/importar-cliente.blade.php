@@ -29,7 +29,7 @@
             @if($mostrarInstrucciones)
                 <div>
                     <h4>Formato del archivo CSV</h4>
-                    <p>El archivo CSV debe contener los siguientes campos en el orden especificado:</p>
+                    <p>El archivo CSV debe contener la columna <code>nombre</code>. El resto son opcionales y se reconocen por el nombre del encabezado: <strong>el orden no importa</strong> y las columnas extra se ignoran.</p>
                     
                     <table>
                         <thead>
@@ -71,6 +71,24 @@
                                 <td>Dirección del cliente</td>
                                 <td>Av. Siempre Viva 123</td>
                             </tr>
+                            <tr>
+                                <td><code>titular</code></td>
+                                <td>No</td>
+                                <td>Nombre del titular (razón social)</td>
+                                <td>Juan Pérez</td>
+                            </tr>
+                            <tr>
+                                <td><code>condicion_iva_id</code></td>
+                                <td>No</td>
+                                <td>ID de condición frente al IVA (por defecto 5)</td>
+                                <td>5</td>
+                            </tr>
+                            <tr>
+                                <td><code>tipo_documento_id</code></td>
+                                <td>No</td>
+                                <td>ID del tipo de documento (se deduce del DNI si se omite)</td>
+                                <td>1</td>
+                            </tr>
                         </tbody>
                     </table>
 
@@ -84,9 +102,9 @@
                     </ul>
 
                     <h4>Ejemplo de archivo CSV</h4>
-                    <pre><code>nombre,correo,telefono,dni,domicilio
-Juan Pérez,juan.perez@email.com,3516123456,12345678,Av. Siempre Viva 123
-María González,maria.gonzalez@email.com,3517654321,87654321,Calle Falsa 456</code></pre>
+                    <pre><code>nombre,correo,telefono,dni,domicilio,titular,condicion_iva_id,tipo_documento_id
+Juan Pérez,juan.perez@email.com,3516123456,12345678,Av. Siempre Viva 123,Juan Pérez,5,1
+María González,maria.gonzalez@email.com,3517654321,87654321,Calle Falsa 456,,5,</code></pre>
 
                     <div style="margin-top: 1rem;">
                         <button wire:click="descargarPlantilla" type="button" class="outline">
