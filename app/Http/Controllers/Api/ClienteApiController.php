@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use App\Helpers\DniHelper;
 
 class ClienteApiController extends Controller
 {
@@ -42,11 +43,15 @@ class ClienteApiController extends Controller
                 ], 400);
             }
 
-            // Buscar el cliente
+            // Buscar el cliente (normalizando DNI/CUIT)
             $query = Cliente::query();
 
             if ($dni) {
-                $query->where('dni', $dni);
+                $dniNormalizado = DniHelper::extractDni($dni);
+                $query->where(function($q) use ($dniNormalizado) {
+                    $q->where('dni', $dniNormalizado)
+                      ->orWhere('dni', 'like', '%' . $dniNormalizado . '%');
+                });
             }
 
             if ($correo) {
@@ -153,8 +158,14 @@ class ClienteApiController extends Controller
             });
 
             // Determinar el estado del cliente
+            // El cliente está al día solo si no tiene servicios impagos cuya
+            // fecha de vencimiento ya pasó (fuera de la fecha límite de pago)
             $cantidadImpagos = $serviciosImpagos->count();
-            $estadoCliente = $cantidadImpagos > 0 ? false : true;
+            $tieneImpagosVencidos = $serviciosImpagos->contains(function ($servicioPagar) {
+                return isset($servicioPagar['fecha_vencimiento'])
+                    && $servicioPagar['fecha_vencimiento']->lt(now()->startOfDay());
+            });
+            $estadoCliente = $tieneImpagosVencidos ? false : true;
 
             // Construir la respuesta
             $response = [
@@ -163,6 +174,7 @@ class ClienteApiController extends Controller
                     'cliente' => [
                         'id' => $cliente->id,
                         'nombre' => $cliente->nombre,
+                        'titular' => $cliente->titular,
                         'dni' => $cliente->dni,
                         'correo' => $cliente->correo,
                         'telefono' => $cliente->telefono ?? null,
@@ -210,14 +222,20 @@ class ClienteApiController extends Controller
             $validated = $request->validate([
                 'nombre' => 'required|string|max:255',
                 'correo' => 'nullable|email|max:255',
+                'titular' => 'nullable|string|max:255',
                 'telefono' => 'nullable|string|max:255',
                 'dni' => 'nullable|integer',
                 'domicilio' => 'nullable|string|max:255',
+                'aplicar_recargos' => 'nullable|boolean',
                 'empresa_id' => 'required|integer|exists:empresas,id',
             ]);
 
-            // Verificar si ya existe un cliente con el mismo nombre
-            $clienteExistente = Cliente::where('dni', $validated['dni'])->first();
+            // Verificar si ya existe un cliente con el mismo DNI (normalizando DNI/CUIT)
+            $dniNormalizado = DniHelper::extractDni($validated['dni']);
+            $clienteExistente = Cliente::where(function($query) use ($dniNormalizado) {
+                $query->where('dni', $dniNormalizado)
+                      ->orWhere('dni', 'like', '%' . $dniNormalizado . '%');
+            })->first();
 
             if ($clienteExistente) {
                 // Cliente ya existe, verificar si ya está vinculado a la empresa
@@ -225,7 +243,14 @@ class ClienteApiController extends Controller
 
                 if (!$yaVinculado) {
                     // Vincular el cliente existente con la empresa
-                    $clienteExistente->empresas()->attach($validated['empresa_id']);
+                    $clienteExistente->empresas()->attach($validated['empresa_id'], [
+                        'aplicar_recargos' => $validated['aplicar_recargos'] ?? false,
+                    ]);
+                } else {
+                    // Actualizar el flag de recargos específico de la empresa
+                    $clienteExistente->empresas()->updateExistingPivot($validated['empresa_id'], [
+                        'aplicar_recargos' => $validated['aplicar_recargos'] ?? false,
+                    ]);
                 }
 
                 // Cargar la relación de empresas
@@ -239,9 +264,10 @@ class ClienteApiController extends Controller
                         'cliente' => [
                             'id' => $clienteExistente->id,
                             'nombre' => $clienteExistente->nombre,
+                            'titular' => $clienteExistente->titular,
                             'correo' => $clienteExistente->correo,
                             'telefono' => $clienteExistente->telefono,
-                            'dni' => $clienteExistente->dni,
+                            'dni' => $clienteExistente->dni,                            
                             'domicilio' => $clienteExistente->domicilio,
                             'created_at' => $clienteExistente->created_at,
                             'updated_at' => $clienteExistente->updated_at,
@@ -256,9 +282,13 @@ class ClienteApiController extends Controller
                 ], 200);
             }
 
-            // Validar DNI único solo si se proporciona y no existe el cliente
+            // Validar DNI único solo si se proporciona y no existe el cliente (normalizando DNI/CUIT)
             if (isset($validated['dni'])) {
-                $dniExistente = Cliente::where('dni', $validated['dni'])->first();
+                $dniNormalizado = DniHelper::extractDni($validated['dni']);
+                $dniExistente = Cliente::where(function($query) use ($dniNormalizado) {
+                    $query->where('dni', $dniNormalizado)
+                          ->orWhere('dni', 'like', '%' . $dniNormalizado . '%');
+                })->first();
                 if ($dniExistente) {
                     return response()->json([
                         'success' => false,
@@ -273,14 +303,17 @@ class ClienteApiController extends Controller
             // Crear el cliente
             $cliente = Cliente::create([
                 'nombre' => $validated['nombre'],
+                'titular' => $validated['titular'] ?? null,
                 'correo' => $validated['correo'] ?? null,
                 'telefono' => $validated['telefono'] ?? null,
                 'dni' => $validated['dni'] ?? null,
                 'domicilio' => $validated['domicilio'] ?? null,
             ]);
 
-            // Vincular el cliente con la empresa
-            $cliente->empresas()->attach($validated['empresa_id']);
+            // Vincular el cliente con la empresa y guardar el flag de recargos específico
+            $cliente->empresas()->attach($validated['empresa_id'], [
+                'aplicar_recargos' => $validated['aplicar_recargos'] ?? false,
+            ]);
 
             // Cargar la relación de empresas para devolverla en la respuesta
             $cliente->load('empresas');
@@ -293,6 +326,7 @@ class ClienteApiController extends Controller
                     'cliente' => [
                         'id' => $cliente->id,
                         'nombre' => $cliente->nombre,
+                        'titular' => $cliente->titular,
                         'correo' => $cliente->correo,
                         'telefono' => $cliente->telefono,
                         'dni' => $cliente->dni,

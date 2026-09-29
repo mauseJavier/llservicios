@@ -35,12 +35,44 @@
             Nombre Empresa
             <input type="text" id="nombre" name="nombre" placeholder="Nombre Empresa" value="{{old('nombre')}}" required>
           </label>
+          
+          <label for="titular">
+            Titular de Empresa
+            <input type="text" id="titular" name="titular" placeholder="Titular" value="{{old('titular')}}">
+          </label>
       
           <label for="cuit">
             Cuit Empresa
             <input type="text" id="cuit" name="cuit" placeholder="Cuit" value="{{old('cuit')}}" required>
           </label>
+
+
+
       
+        </div>
+
+        <div class="grid">
+
+          <label for="condicion_iva_id">
+            Condición frente al IVA
+            <select id="condicion_iva_id" name="condicion_iva_id" required>
+              <option value="1" {{ old('condicion_iva_id') == 1 ? 'selected' : '' }}>Responsable Inscripto</option>
+              <option value="6" {{ old('condicion_iva_id') == 6 ? 'selected' : '' }}>Monotributo</option>
+              <option value="5" {{ old('condicion_iva_id') == 5 ? 'selected' : '' }}>Consumidor Final</option>
+              <option value="4" {{ old('condicion_iva_id') == 4 ? 'selected' : '' }}>IVA Sujeto Exento</option>
+            </select>
+          </label>
+
+          <label for="aliasTranferencia">
+            Alias de transferencia
+            <input type="text" id="aliasTranferencia" name="aliasTranferencia" placeholder="Alias" value="{{old('aliasTranferencia')}}">
+          </label>
+
+          <label for="claveFiscal">
+            Clave Fiscal
+            <input type="text" id="claveFiscal" name="clave_fiscal" placeholder="Clave Fiscal" value="{{old('clave_fiscal')}}">
+          </label>
+
         </div>
       
         <!-- Markup example 2: input is after label -->
@@ -103,7 +135,21 @@
             <input type="text" id="tokenWS" name="tokenWS" placeholder="Token WhatsApp" value="{{old('tokenWS')}}">
           </label>
         </div>
-      
+
+        <!-- Sección Notificaciones -->
+        <h3>Notificaciones Mensuales</h3>
+        <small>Día del mes en que se envían el correo y el WhatsApp a los clientes con servicios impagos. Si se deja vacío, la empresa no se notifica.</small>
+
+        <label for="dia_notificacion">
+          Día de notificación mensual
+          <select id="dia_notificacion" name="dia_notificacion">
+            <option value="" {{ old('dia_notificacion') === null || old('dia_notificacion') === '' ? 'selected' : '' }}>Sin notificación mensual</option>
+            @for ($dia = 1; $dia <= 28; $dia++)
+              <option value="{{ $dia }}" {{ (string) old('dia_notificacion') === (string) $dia ? 'selected' : '' }}>Día {{ $dia }}</option>
+            @endfor
+          </select>
+        </label>
+
         <!-- Button -->
         <button type="submit">Guardar</button>
       

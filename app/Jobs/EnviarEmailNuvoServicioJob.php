@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Mail\NotificacionCuotaMail;
 use App\Mail\NotificacionTodosServiciosMail;
+use App\Services\MercadoPago\MercadoPagoLinkService;
 use Illuminate\Support\Facades\Mail;
 
 class EnviarEmailNuvoServicioJob implements ShouldQueue
@@ -48,31 +49,57 @@ class EnviarEmailNuvoServicioJob implements ShouldQueue
                     a.cantidad AS cantidadServicio,
                     a.precio AS precioServicio,
                     a.created_at AS fechaServicio,
-                    b.correo as correoCliente
+                    b.correo as correoCliente,
+                    d.nombre AS nombreEmpresa
                 FROM
                     servicio_pagar a,
                     clientes b,
-                    servicios c
+                    servicios c,
+                    empresas d
                 WHERE
-                    a.cliente_id = b.id AND a.servicio_id = c.id AND a.id = ?', [$this->idServicioPagar]);
+                    a.cliente_id = b.id AND a.servicio_id = c.id AND c.empresa_id = d.id AND a.id = ?', [$this->idServicioPagar]);
 
 
             $datos[0]->fechaServicio =  Carbon::parse($datos[0]->fechaServicio)->format('d-m-Y');
+
+            // Link firmado de pago MercadoPago (individual; la app re-valida al hacer clic)
+            $datos[0]->linkPago = MercadoPagoLinkService::urlEnlaceIndividual((int) $this->idServicioPagar);
 
             // return $datos;
 
 
             try {
 
-            // return (new NotificacionCuotaMail($datos))->render();
-            // use App\Mail\NotificacionCuotaMail;
-            // use Illuminate\Support\Facades\Mail;
-            if (isset($datos[0]->correoCliente)) {
-                Mail::to($datos[0]->correoCliente)->send(new NotificacionCuotaMail($datos));
-            }
+                // return (new NotificacionCuotaMail($datos))->render();
+                // use App\Mail\NotificacionCuotaMail;
+                // use Illuminate\Support\Facades\Mail;
+                if (isset($datos[0]->correoCliente) && $datos[0]->correoCliente != 'correo@correo.com') {
+                    $emailEnviado = false;
+                    
+                    // Intenta primero con SMTP
+                    try {
+                        Mail::mailer('smtp')->to($datos[0]->correoCliente)->send(new NotificacionCuotaMail($datos));
+                        \Log::info('Email enviado vía SMTP a: ' . $datos[0]->correoCliente);
+                        $emailEnviado = true;
+                    } catch (\Exception $e) {
+                        \Log::warning('Fallo SMTP: ' . $e->getMessage());
+                        
+                        // Si SMTP falla, intenta con secundario
+                        try {
+                            Mail::mailer('secundario')->to($datos[0]->correoCliente)->send(new NotificacionCuotaMail($datos));
+                            \Log::info('Email enviado vía secundario a: ' . $datos[0]->correoCliente);
+                            $emailEnviado = true;
+                        } catch (\Exception $e2) {
+                            \Log::error('Error en ambos mailers - SMTP: ' . $e->getMessage() . ' | Secundario: ' . $e2->getMessage());
+                        }
+                    }
+                }else {
+                    \Log::warning('No se envió el correo porque el cliente no tiene un correo válido: ' . $datos[0]->nombreCliente);    
+                }
 
             } catch (Exception $e) {
-            
+                // Log the exception or handle it as needed
+                \Log::error('Error general en envío de email: ' . $e->getMessage());    
             }
 
     }

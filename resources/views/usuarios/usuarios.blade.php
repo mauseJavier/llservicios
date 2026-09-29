@@ -37,6 +37,7 @@
             <th scope="col">Rol</th>
             <th scope="col">Empresa</th>
             <th scope="col">Login</th>
+            <th scope="col">Punto de Venta</th>
             <th scope="col">Acciones</th>
           </tr>
         </thead>
@@ -51,6 +52,7 @@
               <td>{{$u->role->nombre}}</td>
               <td>{{$u->empresa->nombre}}</td>
               <td>{{$u->last_login}}</td>
+              <td>{{$u->afip_punto_venta}}</td>
               <th>
                 <a href="{{route('EditarUsuario',['id'=>$u->id])}}" data-tooltip="Editar">Editar</a></strong>
               </th>

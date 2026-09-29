@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ServicioPagar extends Model
 {
@@ -24,6 +25,7 @@ class ServicioPagar extends Model
         'cantidad',
         'precio',
         'estado',
+        'incremento_mora_aplicado',
         'mp_preference_id',
         'mp_payment_id',
         'fecha_vencimiento',
@@ -37,6 +39,7 @@ class ServicioPagar extends Model
     protected $casts = [
         'cantidad' => 'decimal:2',
         'precio' => 'decimal:2',
+        'incremento_mora_aplicado' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'fecha_vencimiento' => 'date',
@@ -56,6 +59,14 @@ class ServicioPagar extends Model
     public function servicio(): BelongsTo
     {
         return $this->belongsTo(Servicio::class, 'servicio_id');
+    }
+
+    /**
+     * Relación con el modelo Pagos (uno a uno).
+     */
+    public function pago(): HasOne
+    {
+        return $this->hasOne(Pagos::class, 'id_servicio_pagar');
     }
 
     /**

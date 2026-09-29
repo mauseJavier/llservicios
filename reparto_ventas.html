@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reparto de Ventas</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0f1117;
+    --card: #1a1e27;
+    --card-2: #222735;
+    --border: #2e3548;
+    --text: #e8eaf0;
+    --muted: #9aa3b5;
+    --accent: #4f8cff;
+    --ok: #3ddc84;
+    --warn: #ffb020;
+    --bad: #ff5d5d;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+
+  .wrap { width: 100%; max-width: 880px; }
+
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .card h2 { font-size: 15px; margin-bottom: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+  .field { flex: 1 1 180px; min-width: 160px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+
+  input[type="text"], input[type="number"], input[type="tel"] {
+    width: 100%;
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  input:focus { border-color: var(--accent); }
+  input.neg { border-color: var(--bad); }
+
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+  .btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter .15s;
+    white-space: nowrap;
+  }
+  .btn:hover { filter: brightness(1.1); }
+  .btn.danger {
+    background: transparent;
+    color: var(--bad);
+    border: 1px solid var(--bad);
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .btn.ghost {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+  }
+
+  .seller-card {
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .seller-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .seller-name { font-weight: 600; font-size: 14px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 10px 8px; text-align: right; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+  th:first-child, td:first-child { text-align: left; }
+
+  .num { font-variant-numeric: tabular-nums; }
+  .pos { color: var(--ok); }
+  .neg { color: var(--bad); }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 6px; }
+  .summary-item {
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .summary-item .lbl { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .summary-item .val { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .summary-item.total .val { color: var(--accent); }
+  .summary-item.neto .val { color: var(--ok); }
+
+  .alert {
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    margin-bottom: 12px;
+    display: none;
+  }
+  .alert.warn { display: block; background: rgba(255, 176, 32, .12); border: 1px solid var(--warn); color: var(--warn); }
+  .alert.bad { display: block; background: rgba(255, 93, 93, .12); border: 1px solid var(--bad); color: var(--bad); }
+
+  .empty { color: var(--muted); text-align: center; padding: 20px; font-size: 14px; }
+  @media (max-width: 560px) { .row { flex-direction: column; } .field { min-width: 100%; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Reparto de Ventas</h1>
+  <div class="sub">Reparto igualitario del total entre vendedores, descontando los gastos de cada uno.</div>
+
+  <div class="card">
+    <h2>Datos generales</h2>
+    <div class="row">
+      <div class="field">
+        <label for="total">Total de ventas</label>
+        <input type="tel" id="total" inputmode="decimal" placeholder="Ej: 500.000,00">
+      </div>
+      <div class="field">
+        <label for="nombre">Nombre del vendedor</label>
+        <input type="text" id="nombre" placeholder="Ej: Damián">
+      </div>
+      <div class="field">
+        <label for="vendio">Vendió</label>
+        <input type="tel" id="vendio" inputmode="decimal" placeholder="Ej: 300.000,00">
+      </div>
+      <div class="field">
+        <label for="gastos">Gastos</label>
+        <input type="tel" id="gastos" inputmode="decimal" placeholder="Ej: 20.000,00">
+      </div>
+      <button class="btn" id="addBtn" type="button">+ Agregar vendedor</button>
+    </div>
+    <div class="hint">Dejá el total vacío para que se sume automáticamente lo vendido por todos los vendedores.</div>
+  </div>
+
+  <div class="card">
+    <h2>Vendedores</h2>
+    <div id="sellers"></div>
+    <div class="empty" id="empty">Todavía no hay vendedores cargados.</div>
+  </div>
+
+  <div class="card">
+    <h2>Resumen</h2>
+    <div id="alerts"></div>
+    <table>
+      <thead>
+        <tr>
+          <th>Vendedor</th>
+          <th>Vendió</th>
+          <th>Gastos</th>
+          <th>En mano</th>
+          <th>Transferir</th>
+          <th>Neto</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="summary-grid">
+      <div class="summary-item"><div class="lbl">Total ventas</div><div class="val num" id="sTotal">$0,00</div></div>
+      <div class="summary-item"><div class="lbl">Total gastos</div><div class="val num" id="sGastos">$0,00</div></div>
+      <div class="summary-item"><div class="lbl">Neto por vendedor</div><div class="val num" id="sNetoVendedor">$0,00</div></div>
+      <div class="summary-item neto"><div class="lbl">Total neto en mano</div><div class="val num" id="sNeto">$0,00</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const fmt = new Intl.NumberFormat("es-AR", {
+  style: "currency", currency: "ARS",
+  minimumFractionDigits: 2, maximumFractionDigits: 2
+});
+
+function parseMoney(str) {
+  if (str == null) return 0;
+  let s = String(str).trim().replace(/[^\d.,-]/g, "");
+  if (s === "" || s === "-") return 0;
+  s = s.replace(/\./g, "").replace(",", ".");
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+function moneyInput(el) {
+  el.addEventListener("input", () => { el.value = formatTyped(el.value); recalc(); });
+}
+
+function formatTyped(v) {
+  let s = v.replace(/[^\d.,]/g, "");
+  if (s === "") return "";
+  const neg = s.startsWith("-");
+  s = s.replace(/\D/g, "");
+  let int = s.slice(0, -2) || "0";
+  let dec = s.length >= 2 ? s.slice(-2) : "";
+  if (int.length > 1) int = int.replace(/^0+/, "");
+  if (int === "") int = "0";
+  int = int.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return (neg ? "-" : "") + int + (dec ? "," + dec : "");
+}
+
+let sellers = [];
+let uid = 0;
+
+function renderSellers() {
+  const box = document.getElementById("sellers");
+  box.innerHTML = "";
+  document.getElementById("empty").style.display = sellers.length ? "none" : "block";
+  sellers.forEach(s => {
+    const div = document.createElement("div");
+    div.className = "seller-card";
+    div.innerHTML = `
+      <div class="seller-head">
+        <span class="seller-name">${escapeHtml(s.name) || "Vendedor"}</span>
+        <button class="btn danger" type="button" data-del="${s.id}">Eliminar</button>
+      </div>
+      <div class="row">
+        <div class="field"><label>Nombre</label><input type="text" data-id="${s.id}" data-field="name" value="${escapeHtml(s.name)}"></div>
+        <div class="field"><label>Vendió</label><input type="tel" inputmode="decimal" data-id="${s.id}" data-field="sold" value="${s.soldRaw}"></div>
+        <div class="field"><label>Gastos</label><input type="tel" inputmode="decimal" data-id="${s.id}" data-field="exp" value="${s.expRaw}"></div>
+      </div>`;
+    box.appendChild(div);
+    div.querySelectorAll("input").forEach(inp => {
+      if (inp.dataset.field === "name") {
+        inp.addEventListener("input", e => {
+          const s2 = sellers.find(x => x.id === +e.target.dataset.id);
+          s2.name = e.target.value;
+          renderSellers();
+          recalc();
+        });
+      } else {
+        moneyInput(inp);
+        inp.addEventListener("input", e => {
+          const s2 = sellers.find(x => x.id === +e.target.dataset.id);
+          const field = e.target.dataset.field;
+          if (field === "sold") s2.sold = parseMoney(e.target.value), s2.soldRaw = e.target.value;
+          if (field === "exp") s2.exp = parseMoney(e.target.value), s2.expRaw = e.target.value;
+          recalc();
+        });
+      }
+    });
+  });
+  box.querySelectorAll("[data-del]").forEach(b =>
+    b.addEventListener("click", () => {
+      sellers = sellers.filter(x => x.id !== +b.dataset.del);
+      renderSellers();
+      recalc();
+    })
+  );
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function recalc() {
+  const totalManual = parseMoney(document.getElementById("total").value);
+  const sumVendido = sellers.reduce((a, s) => a + s.sold, 0);
+  const total = totalManual > 0 ? totalManual : sumVendido;
+  const n = sellers.length;
+  const gastos = sellers.reduce((a, s) => a + s.exp, 0);
+  const netoTotal = total - gastos;
+  const netoVendedor = n ? netoTotal / n : 0;
+
+  document.getElementById("sTotal").textContent = fmt.format(total);
+  document.getElementById("sGastos").textContent = fmt.format(gastos);
+  document.getElementById("sNetoVendedor").textContent = fmt.format(netoVendedor);
+  document.getElementById("sNeto").textContent = fmt.format(netoTotal);
+
+  const tbody = document.getElementById("tbody");
+  tbody.innerHTML = "";
+  if (n === 0) {
+    document.getElementById("alerts").innerHTML = "";
+    return;
+  }
+
+  let rows = "";
+  let sumDar = 0, sumRecibir = 0;
+  sellers.forEach(s => {
+    const enMano = s.sold - s.exp;
+    const transfer = enMano - netoVendedor;
+    const transLabel = transfer > 0 ? `${fmt.format(transfer)} dar` : transfer < 0 ? `${fmt.format(-transfer)} recibir` : "-";
+    const transClass = transfer > 0 ? "neg" : transfer < 0 ? "pos" : "";
+    if (transfer > 0) sumDar += transfer;
+    if (transfer < 0) sumRecibir += -transfer;
+    rows += `<tr>
+      <td>${escapeHtml(s.name) || "Vendedor"}</td>
+      <td class="num">${fmt.format(s.sold)}</td>
+      <td class="num">${fmt.format(s.exp)}</td>
+      <td class="num">${fmt.format(enMano)}</td>
+      <td class="num ${transClass}">${transLabel}</td>
+      <td class="num ${netoVendedor < 0 ? "neg" : "pos"}">${fmt.format(netoVendedor)}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = rows;
+
+  const alerts = document.getElementById("alerts");
+  alerts.innerHTML = "";
+  if (netoTotal < 0) {
+    alerts.innerHTML = `<div class="alert bad">El total de ventas no alcanza para cubrir los gastos (faltan ${fmt.format(-netoTotal)}).</div>`;
+  } else if (Math.abs(sumDar - sumRecibir) > 1) {
+    alerts.innerHTML = `<div class="alert warn">Las transferencias no cierran (dan ${fmt.format(sumDar)} pero se recibe ${fmt.format(sumRecibir)}). Revisá los importes.</div>`;
+  }
+}
+
+document.getElementById("addBtn").addEventListener("click", () => {
+  const name = document.getElementById("nombre").value.trim();
+  const sold = parseMoney(document.getElementById("vendio").value);
+  const exp = parseMoney(document.getElementById("gastos").value);
+  const id = ++uid;
+  sellers.push({ id, name, sold, soldRaw: document.getElementById("vendio").value, exp, expRaw: document.getElementById("gastos").value });
+  document.getElementById("nombre").value = "";
+  document.getElementById("vendio").value = "";
+  document.getElementById("gastos").value = "";
+  renderSellers();
+  recalc();
+});
+
+moneyInput(document.getElementById("total"));
+document.getElementById("total").addEventListener("input", recalc);
+
+renderSellers();
+recalc();
+</script>
+</body>
+</html>

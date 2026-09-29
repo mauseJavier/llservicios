@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Mail\NotificacionTodosServiciosMail;
 use Illuminate\Support\Facades\Mail;
 use App\Jobs\EnviarWhatsAppJob;
+use App\Services\MercadoPago\MercadoPagoLinkService;
 use App\Models\Cliente;
 
 use Illuminate\Support\Facades\Log;
@@ -21,7 +22,7 @@ class NotificacionMensual extends Command
      *
      * @var string
      */
-    protected $signature = 'app:notificacion-mensual';
+    protected $signature = 'app:notificacion-mensual {empresa? : ID de la empresa a notificar}';
 
     /**
      * The console command description.
@@ -36,7 +37,15 @@ class NotificacionMensual extends Command
     public function handle()
     {
         $this->info('🔄 Iniciando notificación mensual de servicios impagos...');
-        
+
+        $empresaId = $this->argument('empresa');
+
+        $filtroEmpresa = $empresaId ? ' AND d.id = ?' : '';
+        $paramsClientes = ['impago'];
+        if ($empresaId) {
+            $paramsClientes[] = $empresaId;
+        }
+
         $clientes = DB::select('SELECT
                 COUNT(*) AS cantidad,
                 a.cliente_id AS cliente_id,
@@ -51,9 +60,9 @@ class NotificacionMensual extends Command
                 servicios c,
                 empresas d
             WHERE
-                a.cliente_id = b.id AND a.servicio_id = c.id AND c.empresa_id = d.id AND a.estado = ? 
+                a.cliente_id = b.id AND a.servicio_id = c.id AND c.empresa_id = d.id AND a.estado = ?' . $filtroEmpresa . '
             GROUP BY
-                a.cliente_id, b.nombre, b.correo, b.telefono', ['impago']);
+                a.cliente_id, b.nombre, b.correo, b.telefono', $paramsClientes);
 
         if (empty($clientes)) {
             $this->info('✅ No hay clientes con servicios impagos.');
@@ -74,6 +83,12 @@ class NotificacionMensual extends Command
             $serviciosImpagos[$i]['telefonoCliente'] = $valor->telefonoCliente;
             $serviciosImpagos[$i]['cantidad'] = $valor->cantidad;
 
+            $filtroEmpresaServicios = $empresaId ? ' AND c.id = ?' : '';
+            $paramsServicios = [$valor->cliente_id, 'impago'];
+            if ($empresaId) {
+                $paramsServicios[] = $empresaId;
+            }
+
             $serviciosImpagos[$i]['servicios'] = DB::select('SELECT
                                                 b.nombre AS nombreServicio,
                                                 a.cantidad AS cantidad,
@@ -81,13 +96,14 @@ class NotificacionMensual extends Command
                                                 a.precio * a.cantidad AS total,
                                                 a.created_at as fecha,
                                                 c.nombre AS nombreEmpresa,
-                                                c.id AS empresa_id
+                                                c.id AS empresa_id,
+                                                c.aliasTranferencia AS aliasTransferencia
                                             FROM
                                                 servicio_pagar a,
                                                 servicios b,
                                                 empresas c
                                             WHERE
-                                                a.servicio_id = b.id AND b.empresa_id = c.id AND a.cliente_id = ? AND a.estado = ?', [$valor->cliente_id, 'impago']);
+                                                a.servicio_id = b.id AND b.empresa_id = c.id AND a.cliente_id = ? AND a.estado = ?' . $filtroEmpresaServicios, $paramsServicios);
 
             foreach ($serviciosImpagos[$i]['servicios'] as $datos) {
                 $totalServicios = $totalServicios + $datos->total;
@@ -106,46 +122,72 @@ class NotificacionMensual extends Command
         foreach ($serviciosImpagos as $key => $datos) {
             $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             $this->info("📤 Procesando cliente: {$datos['nombreCliente']}");
+
+            // Generar links de pago firmados agrupados por empresa (la app resuelve los impagos al hacer clic)
+            $datos['linksPago'] = $this->generarLinksImpagos($datos);
+            $datos['linkPago'] = count($datos['linksPago']) === 1 ? $datos['linksPago'][0]['url'] : null;
             
             // Enviar email
             if (empty($datos['correoCliente'])) {
                 $this->warn("  ⚠️  Cliente sin correo registrado");
             } else {
+                $emailEnviado = false;
+                
+                // Intenta primero con SMTP
                 try {
-                    Mail::to($datos['correoCliente'])->send(new NotificacionTodosServiciosMail($datos));
-                    $this->info("  ✅ Email enviado a: {$datos['correoCliente']}");
-                    $emailsEnviados++;
+                    Mail::mailer('smtp')->to($datos['correoCliente'])->send(new NotificacionTodosServiciosMail($datos));
+                    $this->info("  ✅ Email enviado vía SMTP: {$datos['correoCliente']}");
+                    $emailEnviado = true;
                 } catch (\Exception $e) {
-                    $this->error("  ❌ Error enviando email: " . $e->getMessage());
+                    $this->warn("  ⚠️  Fallo SMTP: " . $e->getMessage());
+                    
+                    // Si SMTP falla, intenta con secundario
+                    try {
+                        Mail::mailer('secundario')->to($datos['correoCliente'])->send(new NotificacionTodosServiciosMail($datos));
+                        $this->info("  ✅ Email enviado vía secundario: {$datos['correoCliente']}");
+                        $emailEnviado = true;
+                    } catch (\Exception $e2) {
+                        $this->error("  ❌ Error en ambos mailers - SMTP: " . $e->getMessage() . " | Secundario: " . $e2->getMessage());
+                    }
+                }
+                
+                if ($emailEnviado) {
+                    $emailsEnviados++;
+                } else {
                     $errores++;
                 }
             }
 
             // Enviar WhatsApp si tiene teléfono
             if (!empty($datos['telefonoCliente'])) {
-                try {
-                    $mensajeWhatsApp = $this->generarMensajeWhatsApp($datos);
+
+
+                //no se enviara whatsapp por el momento para que no vaneen el numero de ws
+
+                
+                // try {
+                //     $mensajeWhatsApp = $this->generarMensajeWhatsApp($datos);
                     
-                    // Despachar Job para envío asíncrono
-                    $datos = [
-                        'phoneNumber' => $datos['telefonoCliente'],
-                        'message' => $mensajeWhatsApp,
-                        'type' => 'text',
-                        'additionalData' => [],
-                        'instanciaWS' => null,
-                        'tokenWS' => null
-                    ];
+                //     // Despachar Job para envío asíncrono
+                //     $datos = [
+                //         'phoneNumber' => $datos['telefonoCliente'],
+                //         'message' => $mensajeWhatsApp,
+                //         'type' => 'text',
+                //         'additionalData' => [],
+                //         'instanciaWS' => null,
+                //         'tokenWS' => null
+                //     ];
 
-                    Log::debug('Programando envío de WhatsApp', $datos);
+                //     Log::debug('Programando envío de WhatsApp', $datos);
 
-                    EnviarWhatsAppJob::dispatch($datos)->delay(now()->addSeconds(5 * $key)); // Espaciar envíos
+                //     EnviarWhatsAppJob::dispatch($datos)->delay(now()->addSeconds(5 * $key)); // Espaciar envíos
 
-                    $this->info("  ✅ WhatsApp programado para: {$datos['phoneNumber']}");
-                    $whatsappsEnviados++;
-                } catch (\Exception $e) {
-                    $this->error("  ❌ Error programando WhatsApp: " . $e->getMessage());
-                    $errores++;
-                }
+                //     $this->info("  ✅ WhatsApp programado para: {$datos['phoneNumber']}");
+                //     $whatsappsEnviados++;
+                // } catch (\Exception $e) {
+                //     $this->error("  ❌ Error programando WhatsApp: " . $e->getMessage());
+                //     $errores++;
+                // }
             } else {
                 $this->warn("  ⚠️  Cliente sin teléfono registrado");
             }
@@ -169,6 +211,30 @@ class NotificacionMensual extends Command
     }
 
     /**
+     * Generar links de pago firmados agrupados por empresa para un cliente.
+     *
+     * @return array<int, array{empresa: string, url: string}>
+     */
+    private function generarLinksImpagos(array $datos): array
+    {
+        $links = [];
+
+        $porEmpresa = collect($datos['servicios'])->groupBy('empresa_id');
+
+        foreach ($porEmpresa as $empresaId => $serviciosEmpresa) {
+            $links[] = [
+                'empresa' => $serviciosEmpresa->first()->nombreEmpresa ?? 'nuestra empresa',
+                'url' => MercadoPagoLinkService::urlEnlaceCliente(
+                    (int) $datos['cliente_id'],
+                    (int) $empresaId
+                ),
+            ];
+        }
+
+        return $links;
+    }
+
+    /**
      * Generar mensaje de WhatsApp formateado
      * 
      * @param array $datos Datos del cliente y servicios
@@ -182,6 +248,7 @@ class NotificacionMensual extends Command
         
         foreach ($datos['servicios'] as $servicio) {
             $mensaje .= "📋 *{$servicio->nombreServicio}*\n";
+            $mensaje .= "   • Empresa: {$servicio->nombreEmpresa}\n";
             $mensaje .= "   • Cantidad: {$servicio->cantidad}\n";
             $mensaje .= "   • Precio unitario: \${$servicio->precio}\n";
             $mensaje .= "   • Total: \$" . number_format($servicio->total, 2) . "\n";

@@ -157,7 +157,7 @@
             <strong>{{ $resumen->formaPago }}</strong>
             <div class="total">${{ number_format($resumen->totalImporte, 2) }}</div>
             <div class="cantidad">{{ $resumen->cantidadPagos }} pagos</div>
-            <div class="promedio">Promedio: ${{ number_format($resumen->totalImporte / $resumen->cantidadPagos, 2) }}</div>
+            <div class="promedio">Promedio: ${{ number_format($resumen->cantidadPagos > 0 ? ($resumen->totalImporte / $resumen->cantidadPagos) : 0, 2) }}</div>
           </div>
           <hr>
         @endforeach
@@ -190,10 +190,10 @@
                 <td><strong>{{ $resumen->formaPago }}</strong></td>
                 <td>{{ $resumen->cantidadPagos }}</td>
                 <td>${{ number_format($resumen->totalImporte, 2) }}</td>
-                <td>${{ number_format($resumen->totalImporte / $resumen->cantidadPagos, 2) }}</td>
+                <td>${{ number_format($resumen->cantidadPagos > 0 ? ($resumen->totalImporte / $resumen->cantidadPagos) : 0, 2) }}</td>
                 <td>
-                  {{ number_format(($resumen->totalImporte / $totalGeneral) * 100, 1) }}%
-                  <div class="porcentaje-bar" style="width: {{ ($resumen->totalImporte / $totalGeneral) * 100 }}px;"></div>
+                  {{ number_format($totalGeneral > 0 ? (($resumen->totalImporte / $totalGeneral) * 100) : 0, 1) }}%
+                  <div class="porcentaje-bar" style="width: {{ $totalGeneral > 0 ? (($resumen->totalImporte / $totalGeneral) * 100) : 0 }}px;"></div>
                 </td>
               </tr>
             @endforeach
@@ -201,7 +201,7 @@
               <td><strong>TOTAL GENERAL</strong></td>
               <td><strong>{{ collect($resumenPagos)->sum('cantidadPagos') }}</strong></td>
               <td><strong>${{ number_format($totalGeneral, 2) }}</strong></td>
-              <td><strong>${{ number_format($totalGeneral / collect($resumenPagos)->sum('cantidadPagos'), 2) }}</strong></td>
+              <td><strong>${{ number_format(collect($resumenPagos)->sum('cantidadPagos') > 0 ? ($totalGeneral / collect($resumenPagos)->sum('cantidadPagos')) : 0, 2) }}</strong></td>
               <td><strong>100%</strong></td>
             </tr>
           </tbody>
@@ -225,7 +225,7 @@
             </div>
             <div class="total" style="color: #2196f3;">${{ number_format($resumen->totalImporte, 2) }}</div>
             <div class="cantidad">{{ $resumen->cantidadPagos }} pagos</div>
-            <div class="promedio">Promedio: ${{ number_format($resumen->totalImporte / $resumen->cantidadPagos, 2) }}</div>
+            <div class="promedio">Promedio: ${{ number_format($resumen->cantidadPagos > 0 ? ($resumen->totalImporte / $resumen->cantidadPagos) : 0, 2) }}</div>
           </div>
           <hr>
         @endforeach
@@ -261,10 +261,10 @@
                 <td><strong>{{ $resumen->nombreUsuario }}</strong></td>
                 <td>{{ $resumen->cantidadPagos }}</td>
                 <td>${{ number_format($resumen->totalImporte, 2) }}</td>
-                <td>${{ number_format($resumen->totalImporte / $resumen->cantidadPagos, 2) }}</td>
+                <td>${{ number_format($resumen->cantidadPagos > 0 ? ($resumen->totalImporte / $resumen->cantidadPagos) : 0, 2) }}</td>
                 <td>
-                  {{ number_format(($resumen->totalImporte / $totalGeneralUsuarios) * 100, 1) }}%
-                  <div class="porcentaje-bar" style="width: {{ ($resumen->totalImporte / $totalGeneralUsuarios) * 100 }}px; background-color: #2196f3;"></div>
+                  {{ number_format($totalGeneralUsuarios > 0 ? (($resumen->totalImporte / $totalGeneralUsuarios) * 100) : 0, 1) }}%
+                  <div class="porcentaje-bar" style="width: {{ $totalGeneralUsuarios > 0 ? (($resumen->totalImporte / $totalGeneralUsuarios) * 100) : 0 }}px; background-color: #2196f3;"></div>
                 </td>
               </tr>
             @endforeach
@@ -272,7 +272,7 @@
               <td><strong>TOTAL GENERAL</strong></td>
               <td><strong>{{ $totalPagosUsuarios }}</strong></td>
               <td><strong>${{ number_format($totalGeneralUsuarios, 2) }}</strong></td>
-              <td><strong>${{ number_format($totalGeneralUsuarios / $totalPagosUsuarios, 2) }}</strong></td>
+              <td><strong>${{ number_format($totalPagosUsuarios > 0 ? ($totalGeneralUsuarios / $totalPagosUsuarios) : 0, 2) }}</strong></td>
               <td><strong>100%</strong></td>
             </tr>
           </tbody>
@@ -283,70 +283,215 @@
 
   <hr>
 
-  <h2>Detalle de Pagos</h2>
+  {{-- Resumen de Facturación ARCA --}}
+  <div class="resumen-pagos">
+    <h2>🧾 Resumen de Facturación ARCA</h2>
+    
+    @if($resumenFacturacion['total']->cantidad > 0)
+      @php $basePorcentajeFacturacion = $resumenFacturacion['total']->basePorcentaje ?? 0; @endphp
 
-  @if(isset($buscar) && $buscar)
-    <article style="margin-bottom: 1rem; background: #4543d1ff; border-left: 4px solid #2196f3;">
-      <p style="margin: 0;">
-        🔍 <strong>Búsqueda activa:</strong> Filtrando por cliente que coincida con "{{ $buscar }}"
-        <a href="{{route('Pagos', ['fecha_inicio' => $fechaInicio, 'fecha_fin' => $fechaFin, 'usuario_id' => $usuarioId])}}" style="margin-left: 1rem;">
-          ✖ Limpiar
-        </a>
-      </p>
-    </article>
-  @endif
+      <div class="grid">
+        <div class="col">
 
-    <nav>
-        <ul>
-            <li>
-              <form class="form" action="{{route('Pagos')}}" method="GET">
-                  
-                  <div class="input-group">
-                      <input type="search" class="input" id="buscar" name="buscar" 
-                      @if (isset($buscar))
-                          value="{{$buscar}}"
-                      @endif  placeholder="Buscar por cliente (nombre, correo, DNI)...">
-                      
-                      {{-- Mantener los filtros de fecha y usuario al buscar --}}
-                      <input type="hidden" name="fecha_inicio" value="{{ $fechaInicio }}">
-                      <input type="hidden" name="fecha_fin" value="{{ $fechaFin }}">
-                      <input type="hidden" name="usuario_id" value="{{ $usuarioId }}">
-                  </div>
-              </form>
-            </li>
-        </ul>
-        <ul>
-            @if(isset($buscar) && $buscar)
-                <li>
-                    <a href="{{route('Pagos', ['fecha_inicio' => $fechaInicio, 'fecha_fin' => $fechaFin, 'usuario_id' => $usuarioId])}}" role="button" class="secondary">
-                        Limpiar búsqueda
-                    </a>
-                </li>
-            @endif
-        </ul>
-    </nav>
+          {{-- Facturas emitidas --}}
+          <div class="resumen-card" style="border-left: 4px solid #4caf50; padding-left: 0.5rem; margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <strong style="font-size: 1.1rem;">✅ Facturas emitidas</strong>
+            </div>
+            <div class="total" style="color: #4caf50;">${{ number_format($resumenFacturacion['facturas']->total, 2) }}</div>
+            <div class="cantidad">{{ $resumenFacturacion['facturas']->cantidad }} comprobantes</div>
+            <div class="promedio">Promedio: ${{ number_format($resumenFacturacion['facturas']->promedio, 2) }}</div>
+            <div class="porcentaje">
+              {{ $basePorcentajeFacturacion > 0 ? number_format(($resumenFacturacion['facturas']->total / $basePorcentajeFacturacion) * 100, 1) : 0 }}% del movimiento bruto
+            </div>
+          </div>
+          <hr>
 
-  <figure>
+          {{-- Notas de credito emitidas --}}
+          <div class="resumen-card" style="border-left: 4px solid #d32f2f; padding-left: 0.5rem; margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <strong style="font-size: 1.1rem;">🧾 Notas de Crédito</strong>
+            </div>
+            <div class="total" style="color: #d32f2f;">${{ number_format($resumenFacturacion['notasCredito']->total, 2) }}</div>
+            <div class="cantidad">{{ $resumenFacturacion['notasCredito']->cantidad }} comprobantes</div>
+            <div class="promedio">Promedio: ${{ number_format($resumenFacturacion['notasCredito']->promedio, 2) }}</div>
+            <div class="porcentaje">
+              {{ $basePorcentajeFacturacion > 0 ? number_format((abs($resumenFacturacion['notasCredito']->total) / $basePorcentajeFacturacion) * 100, 1) : 0 }}% del movimiento bruto
+            </div>
+          </div>
+
+        </div>
+        <div class="col">
+
+          {{-- Pagos No Facturados --}}
+          <div class="resumen-card" style="border-left: 4px solid #ff9800; padding-left: 0.5rem; margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <strong style="font-size: 1.1rem;">⚠️ Sin Facturar</strong>
+            </div>
+            <div class="total" style="color: #ff9800;">${{ number_format($resumenFacturacion['noFacturados']->total, 2) }}</div>
+            <div class="cantidad">{{ $resumenFacturacion['noFacturados']->cantidad }} pagos</div>
+            <div class="promedio">Promedio: ${{ number_format($resumenFacturacion['noFacturados']->promedio, 2) }}</div>
+            <div class="porcentaje">
+              {{ $basePorcentajeFacturacion > 0 ? number_format(($resumenFacturacion['noFacturados']->total / $basePorcentajeFacturacion) * 100, 1) : 0 }}% del movimiento bruto
+            </div>
+          </div>
+          <hr>
+
+          {{-- Neto general --}}
+          <div class="resumen-card" style="border-left: 4px solid #1565c0; padding-left: 0.5rem; margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <strong style="font-size: 1.1rem;">📉 Neto</strong>
+            </div>
+            <div class="total" style="color: #1565c0;">${{ number_format($resumenFacturacion['neto']->total, 2) }}</div>
+            <div class="cantidad">{{ $resumenFacturacion['neto']->cantidad }} movimientos</div>
+            <div class="promedio">Promedio: ${{ number_format($resumenFacturacion['neto']->promedio, 2) }}</div>
+            <div class="porcentaje">
+              Resultado neto del período filtrado
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {{-- Tabla detallada --}}
+      <div class="resumen-tabla">
+        <h3>📊 Comparativa de Facturación</h3>
+        <figure>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Estado</th>
+                <th scope="col">Cantidad</th>
+                <th scope="col">Total</th>
+                <th scope="col">Promedio</th>
+                <th scope="col">Porcentaje</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>✅ Facturas</strong></td>
+                <td>{{ $resumenFacturacion['facturas']->cantidad }}</td>
+                <td>${{ number_format($resumenFacturacion['facturas']->total, 2) }}</td>
+                <td>${{ number_format($resumenFacturacion['facturas']->promedio, 2) }}</td>
+                <td>
+                  {{ $basePorcentajeFacturacion > 0 ? number_format(($resumenFacturacion['facturas']->total / $basePorcentajeFacturacion) * 100, 1) : 0 }}%
+                  <div class="porcentaje-bar" style="width: {{ $basePorcentajeFacturacion > 0 ? ($resumenFacturacion['facturas']->total / $basePorcentajeFacturacion) * 100 : 0 }}px; background-color: #4caf50;"></div>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>🧾 Notas de Crédito</strong></td>
+                <td>{{ $resumenFacturacion['notasCredito']->cantidad }}</td>
+                <td>${{ number_format($resumenFacturacion['notasCredito']->total, 2) }}</td>
+                <td>${{ number_format($resumenFacturacion['notasCredito']->promedio, 2) }}</td>
+                <td>
+                  {{ $basePorcentajeFacturacion > 0 ? number_format((abs($resumenFacturacion['notasCredito']->total) / $basePorcentajeFacturacion) * 100, 1) : 0 }}%
+                  <div class="porcentaje-bar" style="width: {{ $basePorcentajeFacturacion > 0 ? (abs($resumenFacturacion['notasCredito']->total) / $basePorcentajeFacturacion) * 100 : 0 }}px; background-color: #d32f2f;"></div>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>⚠️ Sin Facturar</strong></td>
+                <td>{{ $resumenFacturacion['noFacturados']->cantidad }}</td>
+                <td>${{ number_format($resumenFacturacion['noFacturados']->total, 2) }}</td>
+                <td>${{ number_format($resumenFacturacion['noFacturados']->promedio, 2) }}</td>
+                <td>
+                  {{ $basePorcentajeFacturacion > 0 ? number_format(($resumenFacturacion['noFacturados']->total / $basePorcentajeFacturacion) * 100, 1) : 0 }}%
+                  <div class="porcentaje-bar" style="width: {{ $basePorcentajeFacturacion > 0 ? ($resumenFacturacion['noFacturados']->total / $basePorcentajeFacturacion) * 100 : 0 }}px; background-color: #ff9800;"></div>
+                </td>
+              </tr>
+              <tr class="total-row">
+                <td><strong>📉 NETO</strong></td>
+                <td><strong>{{ $resumenFacturacion['neto']->cantidad }}</strong></td>
+                <td><strong>${{ number_format($resumenFacturacion['neto']->total, 2) }}</strong></td>
+                <td><strong>${{ number_format($resumenFacturacion['neto']->promedio, 2) }}</strong></td>
+                <td><strong>Resultado final</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </figure>
+      </div>
+    @else
+      <div style="text-align: center; padding: 2rem;">
+        <p>📊 No hay pagos registrados para mostrar estadísticas de facturación</p>
+      </div>
+    @endif
+  </div>
+
+  <hr>
+
+
+
+
+  </div>  {{-- //para cerrar el container del principio  --}}
+
+  
+  <div class="container-fluid">
+
+      <h2>Detalle de Pagos</h2>
+
+      @if(isset($buscar) && $buscar)
+        <article style="margin-bottom: 1rem; background: #4543d1ff; border-left: 4px solid #2196f3;">
+          <p style="margin: 0;">
+            🔍 <strong>Búsqueda activa:</strong> Filtrando por cliente que coincida con "{{ $buscar }}"
+            <a href="{{route('Pagos', ['fecha_inicio' => $fechaInicio, 'fecha_fin' => $fechaFin, 'usuario_id' => $usuarioId])}}" style="margin-left: 1rem;">
+              ✖ Limpiar
+            </a>
+          </p>
+        </article>
+      @endif
+
+      <nav>
+          <ul>
+              <li>
+                <form class="form" action="{{route('Pagos')}}" method="GET">
+                    
+                    <div class="input-group">
+                        <input type="search" class="input" id="buscar" name="buscar" 
+                        @if (isset($buscar))
+                            value="{{$buscar}}"
+                        @endif  placeholder="Buscar por cliente (nombre, correo, DNI)...">
+                        
+                        {{-- Mantener los filtros de fecha y usuario al buscar --}}
+                        <input type="hidden" name="fecha_inicio" value="{{ $fechaInicio }}">
+                        <input type="hidden" name="fecha_fin" value="{{ $fechaFin }}">
+                        <input type="hidden" name="usuario_id" value="{{ $usuarioId }}">
+                    </div>
+                </form>
+              </li>
+          </ul>
+          <ul>
+              @if(isset($buscar) && $buscar)
+                  <li>
+                      <a href="{{route('Pagos', ['fecha_inicio' => $fechaInicio, 'fecha_fin' => $fechaFin, 'usuario_id' => $usuarioId])}}" role="button" class="secondary">
+                          Limpiar búsqueda
+                      </a>
+                  </li>
+              @endif
+          </ul>
+      </nav>
+
+
+    
     <div class="overflow-auto">
       <table>
           <thead>
             <tr>
               <th scope="col">#</th>
+              <th scope="col">Acciones</th>
               <th scope="col">Cliente</th>
               <th scope="col">Servicio</th>
+              <th scope="col">Total</th>
+              <th scope="col">Comprobante</th>
               <th scope="col">Forma de Pago 1</th>
               <th scope="col">Importe 1</th>
               <th scope="col">Forma de Pago 2</th>
               <th scope="col">Importe 2</th>
-              <th scope="col">Total</th>
               <th scope="col">Usuario</th>
-              <th scope="col">Acciones</th>
             </tr>
           </thead>
           <tbody>
       
             @foreach ($pagos as $e)
-
+  
             {{-- {
               "id": 1,
               "id_servicio_pagar": 8,
@@ -363,11 +508,52 @@
               "formaPago": "MercadoPago"
             }
           ] --}}
-
+  
               <tr>
                 <td>{{$e->id}}</td>
+  
+                <th>                  
+                  <div role="group">
+                    {{-- <strong><a role="button" href="{{route('PagosVer',['idServicioPagar'=>$e->idServicioPagar])}}" data-tooltip="Ver Pago">Detalle</a></strong> --}}
+  
+  
+                    <a role="button" href="{{route('PagosVer',['idServicioPagar'=>$e->idServicioPagar])}}" data-tooltip="Ver Pago"><i class="fas fa-info-circle"></i></a>
+  
+                    
+                    @if ( isset($e->afip_cae) && $e->afip_cae != null )
+                      
+                      <a role="button" href="{{route('FacturaAfipPDF',['pagoId'=>$e->id])}}" data-tooltip="Ver Comprobante AFIP" target="_blank"><i class="fas fa-receipt"></i> </a>
+                        
+                    @endif
+  
+                  </div>
+                </th>
+  
                 <td>{{$e->Cliente}}</td>
                 <td>{{$e->Servicio}}</td>
+  
+                <td>
+                  @if ($e->importe + ($e->importe2 ?? 0) > 0)
+                      
+                    <strong>${{number_format($e->importe + ($e->importe2 ?? 0), 2)}}</strong>
+                      
+                  @else
+  
+                    <strong style="color: red;">${{number_format($e->importe + ($e->importe2 ?? 0), 2)}}</strong>
+                      
+                  @endif
+                </td>
+  
+  
+                <td>
+                  <strong style="color: {{ $e->tipoComprobanteColor ?? '#757575' }};">
+                    {{ $e->tipoComprobanteResumen ?? 'Sin AFIP' }}
+                  </strong>
+                  @if(!empty($e->afip_cae))
+                    <br>
+                    <small>{{ $e->tipo_comprobante_nombre ?? 'Comprobante AFIP' }}</small>
+                  @endif
+                </td>
                 <td>{{$e->formaPago}}</td>
                 <td>${{number_format($e->importe, 2)}}</td>
                 <td>
@@ -384,23 +570,21 @@
                     <small style="color: #999;">-</small>
                   @endif
                 </td>
-                <td>
-                  <strong>${{number_format($e->importe + ($e->importe2 ?? 0), 2)}}</strong>
-                </td>
+  
                 <td>{{$e->nombreUsuario}}</td>
-                <th>                  
-                    <strong><a href="{{route('PagosVer',['idServicioPagar'=>$e->idServicioPagar])}}" data-tooltip="Ver Pago">Ver</a></strong>
-                </th>
+  
               </tr>
             @endforeach
           
           </tfoot>
       </table>
     </div>
-</figure>
+
+</div>
 
 
 
+<div class="container">
 
 
 @if (method_exists($pagos, 'currentPage'))   
@@ -423,7 +607,7 @@
                 <a href="{{$pagos->url($pagos->currentPage())}}">{{$pagos->currentPage()}}</a>
               </strong>            
             </li>
-          @if (($pagos->currentPage() +1 ) < round($pagos->total()/$pagos->perPage())+1)
+          @if ($pagos->hasMorePages())
             <li>
               <a href="{{$pagos->url($pagos->currentPage() +1)}}">{{$pagos->currentPage() +1}}</a>
             </li>

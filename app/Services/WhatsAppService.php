@@ -38,10 +38,10 @@ class WhatsAppService
     public function sendTextMessage(string $phoneNumber, string $message, array $options = []): array
     {
         try {
-            Log::info('WhatsApp - Enviando mensaje de texto', [
-                'phone' => $phoneNumber,
-                'message_preview' => substr($message, 0, 50)
-            ]);
+            // Log::info('WhatsApp - Enviando mensaje de texto', [
+            //     'phone' => $phoneNumber,
+            //     'message_preview' => substr($message, 0, 50)
+            // ]);
 
             // Limpiar el número de teléfono (solo números)
             $phoneNumber = preg_replace('/[^0-9]/', '', $phoneNumber);
@@ -71,10 +71,10 @@ class WhatsAppService
             // Realizar la petición HTTP
             $response = $this->makeRequest('POST', '/message/sendText/' . $this->instanceId, $payload);
 
-            Log::info('WhatsApp - Mensaje enviado exitosamente', [
-                'phone' => $phoneNumber,
-                'response' => $response
-            ]);
+            // Log::info('WhatsApp - Mensaje enviado exitosamente', [
+            //     'phone' => $phoneNumber,
+            //     'response' => $response
+            // ]);
 
             return [
                 'success' => true,
@@ -110,11 +110,11 @@ class WhatsAppService
     public function sendDocument(string $phoneNumber, string $documentUrl, string $filename, ?string $caption = null, array $options = [], ?string $base64 = null): array
     {
         try {
-            Log::info('WhatsApp - Enviando documento', [
-                'phone' => $phoneNumber,
-                'filename' => $filename,
-                'document_url' => $documentUrl
-            ]);
+            // Log::info('WhatsApp - Enviando documento', [
+            //     'phone' => $phoneNumber,
+            //     'filename' => $filename,
+            //     'document_url' => $documentUrl
+            // ]);
 
             // Limpiar el número de teléfono
             $phoneNumber = preg_replace('/[^0-9]/', '', $phoneNumber);
@@ -140,11 +140,11 @@ class WhatsAppService
             // Realizar la petición HTTP
             $response = $this->makeRequest('POST', '/message/sendMedia/' . $this->instanceId, $payload);
 
-            Log::info('WhatsApp - Documento enviado exitosamente', [
-                'phone' => $phoneNumber,
-                'filename' => $filename,
-                'response' => $response
-            ]);
+            // Log::info('WhatsApp - Documento enviado exitosamente', [
+            //     'phone' => $phoneNumber,
+            //     'filename' => $filename,
+            //     'response' => $response
+            // ]);
 
             return [
                 'success' => true,
@@ -286,7 +286,47 @@ class WhatsAppService
     //     }
     // }
 
-        /**
+    public function sendButtons(string $telefono, string $title, string $description, string $footer, array $buttons): array
+    {
+        try {
+            $telefono = preg_replace('/[^0-9]/', '', $telefono);
+
+            if (!str_starts_with($telefono, '549')) {
+                $telefono = '549' . $telefono;
+            }
+
+            $payload = [
+                'number' => $telefono,
+                'title' => $title,
+                'description' => $description,
+                'footer' => $footer,
+                'buttons' => $buttons,
+            ];
+
+            $response = $this->makeRequest('POST', '/message/sendButtons/' . $this->instanceId, $payload);
+
+            return [
+                'success' => true,
+                'message' => 'Mensaje con botones enviado correctamente',
+                'data' => $response
+            ];
+
+        } catch (Exception $e) {
+            Log::error('WhatsApp - Error enviando mensaje con botones', [
+                'telefono' => $telefono ?? $telefono,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Error al enviar mensaje con botones: ' . $e->getMessage(),
+                'data' => null
+            ];
+        }
+    }
+
+    /**
      * Realizar petición HTTP a la API de WhatsApp
      * 
      * @param string $method Método HTTP (GET, POST, etc)
@@ -313,12 +353,12 @@ class WhatsAppService
         $url = $this->apiUrl . '' . $endpoint;
 
 
-        Log::info("WhatsApp - Realizando petición {$method} a {$url}", [
-            'endpoint' => $endpoint,
-            'api_url' => $this->apiUrl,
-            'full_url' => $url,
-            'data' => $data
-        ]);
+        // Log::info("WhatsApp - Realizando petición {$method} a {$url}", [
+        //     'endpoint' => $endpoint,
+        //     'api_url' => $this->apiUrl,
+        //     'full_url' => $url,
+        //     'data' => $data
+        // ]);
 
         // Construir la petición con headers correctos según la API de Evolution
         $response = Http::timeout(30)
@@ -344,6 +384,161 @@ class WhatsAppService
     }
 
 
+
+    /**
+     * Obtener el estado de conexión de la instancia de WhatsApp
+     * 
+     * @param string|null $instanceName Nombre de la instancia
+     * @return array
+     */
+    public function getConnectionState(?string $instanceName = null): array
+    {
+        $instanceName = $instanceName ?? $this->instanceId;
+
+        if (empty($this->apiUrl) || empty($this->apiKey) || empty($instanceName)) {
+            return [
+                'success' => false,
+                'state' => 'error',
+                'message' => 'Configuración de WhatsApp incompleta'
+            ];
+        }
+
+        try {
+            $url = rtrim($this->apiUrl, '/') . '/instance/connectionState/' . $instanceName;
+
+            $response = Http::timeout(10)
+                ->withHeaders([
+                    'Content-Type' => 'application/json',
+                    'apikey' => $this->apiKey,
+                ])
+                ->get($url);
+
+            if ($response->successful()) {
+                $body = $response->json();
+                return [
+                    'success' => true,
+                    'state' => $body['instance']['state'] ?? 'unknown',
+                    'instanceName' => $body['instance']['instanceName'] ?? $instanceName,
+                ];
+            }
+
+            return [
+                'success' => false,
+                'state' => 'error',
+                'message' => 'Error HTTP: ' . $response->status(),
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'state' => 'error',
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Conectar la instancia a WhatsApp (genera el QR de vinculación)
+     *
+     * GET /instance/connect/{instanceName}
+     *
+     * @param string|null $instanceName Nombre de la instancia
+     * @return array
+     */
+    public function connect(?string $instanceName = null): array
+    {
+        $instanceName = $instanceName ?? $this->instanceId;
+
+        try {
+            $response = $this->makeRequest('GET', '/instance/connect/' . $instanceName);
+
+            return [
+                'success' => true,
+                'message' => 'Conexión iniciada. Escaneá el QR con WhatsApp.',
+                'data' => $response,
+                'base64' => $response['base64'] ?? null,
+                'pairingCode' => $response['pairingCode'] ?? null,
+                'code' => $response['code'] ?? null,
+            ];
+        } catch (Exception $e) {
+            Log::error('WhatsApp - Error iniciando conexión', [
+                'instance' => $instanceName,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Error al conectar: ' . $e->getMessage(),
+                'data' => null,
+            ];
+        }
+    }
+
+    /**
+     * Desconectar / cerrar sesión de la instancia
+     *
+     * DELETE /instance/logout/{instanceName}
+     *
+     * @param string|null $instanceName Nombre de la instancia
+     * @return array
+     */
+    public function logout(?string $instanceName = null): array
+    {
+        $instanceName = $instanceName ?? $this->instanceId;
+
+        try {
+            $response = $this->makeRequest('DELETE', '/instance/logout/' . $instanceName);
+
+            return [
+                'success' => true,
+                'message' => 'Instancia desconectada correctamente',
+                'data' => $response,
+            ];
+        } catch (Exception $e) {
+            Log::error('WhatsApp - Error al desconectar instancia', [
+                'instance' => $instanceName,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Error al desconectar: ' . $e->getMessage(),
+                'data' => null,
+            ];
+        }
+    }
+
+    /**
+     * Listar todas las instancias del servidor
+     *
+     * GET /instance/fetchInstances
+     *
+     * @return array
+     */
+    public function getInstances(): array
+    {
+        try {
+            $response = $this->makeRequest('GET', '/instance/fetchInstances');
+
+            return [
+                'success' => true,
+                'message' => 'Instancias obtenidas correctamente',
+                'data' => $response,
+            ];
+        } catch (Exception $e) {
+            Log::error('WhatsApp - Error obteniendo instancias', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Error al obtener instancias: ' . $e->getMessage(),
+                'data' => null,
+            ];
+        }
+    }
 
     /**
      * Generar ID único para el mensaje

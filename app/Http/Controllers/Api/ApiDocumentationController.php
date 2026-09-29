@@ -197,7 +197,7 @@ class ApiDocumentationController extends Controller
                 'notes' => [
                     'Debe proporcionar al menos uno de los parámetros: dni, correo o nombre',
                     'Los filtros de empresa son opcionales y se aplican sobre los servicios',
-                    'El estado_cliente es false si tiene servicios impagos',
+                    'El estado_cliente es false si tiene servicios impagos vencidos (cuya fecha de vencimiento ya pasó)',
                     'Las búsquedas por nombre y correo son parciales (LIKE)'
                 ]
             ],

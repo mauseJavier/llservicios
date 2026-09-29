@@ -16,12 +16,57 @@ class Cliente extends Model
 
     protected $guarded = [];
 
+    /**
+     * Verifica si el cliente tiene habilitados los recargos por mora
+     * para una empresa determinada (por defecto, la del usuario autenticado).
+     *
+     * @param int|null $empresaId
+     * @return bool
+     */
+    public function aplicaRecargos(?int $empresaId = null): bool
+    {
+        $empresaId = $empresaId ?? auth()->user()->empresa_id ?? null;
+
+        if ($empresaId === null) {
+            return false;
+        }
+
+        return $this->empresas()
+            ->wherePivot('empresa_id', $empresaId)
+            ->wherePivot('aplicar_recargos', true)
+            ->exists();
+    }
+
+    /**
+     * Accessor que expone el valor del pivot para la empresa del usuario autenticado.
+     * Mantiene compatibilidad con las vistas que usan $cliente->aplicar_recargos.
+     *
+     * @return bool
+     */
+    public function getAplicarRecargosAttribute(): bool
+    {
+        return $this->aplicaRecargos();
+    }
+
+    /**
+     * Accessor que devuelve la descripción de la condición frente al IVA.
+     * Compatible con las vistas PDF que usan $cliente->condicion_iva.
+     *
+     * @return string|null
+     */
+    public function getCondicionIvaAttribute(): ?string
+    {
+        $condiciones = \App\Services\AfipService::tiposContribuyentes();
+
+        return $condiciones[(int) ($this->condicion_iva_id ?? 5)]['Desc'] ?? null;
+    }
+
         /**
          * Las empresas a las que pertenece el cliente
          */
         public function empresas(): BelongsToMany
         {
-            return $this->belongsToMany(Empresa::class, 'cliente_empresa', 'cliente_id', 'empresa_id');
+            return $this->belongsToMany(Empresa::class, 'cliente_empresa', 'cliente_id', 'empresa_id')->withPivot('aplicar_recargos');
         }
 
      /**
@@ -64,5 +109,14 @@ class Cliente extends Model
         return $this->hasMany(ServicioPagar::class, 'cliente_id')->where('estado', 'pago');
     }
 
+    /**
+     * Los segmentos del cliente
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
+    public function segmentos(): BelongsToMany
+    {
+        return $this->belongsToMany(Segmento::class, 'cliente_segmento', 'cliente_id', 'segmento_id');
+    }
 
 }

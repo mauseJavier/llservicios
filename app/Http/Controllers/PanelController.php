@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Cliente;
 use App\Models\ServicioPagar;
+use App\Helpers\DniHelper;
 
 class PanelController extends Controller
 {
@@ -31,8 +32,12 @@ class PanelController extends Controller
         $nombreServicio = $request->input('nombre_servicio', null);
         $nombreEmpresa = $request->input('nombre_empresa', null);
         
-        // Buscar cliente por DNI usando Eloquent
-        $cliente = Cliente::where('dni', $usuario->dni)->first();
+        // Buscar cliente por DNI usando Eloquent (normalizando DNI/CUIT)
+        $dniNormalizado = DniHelper::extractDni($usuario->dni);
+        $cliente = Cliente::where(function($query) use ($dniNormalizado) {
+            $query->where('dni', $dniNormalizado)
+                  ->orWhere('dni', 'like', '%' . $dniNormalizado . '%');
+        })->first();
         
         if ($cliente) {
             // Query base para servicios impagos
@@ -101,6 +106,10 @@ class PanelController extends Controller
                         'linkPago' => $servicioPagar->servicio->linkPago,
                         'imagenServicio' => $servicioPagar->servicio->imagen,
                         'nombreEmpresa' => $servicioPagar->servicio->empresa->nombre,
+                        'aliasTranferencia' => $servicioPagar->servicio->empresa->aliasTranferencia,
+                        
+                        'MP_PUBLIC_KEY' => $servicioPagar->servicio->empresa->MP_PUBLIC_KEY,
+
                         'cantidadServicio' => $servicioPagar->cantidad,
                         'precioServicio' => $servicioPagar->precio,
                         'total' => $servicioPagar->total,
@@ -120,6 +129,7 @@ class PanelController extends Controller
                         'linkPago' => $servicioPagar->servicio->linkPago,
                         'imagenServicio' => $servicioPagar->servicio->imagen,
                         'nombreEmpresa' => $servicioPagar->servicio->empresa->nombre,
+                        'aliasTranferencia' => $servicioPagar->servicio->empresa->aliasTranferencia,
                         'cantidadServicio' => $servicioPagar->cantidad,
                         'precioServicio' => $servicioPagar->precio,
                         'total' => $servicioPagar->total,

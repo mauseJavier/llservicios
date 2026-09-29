@@ -177,6 +177,7 @@ class MercadoPagoWebhookController extends Controller
             // Enviar notificación por WhatsApp al cliente
             if ($cliente && $cliente->telefono && $empresa) {
                 $mensaje = "Hola {$cliente->nombre},\n\n";
+                $mensaje .= "Le informamos desde {$empresa->nombre} que hemos recibido su pago:\n\n";
                 $mensaje .= "✅ ¡Pago recibido exitosamente!\n\n";
                 $mensaje .= "Detalles del pago:\n";
                 $mensaje .= "• Servicio: {$servicioPagar->servicio->nombre}\n";
@@ -220,11 +221,11 @@ class MercadoPagoWebhookController extends Controller
 
                 $datosPDFWA = [
                     'phoneNumber' => $cliente->telefono,
-                    'message' => 'Comprobante de Pago adjunto.',
+                    'message' => 'Comprobante de Pago adjunto - ' . $empresa->nombre,
                     'type' => 'document',
                     'additionalData' => [
                         'filename' => 'comprobante_pago_' . $servicioPagar->id . '.pdf',
-                        'caption' => 'Comprobante de Pago - MercadoPago QR',
+                        'caption' => 'Comprobante de Pago - MercadoPago QR - ' . $empresa->nombre,
                         'base64' => $pdfBase64
                     ],
                     'instanciaWS' => $empresa->instanciaWS ?? null,

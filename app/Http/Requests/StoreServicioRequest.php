@@ -29,6 +29,9 @@ class StoreServicioRequest extends FormRequest
             'precio3' => 'nullable|numeric',
             'diasVencimiento' => 'required|integer|min:1',
             'tiempo' => 'required',
+            'aplicarIncrementoMora' => 'nullable|boolean',
+            'incremento_mora_tipo' => 'nullable|in:fijo,porcentaje',
+            'incremento_mora_valor' => 'nullable|numeric|min:0',
         ];
     }
 }

@@ -17,6 +17,7 @@ class Servicio extends Model
 
     protected $casts = [
         'activo' => 'boolean',
+        'incremento_mora_valor' => 'decimal:2',
     ];
 
     public function empresa():BelongsTo
@@ -86,6 +87,42 @@ class Servicio extends Model
     public function estaActivo(): bool
     {
         return $this->activo === true;
+    }
+
+    /**
+     * Verificar si el servicio tiene configurado un recargo por mora
+     *
+     * @return bool
+     */
+    public function tieneIncrementoMora(): bool
+    {
+        return $this->incremento_mora_tipo !== null
+            && in_array($this->incremento_mora_tipo, ['fijo', 'porcentaje'], true)
+            && (float) $this->incremento_mora_valor > 0;
+    }
+
+    /**
+     * Calcular el monto del recargo por mora para un servicio a pagar.
+     *
+     * - 'fijo': monto fijo que se suma al total (precio * cantidad).
+     * - 'porcentaje': porcentaje aplicado sobre el total (precio * cantidad).
+     *
+     * @param ServicioPagar $servicioPagar
+     * @return float
+     */
+    public function calcularIncrementoMora(ServicioPagar $servicioPagar): float
+    {
+        if (!$this->tieneIncrementoMora()) {
+            return 0.0;
+        }
+
+        $total = (float) $servicioPagar->precio * (float) $servicioPagar->cantidad;
+
+        if ($this->incremento_mora_tipo === 'fijo') {
+            return (float) $this->incremento_mora_valor;
+        }
+
+        return $total * ((float) $this->incremento_mora_valor / 100);
     }
 
     /**

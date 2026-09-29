@@ -17,13 +17,15 @@ use App\Models\MercadoPagoPOS;
 use App\Models\MercadoPagoQROrder;
 
 
+use App\Jobs\GenerarFacturaAfipJob;
+use App\Jobs\ProcesarPagoJob;
+
 use App\Services\MercadoPago\MercadoPagoQRService;
 use Illuminate\Support\Str;
 
 
 
 
-use App\Events\PagoServicioEvent;
 use App\Events\NuevoServicioPagarEvent;
 
 
@@ -32,8 +34,6 @@ use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
 
 use Barryvdh\DomPDF\Facade\Pdf;
-
-use App\Jobs\EnviarWhatsAppJob;
 
 class ServicioPagarController extends Controller
 {
@@ -90,6 +90,7 @@ class ServicioPagarController extends Controller
                                 ROUND(a.precio * a.cantidad, 2) AS total,
                                 a.cantidad as cantidad,
                                 a.estado,
+                                a.fecha_vencimiento,
                                 a.created_at AS fechaCreacion
                             FROM
                                 servicio_pagar a,
@@ -148,6 +149,7 @@ class ServicioPagarController extends Controller
                                 c.nombre AS nombreEmpresa,
                                 a.precio,
                                 a.estado,
+                                a.fecha_vencimiento,
                                 a.created_at AS fechaCreacion,
                                 
 
@@ -280,165 +282,189 @@ class ServicioPagarController extends Controller
             'tipoAjuste' => 'nullable|in:descuento,incremento',
             'ajusteTipo' => 'nullable|in:porcentaje,monto',
             'valorAjuste' => 'nullable|numeric|min:0',
+            'comprobantePDF' => 'nullable',
+            'generarFactura' => 'nullable',
         ]);
 
-        // return $request;
-
         $usuario = Auth::user();
-        $empresa = Empresa::find($usuario->empresa_id);
-        
-        // Obtener el servicio_pagar para actualizar el precio si hubo ajuste
-        $servicioPagar = ServicioPagar::findOrFail($request->idServicioPagar);
+        $idServicioPagar = $request->idServicioPagar;
+        $puntoVenta = $usuario->afip_punto_venta ?? config('afip.default_punto_venta', 1);
 
-        //si el servicioPagar esta en estado pago no se puede pagar de nuevo
-        if ($servicioPagar->estado === 'pago') {
-            // return response()->json(['error' => 'El servicio ya ha sido pagado.'], 400);
-            return redirect()->route('ServiciosImpagos')
-                ->with('status', 'Servicio ya ha sido pagado.');
+        // Cachear formas de pago con pluck (solo id + nombre, menos datos)
+        $formasPagoIds = array_filter([$request->formaPago, $request->formaPago2]);
+        $nombresFormasPago = FormaPago::whereIn('id', $formasPagoIds)->pluck('nombre', 'id');
 
+        $nombreFormaPago1 = $nombresFormasPago->get($request->formaPago);
+        if ($nombreFormaPago1 === null) {
+            return redirect()->back()->withErrors(['La forma de pago seleccionada no es válida.']);
         }
 
-        $cliente = Cliente::find($servicioPagar->cliente_id);
+        $nombreFormaPago2 = null;
+        if ($request->filled('formaPago2')) {
+            $nombreFormaPago2 = $nombresFormasPago->get($request->formaPago2);
+        }
 
-        $nombreFormaPago1 = FormaPago::find($request->formaPago)->nombre;
-        $nombreFormaPago2 = $request->formaPago2 ? FormaPago::find($request->formaPago2)->nombre : null;
-        
-        // Si se aplicó un ajuste, actualizar el precio en servicio_pagar
+        // Si se aplicó un ajuste, calcular el comentario informativo
+        $comentarioFinal = $request->comentario;
+
         if ($request->filled('aplicarAjuste') && $request->aplicarAjuste) {
             $importeFinal = floatval($request->importe);
             $importeOriginal = floatval($request->importeOriginal);
-            
-            // Calcular el nuevo precio unitario basado en el importe final
-            if ($servicioPagar->cantidad > 0) {
-                $nuevoPrecio = $importeFinal / $servicioPagar->cantidad;
-                
-                // Actualizar el precio en servicio_pagar
-                $servicioPagar->update([
-                    'precio' => $nuevoPrecio,
-                ]);
-                
-                // Agregar información del ajuste al comentario
-                $tipoAjusteTexto = $request->tipoAjuste === 'descuento' ? 'Descuento' : 'Incremento';
-                $ajusteTexto = $request->ajusteTipo === 'porcentaje' 
-                    ? $request->valorAjuste . '%' 
-                    : '$' . $request->valorAjuste;
-                
-                $comentarioAjuste = "{$tipoAjusteTexto} aplicado: {$ajusteTexto} (Importe original: \${$importeOriginal}, Importe final: \${$importeFinal})";
-                
-                // Combinar con el comentario del usuario si existe
-                $comentarioFinal = $request->comentario 
-                    ? $request->comentario . ' | ' . $comentarioAjuste 
+
+            if ($request->tipoAjuste === 'descuento') {
+                $comentarioAjuste = "Descuento aplicado: "
+                    . ($request->ajusteTipo === 'porcentaje' ? $request->valorAjuste . '%' : '$' . $request->valorAjuste)
+                    . " (Importe original: \${$importeOriginal}, Importe final: \${$importeFinal})";
+
+                $comentarioFinal = $request->comentario
+                    ? $request->comentario . ' | ' . $comentarioAjuste
                     : $comentarioAjuste;
-            } else {
-                $comentarioFinal = $request->comentario;
             }
-        } else {
-            $comentarioFinal = $request->comentario;
         }
-        
-        // Actualizar el estado del servicio a pagado
-        DB::update('UPDATE servicio_pagar SET estado=?,updated_at=? WHERE  id = ?',
-                         ['pago',
-                        date('Y-m-d H:i:s'),
-                        $request->idServicioPagar]);
 
+        // Iniciar transacción con lock pesimista para evitar race conditions
+        DB::beginTransaction();
 
+        try {
+            // Traer empresa con solo las columnas que se necesitan
+            $empresa = Empresa::select(['id', 'nombre', 'logo', 'instanciaWS', 'tokenWS'])
+                ->find($usuario->empresa_id);
 
+            // Cargar modelo con lock y solo columnas necesarias de relaciones
+            $servicioPagar = ServicioPagar::select(['id', 'cliente_id', 'servicio_id', 'precio', 'cantidad', 'estado'])
+                ->with([
+                    'cliente:id,nombre,dni,telefono',
+                    'servicio:id,nombre'
+                ])
+                ->where('id', $idServicioPagar)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-            // Preparar datos del pago
-            $pago = ['idServicioPagar'=>$request->idServicioPagar,
-                        'idUsuario'=>$usuario->id,
-                        'importe'=>$request->importe1,
-                        'forma_pago'=>$request->formaPago,
-                        'forma_pago2'=>$request->formaPago2,
-                        'importe2'=>$request->importe2,
-                        'comentario'=>$comentarioFinal];
-
-            // dd($pago);
-                     
-            PagoServicioEvent::dispatch($pago);
-
-            // Aquí tengo que hacer una notificación
-            ////////////////////////////////777
-            // app/Jobs/EnviarWhatsAppJob.php
-
-            //crear un mensaje personalizado con los datos del pago y del cliente y de la empresa 
-
-            $mensaje = "Hola {$cliente->nombre},\n\n";
-            $mensaje .= "Le informamos que hemos recibido su pago.\n";
-            $mensaje .= "Detalles del pago:\n";
-            $mensaje .= "• Servicio: {$servicioPagar->servicio->nombre}\n";
-
-            // Verificar si hay dos formas de pago
-            if ($request->filled('formaPago2') && $request->importe2 > 0) {
-                $mensaje .= "• Forma de pago 1: {$nombreFormaPago1} - \${$request->importe1}\n";
-                $mensaje .= "• Forma de pago 2: {$nombreFormaPago2} - \${$request->importe2}\n";
-                $mensaje .= "• Total pagado: \$" . ($request->importe1 + $request->importe2) . "\n";
-            } else {
-                $mensaje .= "• Forma de pago: {$nombreFormaPago1}\n";
-                $mensaje .= "• Importe: \${$request->importe1}\n";
+            // Re-verificar estado después del lock (protege contra pagos duplicados concurrentes)
+            if ($servicioPagar->estado === 'pago') {
+                DB::rollBack();
+                return redirect()->route('ServiciosImpagos')
+                    ->with('status', 'Servicio ya ha sido pagado.');
             }
 
-            $mensaje .= "• Fecha: " . now()->format('d/m/Y H:i') . "\n\n";
-            $mensaje .= "¡Gracias por su preferencia!";
+            $cliente = $servicioPagar->cliente;
+            $servicio = $servicioPagar->servicio;
 
-            $datos = [
-                'phoneNumber' => $cliente->telefono,
-                'message' => $mensaje,
-                'type' => 'text',
-                'additionalData' => [],
-                'instanciaWS' => $empresa->instanciaWS ?? null,
-                'tokenWS' => $empresa->tokenWS ?? null
-            ];
-            
-            EnviarWhatsAppJob::dispatch($datos);
+            // Aplicar ajuste de precio dentro de la transacción (se revierte si algo falla)
+            if ($request->filled('aplicarAjuste') && $request->aplicarAjuste) {
+                if ($servicioPagar->cantidad > 0) {
+                    $servicioPagar->precio = floatval($request->importe) / $servicioPagar->cantidad;
+                    $servicioPagar->save();
+                }
+            }
 
-            $datosPDF = [
-                'nombreCliente' => $cliente->nombre,
-                'dniCliente' => $cliente->dni,
-                'nombreServicio' => $servicioPagar->servicio->nombre,
-                'nombreEmpresa' => $empresa->nombre,
-                'cantidad' => $servicioPagar->cantidad,
-                'precioUnitario' => $servicioPagar->precio,
-                'forma_pago' => $nombreFormaPago1,
+            // Actualizar el estado del servicio a pagado
+            $servicioPagar->estado = 'pago';
+            $servicioPagar->save();
+
+            // Registrar el pago DENTRO de la transacción (consistencia inmediata)
+            $pago = Pagos::create([
+                'id_servicio_pagar' => $idServicioPagar,
+                'id_usuario' => $usuario->id,
                 'importe' => $request->importe1,
-                'forma_pago2' => $nombreFormaPago2,
+                'forma_pago' => $request->formaPago,
+                'forma_pago2' => $request->formaPago2,
                 'importe2' => $request->importe2,
                 'comentario' => $comentarioFinal,
-                'fechaPago' => now()->format('d/m/Y H:i'),
-                'logoEmpresa' => $empresa->logo,
-            ];
+            ]);
 
+            DB::commit();
 
-            $datos = [
-                'phoneNumber' => $cliente->telefono,
-                'message' => 'Comprobante de Pago adjunto.',
-                'type' => 'document',
-                'additionalData' => [
-                    'filename' => 'comprobante_pago.pdf',
-                    'caption' => 'Comprobante de Pago',
-                    'base64' => $this->GenerarComprobantePagoPDFBase64($datosPDF)   
-                ],
-                'instanciaWS' => $empresa->instanciaWS ?? null,
-                'tokenWS' => $empresa->tokenWS ?? null
-            ];
-            EnviarWhatsAppJob::dispatch($datos);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error al confirmar pago', [
+                'error' => $e->getMessage(),
+                'servicio_pagar_id' => $idServicioPagar
+            ]);
 
+            return redirect()->back()
+                ->withErrors(['Error al procesar el pago: ' . $e->getMessage()]);
+        }
 
-            if (isset( $request->comprobantePDF)){    
+        // Notificaciones al cliente
+        $mensaje = "Hola {$cliente->nombre},\n\n";
+        $mensaje .= "Le informamos desde {$empresa->nombre} que hemos recibido su pago.\n";
+        $mensaje .= "Detalles del pago:\n";
+        $mensaje .= "• Servicio: {$servicio->nombre}\n";
 
+        if ($request->filled('formaPago2') && $request->importe2 > 0) {
+            $mensaje .= "• Forma de pago 1: {$nombreFormaPago1} - \${$request->importe1}\n";
+            $mensaje .= "• Forma de pago 2: {$nombreFormaPago2} - \${$request->importe2}\n";
+            $mensaje .= "• Total pagado: \$" . ($request->importe1 + $request->importe2) . "\n";
+        } else {
+            $mensaje .= "• Forma de pago: {$nombreFormaPago1}\n";
+            $mensaje .= "• Importe: \${$request->importe1}\n";
+        }
 
+        $mensaje .= "• Fecha: " . now()->format('d/m/Y H:i') . "\n\n";
+        $mensaje .= "¡Gracias por su preferencia!";
 
-                return redirect()->route('PagosVer', ['idServicioPagar' => $request->idServicioPagar]);
+        $datosPDF = [
+            'nombreCliente' => $cliente->nombre,
+            'dniCliente' => $cliente->dni,
+            'nombreServicio' => $servicio->nombre,
+            'nombreEmpresa' => $empresa->nombre,
+            'cantidad' => $servicioPagar->cantidad,
+            'precioUnitario' => $servicioPagar->precio,
+            'forma_pago' => $nombreFormaPago1,
+            'importe' => $request->importe1,
+            'forma_pago2' => $nombreFormaPago2,
+            'importe2' => $request->importe2,
+            'comentario' => $comentarioFinal,
+            'fechaPago' => now()->format('d/m/Y H:i'),
+            'logoEmpresa' => $empresa->logo,
+        ];
 
-                
+        $datosCorreo = [
+            'total' => floatval($request->importe1) + floatval($request->importe2 ?? 0),
+            'forma_pago' => $nombreFormaPago1,
+            'importe' => floatval($request->importe1),
+            'forma_pago2' => $nombreFormaPago2,
+            'importe2' => floatval($request->importe2 ?? 0),
+            'logoEmpresa' => $empresa->logo,
+        ];
+
+        // Despachar job centralizador de notificaciones (cola: alta)
+        try {
+            ProcesarPagoJob::dispatch(
+                $cliente->telefono,
+                $mensaje,
+                $empresa->instanciaWS ?? null,
+                $empresa->tokenWS ?? null,
+                $datosPDF,
+                $datosCorreo,
+                $servicioPagar->id
+            );
+        } catch (\Exception $e) {
+            \Log::error('Error al despachar notificaciones post-pago', [
+                'servicio_pagar_id' => $request->idServicioPagar,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // Despachar job de facturación AFIP si se solicitó
+        if ($request->boolean('generarFactura') && isset($pago)) {
+            try {
+                GenerarFacturaAfipJob::dispatch($pago->id, $empresa->id, $puntoVenta);
+            } catch (\Exception $e) {
+                \Log::error('Error al despachar facturación AFIP', [
+                    'pago_id' => $pago->id,
+                    'error' => $e->getMessage(),
+                ]);
             }
-    
-                return redirect()->route('ServiciosImpagos')
-                ->with('status', 'Pagado correcto.');
-            
+        }
 
+        if (isset($request->comprobantePDF)) {
+            return redirect()->route('PagosVer', ['idServicioPagar' => $request->idServicioPagar]);
+        }
 
+        return redirect()->route('Grilla')
+            ->with('status', 'Pagado correcto.');
     }
 
     public function PagarServicio($idServicioPagar,$importe){
@@ -775,9 +801,10 @@ class ServicioPagarController extends Controller
 
                 // Enviar WhatsApp
         // EnviarWhatsAppNuevoServicioJob::dispatch($id, $instanciaWS, $tokenWS);
-        \App\Jobs\EnviarWhatsAppNuevoServicioJob::dispatch($id, $empresa->instanciaWS, $empresa->tokenWS);
+        // \App\Jobs\EnviarWhatsAppNuevoServicioJob::dispatch($id, $empresa->instanciaWS, $empresa->tokenWS);
 
-
+    
+        // este metodo envia wharsapp y correo al cliente avisando que se le ha generado un nuevo servicio a pagar, con los detalles del servicio y un link para pagar (si el servicio tiene linkPago)
         // use App\Events\NuevoServicioPagarEvent;
         NuevoServicioPagarEvent::dispatch($id);
 

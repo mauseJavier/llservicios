@@ -17,7 +17,27 @@ class Empresa extends Model
     protected $table = 'empresas';
     protected $guarded = [];
 
-    // protected $fillable = ['*'];
+    protected $casts = [
+        'dia_notificacion' => 'integer',
+    ];
+
+    /**
+     * Indica si la empresa debe notificarse en el día del mes indicado.
+     */
+    public function notificaElDia(int $dia): bool
+    {
+        return $this->dia_notificacion !== null && (int) $this->dia_notificacion === $dia;
+    }
+
+    // protected $fillable = [
+    //     'nombre',
+    //     'cuit',
+    //     'correo',
+    //     'logo',
+    //     'condicion_iva_id',
+    //     'instanciaWS',
+    //     'tokenWS'
+    // ];
     
     public function users(): HasMany
     {
@@ -27,6 +47,19 @@ class Empresa extends Model
     public function clientes(): BelongsToMany
     {
         return $this->belongsToMany(Cliente::class, 'cliente_empresa', 'empresa_id', 'cliente_id');
+    }
+
+    /**
+     * Accessor que devuelve la descripción de la condición frente al IVA.
+     * Compatible con las vistas PDF que usan $empresa->condicion_iva.
+     *
+     * @return string|null
+     */
+    public function getCondicionIvaAttribute(): ?string
+    {
+        $condiciones = \App\Services\AfipService::tiposContribuyentes();
+
+        return $condiciones[(int) ($this->condicion_iva_id ?? 1)]['Desc'] ?? null;
     }
 
     /**
@@ -59,6 +92,14 @@ class Empresa extends Model
     public function servicios(): HasMany
     {
         return $this->hasMany(Servicio::class, 'empresa_id', 'id');
+    }
+
+    /**
+     * Relación con segmentos - Una empresa puede tener muchos segmentos
+     */
+    public function segmentos(): HasMany
+    {
+        return $this->hasMany(Segmento::class, 'empresa_id', 'id');
     }
 
 }

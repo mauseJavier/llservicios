@@ -13,6 +13,13 @@
                   <strong>Panel de Servicios</strong>
                 @endauth
             </a>
+            @if(isset($whatsappState))
+              <div style="display: inline-flex; align-items: center; margin-left: 8px;">
+                <a href="{{route('whatsapp.admin')}}" title="Administración de WhatsApp" style="text-decoration: none; cursor: pointer;">
+                  <i class="fab fa-whatsapp" style="font-size: 1.4rem; color: {{ $whatsappState === 'open' ? '#22c55e' : ($whatsappState === 'close' ? '#ef4444' : ($whatsappState === 'connecting' ? '#eab308' : '#6b7280')) }};"></i>
+                </a>
+              </div>
+            @endif
           </li>
 
         </ul>
@@ -36,6 +43,7 @@
                 @if (Auth::User()->role->nombre == 'Super' || 
                     Auth::User()->role->nombre == 'Admin')
                   <li><a href="{{route('Cliente.index')}}">Clientes</a></li>
+                  <li><a href="{{route('segmentos')}}">Segmentos</a></li>
                   <li><a href="{{route('Servicios.index')}}">Servicios</a></li>
                   <li><a href="{{route('Grilla')}}">Grilla Clientes</a></li>
                   <li><a href="{{route('Pagos', ['fecha_inicio' => date('Y-m-d'), 'fecha_fin' => date('Y-m-d')])}}">Pagos</a></li>
@@ -43,6 +51,7 @@
         
                   <li><a href="{{route('expenses.index')}}">Gastos</a></li>
                   <li><a href="{{route('cierre-caja')}}">Cierre de Caja</a></li>
+                  <li><a href="{{route('cierre-caja.historial')}}">Historial de Caja</a></li>
 
                   <li><a href="{{route('mercadopago.qr-manager')}}">Gestión QR MP</a></li>
               
@@ -53,6 +62,10 @@
                 @if (Auth::User()->role->nombre == 'Super')
                   <li><a href="{{route('usuarios')}}">Usuarios</a></li>
                   <li><a href="{{route('empresas.index')}}">Empresas</a></li>
+                  <li>
+                    <a href="{{route('afip.certificados')}}">Arca</a>
+                  </li>
+                  <li><a href="{{route('logs.index')}}">Ver Logs</a></li>
                 @endif
                 <li><a href="{{route('logout')}}" style="border-radius: 10px; background-color:red;" >Salir</a></li>
         

@@ -19,8 +19,14 @@
 
         <div class="grid">
 
-            <fieldset role="group">       
+            <fieldset role="group">
                 <input type="search" placeholder="Buscar cliente..." wire:model.live="buscarCliente" />
+                <select wire:model.live="segmentoFiltro">
+                    <option value="">Todos los segmentos</option>
+                    @foreach ($segmentos as $seg)
+                        <option value="{{ $seg->id }}">{{ $seg->nombre }}</option>
+                    @endforeach
+                </select>
             </fieldset>
 
 
@@ -36,6 +42,10 @@
                 Importar
             </a>
 
+            <a href="{{ route('ExportarClientes') }}" role="button" data-tooltip="Exportar CSV" style="background-color: #FFD43B; color: #333;">
+                Exportar
+            </a>
+
         </article>
 
 
@@ -44,6 +54,7 @@
                 <thead>
                     <tr>
                         <th>Nombre</th>
+                        <th>Titular</th>
                         <th>Correo</th>
                         <th>Teléfono</th>
                         <th>DNI</th>
@@ -54,7 +65,24 @@
                 <tbody>
                     @foreach ($clientes as $cliente)
                         <tr>
-                            <td>{{ $cliente->nombre }}</td>
+                            <td>
+                                @if (($cliente->servicios_vinculados_count ?? 0) > 0)
+                                    <a role="button" href="{{ route('DetalleCliente', ['clienteId' => $cliente->id]) }}" style="background-color: transparent; cursor: pointer; padding: 0.3rem 0.6rem; border-radius: 3px; color: rgb(170, 172, 183);"
+                                
+                                        data-tooltip="Ver Detalle" style="margin-right: 10px;">
+                                        <i class="fas fa-eye"></i> {{ $cliente->nombre }}
+                                    </a>
+                                @else
+                                    <a role="button" href="{{ route('DetalleCliente', ['clienteId' => $cliente->id]) }}" style="background-color: transparent; cursor: pointer; padding: 0.3rem 0.6rem; border-radius: 3px; color: rgb(228, 106, 106);"
+                                
+                                        data-tooltip="Ver Detalle" style="margin-right: 10px;">
+                                        <i class="fas fa-eye"></i> {{ $cliente->nombre }}
+                                    </a>
+                                @endif
+
+
+                            </td>
+                            <td>{{ $cliente->titular }}</td>
                             <td>{{ $cliente->correo }}</td>
                             <td><a href="https://wa.me/+54{{ $cliente->telefono }}" target="_blank"
                                     rel="noopener noreferrer">{{ $cliente->telefono }}</a></td>
@@ -64,11 +92,7 @@
                             <th>
 
                                 <div role="group">
-                                        <a role="button" href="{{ route('DetalleCliente', ['clienteId' => $cliente->id]) }}" style="background-color: transparent; cursor: pointer; padding: 0.3rem 0.6rem; border-radius: 3px; color: rgb(26, 47, 138);"
                                     
-                                            data-tooltip="Ver Detalle" style="margin-right: 10px;">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
                                         <a role="button" href="{{ route('Cliente.edit', ['Cliente' => $cliente->id]) }}" style="background-color: transparent; cursor: pointer; padding: 0.3rem 0.6rem; border-radius: 3px; color: white;"
                                     
                                             data-tooltip="Editar" style="margin-right: 10px;">
@@ -94,7 +118,10 @@
 
         </div>
 
-
+        {{-- Controles de paginación --}}
+        <div style="margin-top: 1rem;">
+            {{ $clientes->links('vendor.pagination.custom') }}
+        </div>
 
     </div>
 

@@ -1,6 +1,8 @@
 
 
 <div>
+
+
     <div class="container">
         <h1>Grilla Clientes</h1>
         {{-- <div style="display: flex; gap: 10px; margin-bottom: 16px;">
@@ -13,6 +15,17 @@
 
             {{-- <a href="{{route('NuevoCobro')}}" role="button" style="white-space: nowrap;">Agregar Servicio</a> --}}
             <input type="search" class="input" id="buscar" name="buscar" wire:model.live="buscar" placeholder="Buscar...">
+            <select wire:model.live="segmentoFiltro" style="max-width: 200px;">
+                <option value="">Todos los segmentos</option>
+                @foreach ($segmentos as $seg)
+                    <option value="{{ $seg->id }}">{{ $seg->nombre }}</option>
+                @endforeach
+            </select>
+            <select wire:model.live="year" style="max-width: 150px;">
+                @for ($y = date('Y'); $y >= 2025; $y--)
+                    <option value="{{ $y }}">{{ $y }}</option>
+                @endfor
+            </select>
 
         </fieldset>
 
@@ -39,7 +52,7 @@
                                 <th scope="col" style="text-align: right; min-width: 100px;">Octubre</th>
                                 <th scope="col" style="text-align: right; min-width: 100px;">Noviembre</th>
                                 <th scope="col" style="text-align: right; min-width: 100px;">Diciembre</th>
-                                <th scope="col" style="text-align: center; min-width: 100px;">Cliente</th>
+                                <th scope="col" style="text-align: center; min-width: 100px;">Titular</th>
 
                             </tr>
                         </thead>
@@ -63,7 +76,7 @@
                                         @endif
 
                                         <td style="text-align: center;">
-                                            <a  href="{{route('ServicioPagarBuscarCliente',['estado'=>'impago','buscar'=>$c->nombre])}}" data-tooltip="Ver Impagos">{{$c->nombre}}</a>
+                                            <a  href="{{route('ServicioPagarBuscarCliente',['estado'=>'impago','buscar'=>$c->nombre])}}" data-tooltip="Ver Impagos">{{$c->titular}}</a>
                                         </td>
                                     </tr>
                                 @endforeach

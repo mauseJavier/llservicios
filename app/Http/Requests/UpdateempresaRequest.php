@@ -26,11 +26,16 @@ class UpdateempresaRequest extends FormRequest
             'cuit' => 'nullable|numeric|unique:empresas,cuit,' . $this->route('empresa')->id,
             'correo' => 'nullable|email|unique:empresas,correo,' . $this->route('empresa')->id,
             'logo' => 'nullable|url|max:255',
+            'aliasTranferencia' => 'nullable|string|max:255',
+            'titular' => 'nullable|string|max:255',
             'MP_ACCESS_TOKEN' => 'nullable|string|max:255',
             'MP_PUBLIC_KEY' => 'nullable|string|max:255',
             'MP_USER_ID' => 'nullable|string|max:255',
             'client_secret' => 'nullable|string|max:255',
             'client_id' => 'nullable|string|max:255',
+            'instanciaWS' => 'nullable|string|max:255',
+            'tokenWS' => 'nullable|string|max:255',
+            'dia_notificacion' => 'nullable|integer|min:1|max:28',
         ];
     }
 }

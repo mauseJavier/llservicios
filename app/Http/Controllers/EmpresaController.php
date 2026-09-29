@@ -74,15 +74,20 @@ class EmpresaController extends Controller
         $id = Empresa::create($request->only([
             'nombre',
             'cuit',
+            'condicion_iva_id',
             'correo',
             'logo',
+            'aliasTranferencia',
+            'titular',
             'MP_ACCESS_TOKEN',
             'MP_PUBLIC_KEY',
             'MP_USER_ID',
             'client_secret',
             'client_id',
             'instanciaWS',
-            'tokenWS'
+            'tokenWS',
+            'clave_fiscal',
+            'dia_notificacion'
         ]));
         return redirect()->route('empresas.index')->with('status','Empresa '.$id->nombre.' agregada id:'.$id->id);
 
@@ -113,22 +118,27 @@ class EmpresaController extends Controller
     {
         //
         // return response()->json([
-        //     'request' => $request->nombre,
+        //     'request' => $request->all(),
         //     'empresa' => $empresa,
         // ]);
 
         $empresa->update($request->only([
             'nombre',
             'cuit',
+            'condicion_iva_id',
             'correo',
             'logo',
+            'aliasTranferencia',
+            'titular',
             'MP_ACCESS_TOKEN',
             'MP_PUBLIC_KEY',
             'MP_USER_ID',
             'client_secret',
             'client_id',
             'instanciaWS',
-            'tokenWS'
+            'tokenWS',
+            'clave_fiscal',
+            'dia_notificacion'
         ]));
         return redirect()->route('empresas.index')
         ->with('status', 'Guardado correcto.');

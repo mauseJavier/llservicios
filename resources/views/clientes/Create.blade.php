@@ -33,6 +33,12 @@
             Nombre Cliente
             <input type="text" id="nombre" name="nombre" placeholder="Nombre Cliente" value="{{old('nombre')}}" required>
           </label>
+
+          <label for="titular">
+            Titular Cliente <small>(Opcional).</small>
+            <input type="text" id="titular" name="titular" placeholder="Titular Cliente" value="{{old('titular')}}" >
+          </label>  
+
       
           <label for="dni">
             Dni Clinete
@@ -92,6 +98,61 @@
               <input type="text" id="domicilio" name="domicilio" placeholder="Domicilio Cliente" value="{{old('domicilio')}}" >
             </label>
 
+          </div>
+
+          <div class="grid">
+            <label for="condicion_iva_id">
+              Condición frente al IVA <small>(Receptor).</small>
+              <select id="condicion_iva_id" name="condicion_iva_id">
+                @foreach(\App\Services\AfipService::tiposContribuyentes() as $codigo => $info)
+                  <option value="{{ $codigo }}" {{ old('condicion_iva_id', 5) == $codigo ? 'selected' : '' }}>
+                    {{ $info['Desc'] }} ({{ $info['Cmp_Clase'] }})
+                  </option>
+                @endforeach
+              </select>
+            </label>
+          </div>
+
+          <div class="grid">
+            <label for="tipo_documento_id">
+              Tipo de Documento <small>(Receptor).</small>
+              <select id="tipo_documento_id" name="tipo_documento_id">
+                @foreach(\App\Services\AfipService::tiposDocumentosComunes() as $codigo => $nombre)
+                  <option value="{{ $codigo }}" {{ old('tipo_documento_id', 96) == $codigo ? 'selected' : '' }}>
+                    {{ $nombre }}
+                  </option>
+                @endforeach
+              </select>
+            </label>
+          </div>
+
+          <script>
+            // Sugerir el tipo de documento AFIP según la longitud del DNI/CUIT
+            (function () {
+              const dniInput = document.getElementById('dni');
+              const tipoDoc = document.getElementById('tipo_documento_id');
+              if (!dniInput || !tipoDoc) return;
+
+              dniInput.addEventListener('input', function () {
+                const limpio = this.value.replace(/[\s-]/g, '');
+                if (!/^\d+$/.test(limpio)) return;
+                if (limpio.length === 11) {
+                  tipoDoc.value = '80';
+                } else if (limpio.length >= 7 && limpio.length <= 10) {
+                  tipoDoc.value = '96';
+                }
+              });
+            })();
+          </script>
+
+          <div class="grid">
+            <label>
+              <input type="hidden" name="aplicar_recargos" value="0">
+              <input name="aplicar_recargos" id="aplicar_recargos" type="checkbox" role="switch" value="1"
+                {{ old('aplicar_recargos') ? 'checked' : '' }} />
+              Aplicar recargos por mora
+              <small>Si está desactivado, no se le aplicarán recargos a este cliente aunque venza el pago.</small>
+            </label>
           </div>
 
 

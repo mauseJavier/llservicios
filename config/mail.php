@@ -44,6 +44,25 @@ return [
             'password' => env('MAIL_PASSWORD'),
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN'),
+            'from' => [
+                'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
+                'name' => env('MAIL_FROM_NAME', 'Example'),
+            ],
+        ],
+        'secundario' => [
+            'transport' => 'smtp',
+            'url' => env('MAIL_URL'),
+            'host' => env('MAIL_HOST_SECUNDARIO', 'smtp.mailgun.org'),
+            'port' => env('MAIL_PORT_SECUNDARIO', 465),
+            'encryption' => env('MAIL_ENCRYPTION_SECUNDARIO', 'ssl'),
+            'username' => env('MAIL_USERNAME_SECUNDARIO'),
+            'password' => env('MAIL_PASSWORD_SECUNDARIO'),
+            'timeout' => null,
+            'local_domain' => env('MAIL_EHLO_DOMAIN'),
+            'from' => [
+                'address' => env('MAIL_FROM_ADDRESS_SECUNDARIO', 'notificacion@llfactura.com'),
+                'name' => env('MAIL_FROM_NAME_SECUNDARIO', 'Example'),
+            ],
         ],
 
         'ses' => [
@@ -82,7 +101,7 @@ return [
             'transport' => 'failover',
             'mailers' => [
                 'smtp',
-                'log',
+                'secundario',
             ],
         ],
     ],
@@ -98,10 +117,10 @@ return [
     |
     */
 
-    'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
-        'name' => env('MAIL_FROM_NAME', 'Example'),
-    ],
+    // 'from' => [
+    //     'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
+    //     'name' => env('MAIL_FROM_NAME', 'Example'),
+    // ],
 
     /*
     |--------------------------------------------------------------------------

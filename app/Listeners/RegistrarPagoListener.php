@@ -7,8 +7,20 @@ use Illuminate\Queue\InteractsWithQueue;
 
 use App\Models\Pagos;
 
-class RegistrarPagoListener
+class RegistrarPagoListener implements ShouldQueue
 {
+    use InteractsWithQueue;
+
+    /**
+     * Número de intentos del listener
+     */
+    public $tries = 3;
+
+    /**
+     * Tiempo de espera entre reintentos (en segundos)
+     */
+    public $backoff = 10;
+
     /**
      * Create the event listener.
      */

@@ -12,6 +12,7 @@ use Illuminate\Queue\SerializesModels;
 // NECESARIO
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Services\MercadoPago\MercadoPagoLinkService;
 use App\Services\WhatsAppService;
 use Illuminate\Support\Facades\Log;
 
@@ -95,11 +96,26 @@ class EnviarWhatsAppNuevoServicioJob implements ShouldQueue
             // Instanciar el servicio de WhatsApp
             $whatsappService = new WhatsAppService($this->instanciaWS, $this->tokenWS);
 
-            // Construir el mensaje
-            $mensaje = $this->construirMensaje($datosServicio, $fechaFormateada);
+            $total = number_format($datosServicio->precioServicio * $datosServicio->cantidadServicio, 2, ',', '.');
 
-            // Enviar el mensaje
-            $resultado = $whatsappService->sendTextMessage($datosServicio->telefonoCliente, $mensaje);
+            // Link firmado de pago MercadoPago (individual; la app re-valida al hacer clic)
+            $linkPago = MercadoPagoLinkService::urlEnlaceIndividual((int) $this->idServicioPagar);
+
+            $mensaje = "Hola {$datosServicio->nombreCliente}, le informamos desde {$datosServicio->nombreEmpresa} que se ha registrado un nuevo servicio a su nombre:\n\n• Servicio: {$datosServicio->nombreServicio}\n• Cantidad: {$datosServicio->cantidadServicio}\n• Precio unitario: \$" . number_format($datosServicio->precioServicio, 2, ',', '.') . "\n• Fecha: {$fechaFormateada}\n\n💰 Total a pagar: \${$total}";
+
+            if ($linkPago) {
+                $mensaje .= "\n\n💳 Realice el pago aquí: {$linkPago}";
+            }
+
+            $resultado = $whatsappService->sendButtons(
+                $datosServicio->telefonoCliente,
+                '📢 Nuevo Servicio Registrado',
+                $mensaje,
+                'Gracias por su atención',
+                [
+                    ['type' => 'reply', 'displayText' => 'Información Recibida', 'id' => 'info_recibida'],
+                ]
+            );
 
             if ($resultado['success']) {
                 Log::info('WhatsApp Job - Notificación de nuevo servicio enviada exitosamente', [

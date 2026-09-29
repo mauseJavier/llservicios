@@ -10,16 +10,13 @@ use App\Models\Servicio;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Helpers\DniHelper;
 
 use Carbon\Carbon;
 
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
-
-use App\Imports\ClienteImport;
-use App\Exports\ClientesExports;
-use Maatwebsite\Excel\Facades\Excel;
 
 
 class ClienteController extends Controller
@@ -138,27 +135,38 @@ class ClienteController extends Controller
     {
         $usuario = Auth::user();
 
-        $cliente = DB::select('SELECT * FROM `clientes` WHERE dni = ?', [$request->dni]);
-        // Obtener la cantidad de filas seleccionadas
-        $cantidadFilas = count($cliente);
+        $dniNormalizado = DniHelper::extractDni($request->dni);
+        $cliente = Cliente::where(function($query) use ($dniNormalizado) {
+            $query->where('dni', $dniNormalizado)
+                  ->orWhere('dni', 'like', '%' . $dniNormalizado . '%');
+        })->get();
+        $cantidadFilas = $cliente->count();
         // return $cantidadFilas;
 
         if($cantidadFilas == 0 ){ //el cliente no exite en la base y se agrega 
 
             $id = Cliente::create(['nombre'=>$request->nombre,
+                                'titular'=>$request->titular ?? null,
                                 'dni'=>$request->dni,
                                 'correo'=>$request->correo ?? null,
                                 'domicilio'=>$request->domicilio,
                                 'telefono'=>$request->telefono,
+                                'condicion_iva_id'=>$request->condicion_iva_id ?? 5,
+                                'tipo_documento_id'=>$request->tipo_documento_id ?: DniHelper::tipoDocumentoReceptor($request->dni),
                                 ]);
             // return $id->id;
 
-            $idVinculado = DB::table('cliente_empresa')->insertGetId([
-                'cliente_id' => $id->id,
-                'empresa_id' => $usuario->empresa_id,
-                'created_at' => date('y-m-d H:i:s'),
-                'updated_at' => date('y-m-d H:i:s'),
-            ]);
+            DB::table('cliente_empresa')->updateOrInsert(
+                [
+                    'cliente_id' => $id->id,
+                    'empresa_id' => $usuario->empresa_id,
+                ],
+                [
+                    'aplicar_recargos' => $request->boolean('aplicar_recargos'),
+                    'created_at' => date('y-m-d H:i:s'),
+                    'updated_at' => date('y-m-d H:i:s'),
+                ]
+            );
 
             // Vincular con servicio si se seleccionó uno
             if ($request->servicio_id) {
@@ -179,19 +187,24 @@ class ClienteController extends Controller
             if($cantidadFilas == 0){ //se vincula 
 
                 // return $cliente[0]->id; //EL ID CLIENTE PARA VINCULAR 
-                $id = DB::table('cliente_empresa')->insertGetId([
-                    'cliente_id' => $cliente[0]->id,
-                    'empresa_id' => $usuario->empresa_id,
-                    'created_at' => date('y-m-d H:i:s'),
-                    'updated_at' => date('y-m-d H:i:s'),
-                ]);
+                DB::table('cliente_empresa')->updateOrInsert(
+                    [
+                        'cliente_id' => $cliente[0]->id,
+                        'empresa_id' => $usuario->empresa_id,
+                    ],
+                    [
+                        'aplicar_recargos' => $request->boolean('aplicar_recargos'),
+                        'created_at' => date('y-m-d H:i:s'),
+                        'updated_at' => date('y-m-d H:i:s'),
+                    ]
+                );
 
                 // Vincular con servicio si se seleccionó uno
                 if ($request->servicio_id) {
                     $this->vincularClienteServicio($cliente[0]->id, $request->servicio_id, $request->vencimiento, $request->cantidad ?? 1);
                 }
 
-                return redirect()->route('Cliente.index')->with('status','Cliente vinculado: '.$cliente[0]->nombre.' agregado id:'.$id);
+                return redirect()->route('Cliente.index')->with('status','Cliente vinculado: '.$cliente[0]->nombre);
             }else{
                 return redirect()->route('Cliente.index')->with('status','Cliente ya vinculado: '.$cliente[0]->nombre);
             }
@@ -247,6 +260,17 @@ class ClienteController extends Controller
     {
         // return $Cliente;
 
+        // el cliente tiene que pertenecer a la empresa del usuario autenticado para poder editarlo
+        $empresaId = Auth::user()->empresa_id;
+        $clientePerteneceAEmpresa = DB::table('cliente_empresa')
+            ->where('cliente_id', $Cliente->id)
+            ->where('empresa_id', $empresaId)
+            ->exists();
+
+        if (!$clientePerteneceAEmpresa) {
+            abort(403, 'No tienes permiso para editar este cliente.');
+        }
+
         return view('clientes.Edit', compact('Cliente'))->render();
     }
 
@@ -256,20 +280,43 @@ class ClienteController extends Controller
     public function update(UpdateClienteRequest $request, Cliente $Cliente)
     {
 
-        // si existe un cliente con el mismo dni y distinto id
-        $clienteExistente = Cliente::where('dni', $request->dni)
-                                    ->where('id', '!=', $Cliente->id)
-                                    ->first();
+        // si existe un cliente con el mismo dni y distinto id (normalizando DNI/CUIT)
+        $dniNormalizado = DniHelper::extractDni($request->dni);
+
+        $clienteExistente = Cliente::where(function($query) use ($dniNormalizado) {
+            $query->where('dni', $dniNormalizado)
+                  ->orWhere('dni', 'like', '%' . $dniNormalizado . '%');
+        })->where('id', '!=', $Cliente->id)->first();
+
+        // dd($Cliente);
+        // dd($clienteExistente);
+
         if ($clienteExistente) {
             return redirect()->back()->withErrors(['dni' => 'El DNI ya está en uso por otro cliente.'])->withInput();
         }
         
         $Cliente->update(['nombre'=>$request->nombre,
+                            'titular'=>$request->titular ?? null,
                             'dni'=>$request->dni,
                             'correo'=>$request->correo,
                             'domicilio'=>$request->domicilio,
                             'telefono'=>$request->telefono,
+                            'condicion_iva_id'=>$request->condicion_iva_id ?? 5,
+                            'tipo_documento_id'=>$request->tipo_documento_id ?: DniHelper::tipoDocumentoReceptor($request->dni),
                         ]);
+
+        // El flag de recargos por mora es específico de cada empresa, se guarda en la pivot
+        DB::table('cliente_empresa')
+            ->updateOrInsert(
+                [
+                    'cliente_id' => $Cliente->id,
+                    'empresa_id' => auth()->user()->empresa_id,
+                ],
+                [
+                    'aplicar_recargos' => $request->boolean('aplicar_recargos'),
+                    'updated_at' => now(),
+                ]
+            );
 
         return redirect()->route('Cliente.index')
         ->with('status', 'Guardado correcto.');
@@ -283,94 +330,36 @@ class ClienteController extends Controller
         //
     }
 
-    public function ImportarClientes(Request $request){
+    public function ExportarClientes()
+    {
+        $empresaId = Auth::user()->empresa_id;
+        $nombreArchivo = 'clientes_' . now()->format('Ymd_His') . '.csv';
 
-        $request->validate([
-            'archivo_CSV'=>'required'
-        ]);
+        return response()->streamDownload(function () use ($empresaId) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // BOM UTF-8 para Excel
+            fputcsv($out, ['nombre', 'titular', 'correo', 'telefono', 'dni', 'domicilio', 'condicion_iva_id', 'tipo_documento_id']);
 
-        $usuario = Auth::user();
-        $totalImportado=0;
-
-        $file = $request->file('archivo_CSV');
-        // Excel::import(new ClienteImport , $file); //PARA UTILIZAR LA CLASE IMPORTADORA
-        $clientes = Excel::toArray(new ClienteImport , $file);
-
-        foreach ($clientes[0] as $value) {
-            // echo $value['nombre'] . '<br>';
-
-
-            $clienteExiste = Cliente::where('dni', $value['dni'])->get();
-
-            if (count($clienteExiste) > 0){
-                // return $clienteExiste;
-                // echo 'EXISTE  - '. $clienteExiste[0]->nombre .'<br>';
-
-               $clienteSiVinculado= DB::select('select * from cliente_empresa where cliente_id = ? and empresa_id = ?', [$clienteExiste[0]->id,$usuario->empresa_id]);
-
-               if (count( $clienteSiVinculado) == 0){
-                    $idVinculado = DB::table('cliente_empresa')->insertGetId([
-                        'cliente_id' => $clienteExiste[0]->id,
-                        'empresa_id' => $usuario->empresa_id,
-                        'created_at' => date('y-m-d H:i:s'),
-                        'updated_at' => date('y-m-d H:i:s'),
+            Cliente::whereHas('empresas', fn ($q) => $q->where('empresa_id', $empresaId))
+                ->orderBy('id')
+                ->cursor()
+                ->each(function ($c) use ($out) {
+                    fputcsv($out, [
+                        $c->nombre,
+                        $c->titular,
+                        $c->correo,
+                        $c->telefono,
+                        $c->dni,
+                        $c->domicilio,
+                        $c->condicion_iva_id,
+                        $c->tipo_documento_id,
                     ]);
+                });
 
-                    $totalImportado ++;
-
-                    // echo 'SE VINCULO <br>';
-               }
-
-
-
-
-            }else{
-
-                $idCliente = Cliente::create([
-                    'nombre'=> $value['nombre'],
-                    'correo'=> $value['correo'],
-                    'dni'=> $value['dni'],
-                    'domicilio'=> $value['domicilio'],
-                    'telefono'=> $value['telefono']
-                ]);
-
-               
-
-                $idVinculado = DB::table('cliente_empresa')->insertGetId([
-                    'cliente_id' => $idCliente->id,
-                    'empresa_id' => $usuario->empresa_id,
-                    'created_at' => date('y-m-d H:i:s'),
-                    'updated_at' => date('y-m-d H:i:s'),
-                ]);
-
-                $totalImportado ++;
-
-                // echo ' id Cliente insertado -'. $idCliente->id . ' id vinculacion en tabla empresa cliente -'. $idVinculado .  '<br>';
-
-            }
-
-
-
-            
-        }
-
-        // Forget multiple keys... ELIMINAR SESSEIONES 
-        // $request->session()->forget(['name', 'status']);
-        // session(['status' => 'Clientes Importados: '. $totalImportado]);
-        $request->session()->flash('status', 'Clientes Importados: '. $totalImportado);
-        return redirect()->route('Cliente.index');
-
-
-    }
-
-    public function ExportarClientes (){
-
-
-        return Excel::download(new ClientesExports, 'ClientesCSV.csv');
-        
-        
-        // return response()->json('hola', 200);
-
+            fclose($out);
+        }, $nombreArchivo, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 }
 //prueba de commit

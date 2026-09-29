@@ -16,6 +16,11 @@ use App\Http\Controllers\GrillaController;
 use App\Http\Controllers\ReciboSueldoController;
 use App\Http\Controllers\FormatoRegistroReciboController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\AfipController;
+use App\Http\Controllers\LogController;
+
+// Password Reset Controller
+use App\Http\Controllers\PasswordResetController;
 
 // JOBS
 use App\Jobs\TutorialJob;
@@ -26,8 +31,9 @@ use App\Jobs\TutorialJob;
 
 // Rutas para MercadoPago
 use App\Http\Controllers\MercadoPago\MercadoPagoController;
-use App\Http\Controllers\MercadoPago\PaymentFormController;
+// use App\Http\Controllers\MercadoPago\PaymentFormController; // Controlador pendiente de crear
 use App\Http\Controllers\MercadoPago\MercadoPagoWebhookController;
+use App\Http\Controllers\MercadoPago\EnlacePagoController;
 
 
 
@@ -56,9 +62,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/UsuariosEmpresasVer/{idEmpresa}', [EmpresaController::class, 'UsuariosEmpresasVer'])->name('UsuariosEmpresasVer');
         Route::get('/BuscarEmpresa', [EmpresaController::class, 'BuscarEmpresa'])->name('BuscarEmpresa');
 
+        Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
+        Route::delete('/logs', [LogController::class, 'clear'])->name('logs.clear');
 
-       
-        
+        Route::get('/reparto-ventas', function () {
+            return response(file_get_contents(base_path('reparto_ventas.html')))
+                ->header('Content-Type', 'text/html');
+        })->name('reparto-ventas');
+
     });
 
     Route::middleware(['RolAdmin'])->group(function () {//AK CREAR UN MIDDELWARE PARA ADDMIN
@@ -82,6 +93,9 @@ Route::middleware('auth')->group(function () {
             // Gestión de QR MercadoPago (Livewire)
             Route::get('/mercadopago/qr-manager', \App\Livewire\MercadoPagoQrManager::class)->name('mercadopago.qr-manager');
 
+            // Administración de WhatsApp (Livewire)
+            Route::get('/whatsapp/admin', \App\Livewire\WhatsAppManager::class)->name('whatsapp.admin');
+
 
             // Pago mediante QR MercadoPago (Livewire) ejemplo
             Route::get('/mercadopago/qrEjemplo', \App\Livewire\QRPayment::class)->name('mercadopago.qrEjemplo');
@@ -91,10 +105,9 @@ Route::middleware('auth')->group(function () {
             Route::resource('Cliente',ClienteController::class);
 
             Route::get('/BuscarCliente', [ClienteController::class, 'BuscarCliente'])->name('BuscarCliente');
-            Route::get('/ImportarClientes', function (){
-                    return view('clientes.ImportarClientes');
+            Route::get('/ImportarClientes', function () {
+                    return redirect()->route('ImportarClientesCSV');
                 })->name('ImportarClientes');
-            Route::post('/ImportarClientes', [ClienteController::class, 'ImportarClientes'])->name('ImportarClientes');
             Route::get('/ExportarClientes', [ClienteController::class, 'ExportarClientes'])->name('ExportarClientes');
     
             Route::resource('Servicios', ServicioController::class);
@@ -147,7 +160,17 @@ Route::middleware('auth')->group(function () {
             //RUTAS PARA LOS PAGOS 
             Route::get('Pagos', [PagosController::class, 'index'])->name('Pagos');  
             Route::get('PagosVer/{idServicioPagar}', [PagosController::class, 'PagosVer'])->name('PagosVer');  
+            Route::delete('Pagos/{pago}', [PagosController::class, 'destroy'])->name('pagos.destroy');
             Route::get('PagoPDF/{idServicioPagar}', [PagosController::class, 'pagoPDF'])->name('PagoPDF');
+            Route::get('FacturaAfipPDF/{pagoId}', [PagosController::class, 'facturaAfipPDF'])->name('FacturaAfipPDF');
+
+            //RUTAS PARA AFIP
+            Route::get('/afip', [AfipController::class, 'index'])->name('afip.index');
+            Route::post('/afip/subir-certificados', [AfipController::class, 'subirCertificados'])->name('afip.subir-certificados');
+            Route::post('/afip/generar-certificados', [AfipController::class, 'generarCertificados'])->name('afip.generar-certificados');
+            Route::get('/afip/certificados', \App\Livewire\AfipCertificados::class)->name('afip.certificados');
+            Route::get('/afip/puntos-venta/{empresaId}', [AfipController::class, 'obtenerPuntosVentaEmpresa'])
+                ->name('afip.puntos-venta.empresa');
 
             //RUTAS PARA LOS ADMIN DE RECIBOS 
             Route::post('/subirArchivoRecibos',[ReciboSueldoController::class, 'subirArchivoRecibos'])->name('subirArchivoRecibos'); 
@@ -173,6 +196,10 @@ Route::middleware('auth')->group(function () {
 
             //RUTA PARA CIERRE DE CAJA
             Route::get('/cierre-caja', \App\Livewire\CierreCaja::class)->name('cierre-caja');
+            Route::get('/cierre-caja/historial', \App\Livewire\HistorialCierreCaja::class)->name('cierre-caja.historial');
+
+            //RUTA PARA SEGMENTOS
+            Route::get('/segmentos', \App\Livewire\GestionSegmentos::class)->name('segmentos');
 
     });
 
@@ -195,6 +222,7 @@ Route::middleware('auth')->group(function () {
 
     // Route::view('/miPerfil', 'usuarios.miPerfil')->name('panel');
     Route::get('/miPerfil', [UserController::class, 'miPerfil'])->name('miPerfil'); 
+    Route::post('/miPerfil/password', [UserController::class, 'updatePassword'])->name('miPerfil.password');
 
 
     // Rutas de MercadoPago
@@ -202,14 +230,9 @@ Route::middleware('auth')->group(function () {
         // Ruta para crear preferencia de pago (API)
         Route::post('/create-preference', [MercadoPagoController::class, 'createPreference'])->name('mercadopago.create-preference');
         
-        // Formulario de demostración para pagos
-        Route::get('/payment-form', [PaymentFormController::class, 'show'])->name('mercadopago.payment-form');
-        Route::post('/payment-form', [PaymentFormController::class, 'processPayment'])->name('mercadopago.process-payment');
-        
-        // URLs de retorno después del pago
-        Route::get('/success', [MercadoPagoController::class, 'success'])->name('mercadopago.success');
-        Route::get('/pending', [MercadoPagoController::class, 'pending'])->name('mercadopago.pending');
-        Route::get('/failure', [MercadoPagoController::class, 'failure'])->name('mercadopago.failure');
+        // Formulario de demostración para pagos (Controlador pendiente de crear)
+        // Route::get('/payment-form', [PaymentFormController::class, 'show'])->name('mercadopago.payment-form');
+        // Route::post('/payment-form', [PaymentFormController::class, 'processPayment'])->name('mercadopago.process-payment');
         
         // Ruta para obtener información de pago usando el nuevo servicio API
         Route::get('/payment-info/{paymentId}', [PagosController::class, 'obtenerInfoPago'])->name('mercadopago.payment-info');
@@ -219,6 +242,25 @@ Route::middleware('auth')->group(function () {
 
    
 });
+
+// URLs de retorno después del pago (sin middleware auth: el cliente paga desde el link sin sesión)
+Route::prefix('mercadopago')->group(function () {
+    Route::get('/success', [MercadoPagoController::class, 'success'])->name('mercadopago.success');
+    Route::get('/pending', [MercadoPagoController::class, 'pending'])->name('mercadopago.pending');
+    Route::get('/failure', [MercadoPagoController::class, 'failure'])->name('mercadopago.failure');
+});
+
+// Enlaces de pago públicos con URL firmada (se re-valida el estado al hacer clic)
+Route::get('/pago/enlace/individual/{servicioPagar}', [EnlacePagoController::class, 'individual'])
+    ->name('pago.enlace.individual')
+    ->whereNumber('servicioPagar')
+    ->middleware('signed');
+
+Route::get('/pago/enlace/cliente/{clienteId}/{empresaId}', [EnlacePagoController::class, 'cliente'])
+    ->name('pago.enlace.cliente')
+    ->whereNumber('clienteId')
+    ->whereNumber('empresaId')
+    ->middleware('signed');
 
 // Webhook para notificaciones de MercadoPago (sin middleware auth)
 Route::post('/mercadopago/webhook', [MercadoPagoWebhookController::class, 'handleNotification'])
@@ -230,6 +272,27 @@ Route::post('/mercadopago/webhook', [MercadoPagoWebhookController::class, 'handl
 Route::get('/api-docs', function () {
     return view('api-docs');
 })->name('api.docs.view');
+
+// ============================================================
+// RECUPERACIÓN DE CONTRASEÑA (Password Reset)
+// ============================================================
+Route::middleware('guest')->group(function () {
+    // Mostrar formulario para solicitar enlace de restablecimiento
+    Route::get('/forgot-password', [PasswordResetController::class, 'showForgotForm'])
+        ->name('password.request');
+    
+    // Enviar enlace de restablecimiento al correo
+    Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])
+        ->name('password.email');
+    
+    // Mostrar formulario de restablecimiento con token
+    Route::get('/reset-password/{token}', [PasswordResetController::class, 'showResetForm'])
+        ->name('password.reset');
+    
+    // Procesar el restablecimiento de contraseña
+    Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])
+        ->name('password.update');
+});
 
 Route::get('/login', function () {
 
@@ -250,6 +313,11 @@ Route::get('/login', function () {
     
 })->name('login');
 
+Route::get('/loginUsuario', function () {
+    return redirect()->route('login');
+})->name('loginUsuario');
+
+
 
 Route::view('/registro', 'registro')->name('registro');
 Route::get('/logout', [UserController::class, 'logout'])->name('logout');
@@ -257,6 +325,10 @@ Route::get('/logout', [UserController::class, 'logout'])->name('logout');
 
 Route::post('/registrarUauario',[UserController::class,'registrarUsuario'])->name('registrarUsuario');
 Route::post('/loginUsuario',[UserController::class,'loginUsuario'])->name('loginUsuario');
+
+
+
+
 
 
 Route::get('/', function () {
@@ -269,11 +341,12 @@ Route::get('/', function () {
 // RUTAS DE PRUEBA
 
 Route::get('/pruebaJob/log', function () {
-    
-    $filePath = '../storage/logs/laravel.log';
-    $fileContent = file_get_contents($filePath);
-    
-    echo $fileContent;
+
+    $filePath = storage_path('logs/laravel.log');
+
+    abort_unless(file_exists($filePath), 404);
+
+    return response()->file($filePath, ['Content-Type' => 'text/plain']);
 
 })->name('pruebaJobVerLog');
 

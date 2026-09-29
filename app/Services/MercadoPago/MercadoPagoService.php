@@ -199,25 +199,13 @@ class MercadoPagoService
      */
     public static function getValidUrls($baseRoutes = [])
     {
-        $appUrl = config('app.url');
-        $isLocalhost = $appUrl === 'http://localhost' || strpos($appUrl, '://localhost') !== false;
-        
-        if ($isLocalhost && config('app.env') === 'local') {
-            // En desarrollo local, usar URLs de prueba
-            return [
-                'success' => 'https://httpbin.org/get?success=true&app=' . urlencode(config('app.name')),
-                'failure' => 'https://httpbin.org/get?failure=true&app=' . urlencode(config('app.name')),
-                'pending' => 'https://httpbin.org/get?pending=true&app=' . urlencode(config('app.name')),
-                'webhook' => 'https://httpbin.org/post'
-            ];
-        }
-        
-        // En producción, usar URLs reales
+        $baseUrl = MercadoPagoApiService::getBaseUrl();
+
         return [
-            'success' => $appUrl . '/mercadopago/success',
-            'failure' => $appUrl . '/mercadopago/failure', 
-            'pending' => $appUrl . '/mercadopago/pending',
-            'webhook' => $appUrl . '/mercadopago/webhook'
+            'success' => $baseUrl . '/mercadopago/success',
+            'failure' => $baseUrl . '/mercadopago/failure',
+            'pending' => $baseUrl . '/mercadopago/pending',
+            'webhook' => $baseUrl . '/mercadopago/webhook'
         ];
     }
 

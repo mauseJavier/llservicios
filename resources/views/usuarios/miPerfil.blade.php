@@ -44,6 +44,37 @@
 
     </article>
 
+    <article>
+        <header>Cambiar contraseña</header>
+
+        @if (session('status'))
+            <p>{{ session('status') }}</p>
+        @endif
+
+        @if ($errors->any())
+            <ul>
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        @endif
+
+        <form method="POST" action="{{ route('miPerfil.password') }}">
+            @csrf
+
+            <label for="current_password">Contraseña actual</label>
+            <input id="current_password" name="current_password" type="password" autocomplete="current-password" required>
+
+            <label for="password">Nueva contraseña</label>
+            <input id="password" name="password" type="password" autocomplete="new-password" required>
+
+            <label for="password_confirmation">Confirmar nueva contraseña</label>
+            <input id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" required>
+
+            <button type="submit">Actualizar contraseña</button>
+        </form>
+    </article>
+
 
 
 </div>

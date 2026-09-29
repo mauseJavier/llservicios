@@ -38,7 +38,7 @@ class EnviarCorreoController extends Controller
         // Enviar WhatsApp
         EnviarWhatsAppNuevoServicioJob::dispatch($idServicioPagar, $instanciaWS, $tokenWS);
 
-        return redirect()->route('ServiciosImpagos')
+        return redirect()->back(302, [], route('ServiciosImpagos'))
         ->with('status','Notificaciones enviadas correctamente (Email y WhatsApp)');
 
 
@@ -90,18 +90,22 @@ class EnviarCorreoController extends Controller
             $serviciosImpagos [$i]['nombreCliente'] =$valor->nombreCliente;
             $serviciosImpagos [$i]['correoCliente'] =$valor->correoCliente;
             $serviciosImpagos[$i]['cantidad'] = $valor->cantidad;
+            $serviciosImpagos[$i]['empresa_id'] = $usuario->empresa_id;
 
             $serviciosImpagos[$i]['servicios'] = DB::select('SELECT
                                                                 b.nombre AS nombreServicio,
                                                                 a.cantidad AS cantidad,
                                                                 a.precio AS precio,
                                                                 a.precio * a.cantidad AS total,
-                                                                a.created_at as fecha
+                                                                a.created_at as fecha,
+                                                                c.nombre AS nombreEmpresa,
+                                                                c.aliasTranferencia AS aliasTransferencia
                                                             FROM
                                                                 servicio_pagar a,
-                                                                servicios b
+                                                                servicios b,
+                                                                empresas c
                                                             WHERE
-                                                                a.servicio_id = b.id AND b.empresa_id = ? AND a.cliente_id = ? AND a.estado = ?', [$usuario->empresa_id, $valor->cliente_id,'impago']);
+                                                                a.servicio_id = b.id AND b.empresa_id = c.id AND b.empresa_id = ? AND a.cliente_id = ? AND a.estado = ?', [$usuario->empresa_id, $valor->cliente_id,'impago']);
 
             foreach  ($serviciosImpagos[$i]['servicios'] as $datos){
                 $totalServicios = $totalServicios + $datos->total;
@@ -141,7 +145,7 @@ class EnviarCorreoController extends Controller
             // LLAMADA A LA FUNCION DE WHATSAPP
             $this->NotificacionWhatsAppTodosServiciosImpagos();
 
-            return redirect()->route('ServiciosImpagos')
+            return redirect()->back(302, [], route('ServiciosImpagos'))
             ->with('status','Mensaje Correcto');
 
         } catch (Exception $e) {
@@ -203,6 +207,7 @@ class EnviarCorreoController extends Controller
             $serviciosImpagos[$i]['telefonoCliente'] = $valor->telefonoCliente;
             $serviciosImpagos[$i]['nombreEmpresa'] = $valor->nombreEmpresa;
             $serviciosImpagos[$i]['cantidad'] = $valor->cantidad;
+            $serviciosImpagos[$i]['empresa_id'] = $usuario->empresa_id;
 
             // Obtener los servicios impagos del cliente
             $serviciosImpagos[$i]['servicios'] = DB::select('SELECT

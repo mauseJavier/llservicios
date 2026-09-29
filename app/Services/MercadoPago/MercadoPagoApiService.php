@@ -26,11 +26,36 @@ class MercadoPagoApiService
     }
 
     /**
+     * Establecer un access token (por ejemplo, el de una empresa en particular)
+     */
+    public function setAccessToken(?string $accessToken): void
+    {
+        if (!empty($accessToken)) {
+            $this->accessToken = $accessToken;
+        }
+    }
+
+    /**
+     * Obtener la URL base para back_urls y notification_url.
+     */
+    public static function getBaseUrl(): string
+    {
+        if (env('MERCADOPAGO_TEST', true)) {
+            return rtrim('https://prepositionally-vacciniaceous-irving.ngrok-free.dev', '/');
+        }
+
+        return rtrim((string) config('app.url'), '/');
+    }
+
+    /**
      * Crear una preferencia de pago usando la API REST
      */
-    public function createPreference(array $data): array
+    public function createPreference(array $data, ?string $accessToken = null): array
     {
         try {
+            // Permitir token por empresa (multi-tenant)
+            $this->setAccessToken($accessToken);
+
             Log::info('MercadoPagoAPI - Iniciando creación de preferencia', [
                 'data_received' => $data
             ]);
@@ -80,6 +105,116 @@ class MercadoPagoApiService
     }
 
     /**
+     * Crear una preferencia de Checkout Pro y devolver la URL de pago.
+     *
+     * @param array $items Items ya construidos (title, quantity, unit_price, currency_id)
+     * @param string $externalReference Referencia externa para el webhook (ej: servicio_pagar_5 | cliente_impagos_3)
+     * @param string|null $payerEmail Correo del cliente para mejorar el checkout
+     * @param string|null $accessToken Token de la empresa (multi-tenant)
+     * @param array|null $backUrls URLs de retorno personalizadas
+     * @param string|null $notificationUrl URL de notificación personalizada
+     * @param int|null $empresaId ID de la empresa que recibe el pago. Se agrega a la
+     *                           notification_url como query param (?empresa_id=X) para que el
+     *                           webhook pueda resolver el token correcto sin depender de user_id.
+     * @return array ['success' => bool, 'checkout_url' => ?string, 'preference_id' => ?string, ...]
+     */
+    public function crearPreferenciaCheckout(array $items, string $externalReference, ?string $payerEmail = null, ?string $accessToken = null, ?array $backUrls = null, ?string $notificationUrl = null, ?int $empresaId = null): array
+    {
+        if (empty($items)) {
+            Log::warning('MercadoPagoAPI - No hay items para crear la preferencia');
+            return ['success' => false, 'error' => 'No hay servicios para incluir en el pago'];
+        }
+
+        $this->setAccessToken($accessToken);
+
+        if (empty($this->accessToken)) {
+            Log::warning('MercadoPagoAPI - Sin access token para crear preferencia');
+            return ['success' => false, 'error' => 'La empresa no tiene configuradas las credenciales de MercadoPago.'];
+        }
+
+        $notificationUrl = $notificationUrl ?? self::getBaseUrl() . '/mercadopago/webhook';
+
+        if (!empty($empresaId)) {
+            $separator = str_contains($notificationUrl, '?') ? '&' : '?';
+            $notificationUrl .= $separator . 'empresa_id=' . (int) $empresaId;
+        }
+
+        $preferenceData = [
+            'items' => $items,
+            'external_reference' => $externalReference,
+            'auto_return' => 'approved',
+            'back_urls' => $backUrls ?? [
+                'success' => self::getBaseUrl() . '/mercadopago/success',
+                'failure' => self::getBaseUrl() . '/mercadopago/failure',
+                'pending' => self::getBaseUrl() . '/mercadopago/pending',
+            ],
+            'notification_url' => $notificationUrl,
+        ];
+
+        Log::info('MercadoPagoAPI - Configuración de URLs de preferencia', [
+            'external_reference' => $externalReference,
+            'mercadopago_test' => env('MERCADOPAGO_TEST', true),
+            'app_url' => config('app.url'),
+            'base_url_efectiva' => self::getBaseUrl(),
+            'back_urls' => $preferenceData['back_urls'],
+            'notification_url' => $preferenceData['notification_url'],
+            'config_cache' => app()->configurationIsCached(),
+        ]);
+
+        if (!empty($payerEmail)) {
+            $preferenceData['payer'] = ['email' => $payerEmail];
+        }
+
+        $result = $this->createPreference($preferenceData, $accessToken);
+
+        if (empty($result['success'])) {
+            return $result;
+        }
+
+        $checkoutUrl = $this->sandbox
+            ? ($result['sandbox_init_point'] ?? $result['init_point'])
+            : $result['init_point'];
+
+        return [
+            'success' => true,
+            'checkout_url' => $checkoutUrl,
+            'preference_id' => $result['preference_id'] ?? null,
+            'init_point' => $result['init_point'] ?? null,
+            'sandbox_init_point' => $result['sandbox_init_point'] ?? null,
+        ];
+    }
+
+    /**
+     * Construir items para una preferencia a partir de servicios a pagar.
+     * Acepta modelos Eloquent (ServicioPagar) o filas stdClass de DB::select.
+     */
+    public static function itemsDesdeServiciosPagar(iterable $serviciosPagar): array
+    {
+        $items = [];
+
+        foreach ($serviciosPagar as $sp) {
+            if (is_object($sp) && isset($sp->servicio) && is_object($sp->servicio)) {
+                $nombre = $sp->servicio->nombre ?? 'Servicio';
+                $cantidad = (int) ($sp->cantidad ?? 1);
+                $precio = (float) ($sp->precio ?? 0);
+            } else {
+                $nombre = $sp->nombreServicio ?? 'Servicio';
+                $cantidad = (int) ($sp->cantidad ?? 1);
+                $precio = (float) ($sp->precio ?? 0);
+            }
+
+            $items[] = [
+                'title' => $nombre,
+                'quantity' => max(1, $cantidad),
+                'unit_price' => max(0, $precio),
+                'currency_id' => 'ARS',
+            ];
+        }
+
+        return $items;
+    }
+
+    /**
      * Obtener información de un pago
      */
     public function getPayment(string $paymentId): array
@@ -122,6 +257,69 @@ class MercadoPagoApiService
                 'data' => null
             ];
         }
+    }
+
+    /**
+     * Buscar pagos aprobados de MercadoPago por referencia externa.
+     * Se usa en la reconciliación para recuperar pagos cuyo webhook no llegó o falló.
+     *
+     * @return string[] IDs de pagos aprobados
+     */
+    public function searchApprovedPayments(string $externalReference, ?string $accessToken = null): array
+    {
+        $this->setAccessToken($accessToken);
+
+        if (empty($this->accessToken)) {
+            Log::warning('MercadoPagoAPI - Sin access token para buscar pagos', [
+                'external_reference' => $externalReference,
+            ]);
+
+            return [];
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->accessToken,
+                'Content-Type' => 'application/json'
+            ])->get($this->baseUrl . '/v1/payments/search', [
+                'external_reference' => $externalReference,
+                'status' => 'approved',
+                'limit' => 5,
+                'sort' => 'date_approved',
+                'criteria' => 'desc',
+            ]);
+
+            if ($response->successful()) {
+                $results = $response->json('results') ?? [];
+
+                $ids = collect($results)
+                    ->pluck('id')
+                    ->map(fn ($id) => (string) $id)
+                    ->filter(fn ($id) => $id !== '')
+                    ->values()
+                    ->all();
+
+                Log::info('MercadoPagoAPI - Búsqueda de pagos aprobados', [
+                    'external_reference' => $externalReference,
+                    'found' => count($ids),
+                ]);
+
+                return $ids;
+            }
+
+            Log::warning('MercadoPagoAPI - Error buscando pagos aprobados', [
+                'external_reference' => $externalReference,
+                'status_code' => $response->status(),
+                'body' => $response->body(),
+            ]);
+        } catch (Exception $e) {
+            Log::error('MercadoPagoAPI - Excepción buscando pagos aprobados', [
+                'external_reference' => $externalReference,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return [];
     }
 
     /**
@@ -462,25 +660,13 @@ class MercadoPagoApiService
      */
     public static function getValidUrls(array $baseRoutes = []): array
     {
-        $appUrl = config('app.url');
-        $isLocalhost = $appUrl === 'http://localhost' || strpos($appUrl, '://localhost') !== false;
-        
-        if ($isLocalhost && config('app.env') === 'local') {
-            // En desarrollo local, usar URLs de prueba
-            return [
-                'success' => 'https://httpbin.org/get?success=true&app=' . urlencode(config('app.name')),
-                'failure' => 'https://httpbin.org/get?failure=true&app=' . urlencode(config('app.name')),
-                'pending' => 'https://httpbin.org/get?pending=true&app=' . urlencode(config('app.name')),
-                'webhook' => 'https://httpbin.org/post'
-            ];
-        }
-        
-        // En producción, usar URLs reales
+        $baseUrl = self::getBaseUrl();
+
         return [
-            'success' => $appUrl . '/mercadopago/success',
-            'failure' => $appUrl . '/mercadopago/failure', 
-            'pending' => $appUrl . '/mercadopago/pending',
-            'webhook' => $appUrl . '/mercadopago/webhook'
+            'success' => $baseUrl . '/mercadopago/success',
+            'failure' => $baseUrl . '/mercadopago/failure',
+            'pending' => $baseUrl . '/mercadopago/pending',
+            'webhook' => $baseUrl . '/mercadopago/webhook'
         ];
     }
 }

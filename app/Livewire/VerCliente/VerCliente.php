@@ -12,6 +12,7 @@ use App\Models\Servicio;
 
 use App\Models\ServicioPagar;
 use App\Models\Pagos;
+use App\Models\Segmento;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -21,46 +22,25 @@ class VerCliente extends Component
     use WithPagination;
 
     public $idCliente;
-    public $clientes;
     public $buscarCliente;
+    public $segmentoFiltro = '';
     public $clienteAEliminar = null;
     public $mostrarModalConfirmacion = false;
 
 
     public function mount($idCliente = null)
     {
-        if ($idCliente) {
-            // Manejar el caso cuando no se proporciona un ID de cliente
-            // Por ejemplo, redirigir o mostrar un mensaje de error
-        }else {
-            // Cargar los datos del cliente según el ID proporcionado
-            // Por ejemplo:
-            $empresa = Empresa::find(Auth::user()->empresa_id);
-            $clientes = $empresa->clientes;
-        }
-
-   /*      foreach ($clientes as $cliente) {
-
-            dd($cliente);
-        } */
-
-        $this->clientes = $clientes;
-
-
+        // Los clientes se cargan mediante paginación en el método render()
     }
 
     public function updatingBuscarCliente()
     {
-        $this->clientes = Empresa::find(Auth::user()->empresa_id)
-            ->clientes()
-            ->where(function($query) {
-                $query->where('nombre', 'like', '%' . $this->buscarCliente . '%')
-                    ->orWhere('correo', 'like', '%' . $this->buscarCliente . '%')
-                    ->orWhere('telefono', 'like', '%' . $this->buscarCliente . '%')
-                    ->orWhere('dni', 'like', '%' . $this->buscarCliente . '%')
-                    ->orWhere('domicilio', 'like', '%' . $this->buscarCliente . '%');
-            })
-            ->get();
+        $this->resetPage();
+    }
+
+    public function updatingSegmentoFiltro()
+    {
+        $this->resetPage();
     }
 
     /**
@@ -158,9 +138,6 @@ class VerCliente extends Component
 
             DB::commit();
 
-            // Actualizar la lista de clientes
-            $this->clientes = $empresa->clientes;
-
             // Cerrar el modal
             $this->mostrarModalConfirmacion = false;
             $this->clienteAEliminar = null;
@@ -186,10 +163,44 @@ class VerCliente extends Component
 
     public function render()
     {
+        $empresa = Empresa::find(Auth::user()->empresa_id);
+        
+        $segmentos = Segmento::where('empresa_id', $empresa->id)->get();
+        
+        $query = $empresa->clientes()
+            ->withCount([
+                'servicios as servicios_vinculados_count' => function($q) use ($empresa) {
+                    $q->where('servicios.empresa_id', $empresa->id);
+                }
+            ]);
+        
+        // Aplicar filtro de búsqueda si existe
+        if ($this->buscarCliente) {
+            $query->where(function($q) {
+                $q->where('nombre', 'like', '%' . $this->buscarCliente . '%')
+                    ->orWhere('titular', 'like', '%' . $this->buscarCliente . '%')
+                    ->orWhere('correo', 'like', '%' . $this->buscarCliente . '%')
+                    ->orWhere('telefono', 'like', '%' . $this->buscarCliente . '%')
+                    ->orWhere('dni', 'like', '%' . $this->buscarCliente . '%')
+                    ->orWhere('domicilio', 'like', '%' . $this->buscarCliente . '%');
+            });
+        }
+        
+        // Aplicar filtro por segmento
+        if ($this->segmentoFiltro) {
+            $query->whereHas('segmentos', function($q) {
+                $q->where('segmento_id', $this->segmentoFiltro);
+            });
+        }
+        
+        // Paginar los resultados (10 clientes por página)
+        $clientes = $query->paginate(10);
+        
         return view('livewire.ver-cliente.ver-cliente', [
+            'clientes' => $clientes,
+            'segmentos' => $segmentos,
         ])
         ->extends('principal.principal')
-        ->section('body')
-        ;
+        ->section('body');
     }
 }

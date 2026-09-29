@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateClienteRequest extends FormRequest
 {
@@ -24,6 +25,10 @@ class UpdateClienteRequest extends FormRequest
         return [
             //
             'nombre' => 'required',
+            'dni' => ['required', Rule::unique('clientes', 'dni')->ignore($this->route('Cliente'))],
+            'aplicar_recargos' => 'nullable|boolean',
+            'condicion_iva_id' => 'nullable|integer|in:1,6,13,16,4,5,7,8,9,10,15',
+            'tipo_documento_id' => 'nullable|integer|in:80,86,87,96,99',
         ];
     }
 }
