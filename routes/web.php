@@ -342,11 +342,12 @@ Route::get('/', function () {
 // RUTAS DE PRUEBA
 
 Route::get('/pruebaJob/log', function () {
-    
-    $filePath = '../storage/logs/laravel.log';
-    $fileContent = file_get_contents($filePath);
-    
-    echo $fileContent;
+
+    $filePath = storage_path('logs/laravel.log');
+
+    abort_unless(file_exists($filePath), 404);
+
+    return response()->file($filePath, ['Content-Type' => 'text/plain']);
 
 })->name('pruebaJobVerLog');
 
