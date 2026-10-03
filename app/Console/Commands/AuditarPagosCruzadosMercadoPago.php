@@ -7,9 +7,9 @@ use App\Models\Pagos;
 use App\Models\ServicioPagar;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 
 class AuditarPagosCruzadosMercadoPago extends Command
 {
@@ -19,7 +19,8 @@ class AuditarPagosCruzadosMercadoPago extends Command
     protected $signature = 'mp:auditar-pagos-cruzados
         {--empresa= : ID de empresa, o "all"/"todas" para auditar todas}
         {--apply : Revierte los pagos cruzados detectados}
-        {--huerfanos : Detecta (y con --apply elimina) pagos de MercadoPago huérfanos en servicios impago}';
+        {--huerfanos : Detecta (y con --apply elimina) pagos de MercadoPago huérfanos en servicios impago}
+        {--force : Omite la confirmación interactiva (uso desde la web)}';
 
     /**
      * @var string
@@ -172,7 +173,7 @@ class AuditarPagosCruzadosMercadoPago extends Command
             return 0;
         }
 
-        if (! $this->confirm("¿Revertir estas deudas a impago y eliminar su pago asociado ({$alcance})?", false)) {
+        if (! $this->option('force') && ! $this->confirm("¿Revertir estas deudas a impago y eliminar su pago asociado ({$alcance})?", false)) {
             $this->info('Operación cancelada.');
 
             return 0;
@@ -192,7 +193,7 @@ class AuditarPagosCruzadosMercadoPago extends Command
                 continue;
             }
 
-            DB::transaction(function () use ($servicioPagar, $a) {
+            DB::transaction(function () use ($servicioPagar) {
                 $servicioPagar->update([
                     'estado' => 'impago',
                     'mp_payment_id' => null,
@@ -271,7 +272,7 @@ class AuditarPagosCruzadosMercadoPago extends Command
             return 0;
         }
 
-        if (! $this->confirm("¿Eliminar estos pagos huérfanos de MercadoPago ({$alcance})?", false)) {
+        if (! $this->option('force') && ! $this->confirm("¿Eliminar estos pagos huérfanos de MercadoPago ({$alcance})?", false)) {
             $this->info('Operación cancelada.');
 
             return 0;

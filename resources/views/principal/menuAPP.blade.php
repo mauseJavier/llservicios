@@ -66,6 +66,7 @@
                     <a href="{{route('afip.certificados')}}">Arca</a>
                   </li>
                   <li><a href="{{route('logs.index')}}">Ver Logs</a></li>
+                  <li><a href="{{route('mercadopago.auditoria')}}">Auditoría MP</a></li>
                 @endif
                 <li><a href="{{route('logout')}}" style="border-radius: 10px; background-color:red;" >Salir</a></li>
         

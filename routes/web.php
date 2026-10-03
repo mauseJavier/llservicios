@@ -65,6 +65,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
         Route::delete('/logs', [LogController::class, 'clear'])->name('logs.clear');
 
+        // Auditoría de pagos MercadoPago (Livewire, solo Super)
+        Route::get('/mercadopago/auditoria', \App\Livewire\AuditoriaPagosMercadoPago::class)->name('mercadopago.auditoria');
+
         Route::get('/reparto-ventas', function () {
             return response(file_get_contents(base_path('reparto_ventas.html')))
                 ->header('Content-Type', 'text/html');
