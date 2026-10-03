@@ -11,15 +11,11 @@ use Throwable;
 
 class AuditoriaPagosMercadoPago extends Component
 {
-    public ?int $empresaId = null;
+    public $empresas = [];
+
+    public string $empresaId = 'all';
 
     public $empresa = null;
-
-    public string $empresaSearch = '';
-
-    public $empresaResults = [];
-
-    public bool $todas = false;
 
     public string $modo = 'huerfanos';
 
@@ -38,54 +34,18 @@ class AuditoriaPagosMercadoPago extends Component
     public function mount(): void
     {
         abort_unless(Auth::user()?->role?->nombre === 'Super', 403);
-    }
 
-    public function updatedEmpresaSearch(): void
-    {
-        $query = trim($this->empresaSearch);
-
-        if (mb_strlen($query) < 2) {
-            $this->empresaResults = [];
-
-            return;
-        }
-
-        $this->empresaResults = Empresa::query()
-            ->where('nombre', 'like', "%{$query}%")
-            ->orWhere('cuit', 'like', "%{$query}%")
+        $this->empresas = Empresa::query()
             ->orderBy('nombre')
-            ->limit(10)
-            ->get()
-            ->all();
+            ->get(['id', 'nombre', 'cuit']);
     }
 
-    public function selectEmpresa($empresaId): void
+    public function updatedEmpresaId(): void
     {
-        $this->empresa = Empresa::find($empresaId);
-        $this->empresaId = $this->empresa?->id;
-        $this->todas = false;
-        $this->empresaSearch = '';
-        $this->empresaResults = [];
-        $this->clearMessages();
-    }
+        $this->empresa = ($this->empresaId !== '' && $this->empresaId !== 'all')
+            ? Empresa::find($this->empresaId)
+            : null;
 
-    public function usarTodas(): void
-    {
-        $this->empresa = null;
-        $this->empresaId = null;
-        $this->todas = true;
-        $this->empresaSearch = '';
-        $this->empresaResults = [];
-        $this->clearMessages();
-    }
-
-    public function resetEmpresa(): void
-    {
-        $this->empresa = null;
-        $this->empresaId = null;
-        $this->todas = false;
-        $this->empresaSearch = '';
-        $this->empresaResults = [];
         $this->clearMessages();
     }
 
@@ -107,11 +67,7 @@ class AuditoriaPagosMercadoPago extends Component
 
         $this->validate();
 
-        if (! $this->todas && ! $this->empresa) {
-            $this->errorMessage = 'Seleccioná una empresa o la opción "Todas las empresas".';
-
-            return;
-        }
+        $esTodas = $this->empresaId === '' || $this->empresaId === 'all';
 
         $this->clearMessages();
         $this->loading = true;
@@ -121,7 +77,7 @@ class AuditoriaPagosMercadoPago extends Component
 
         try {
             $parametros = [
-                '--empresa' => $this->todas ? 'all' : (string) $this->empresaId,
+                '--empresa' => $esTodas ? 'all' : (string) $this->empresaId,
             ];
 
             if ($this->modo === 'huerfanos') {
