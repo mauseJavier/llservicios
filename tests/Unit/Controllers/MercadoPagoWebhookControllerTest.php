@@ -8,6 +8,8 @@ use App\Jobs\ProcesarPagoJob;
 use App\Models\Cliente;
 use App\Models\Empresa;
 use App\Models\FormaPago;
+use App\Models\MercadoPagoPagoIntento;
+use App\Models\MercadoPagoPagoProcesado;
 use App\Models\Pagos;
 use App\Models\Servicio;
 use App\Models\ServicioPagar;
@@ -127,6 +129,32 @@ class MercadoPagoWebhookControllerTest extends TestCase
     public function test_referencia_desconocida_devuelve_vacio()
     {
         $servicios = $this->invocarResolutor('referencia-invalida');
+
+        $this->assertTrue($servicios->isEmpty());
+    }
+
+    public function test_resuelve_referencia_de_intento_agrupado_por_la_token()
+    {
+        $intento = MercadoPagoPagoIntento::create([
+            'token' => 'abc-123-uuid',
+            'referencia' => 'lote_abc-123-uuid',
+            'cliente_id' => $this->cliente->id,
+            'empresa_id' => $this->empresa->id,
+            'estado' => 'pendiente',
+            'monto' => 1000.00,
+        ]);
+
+        $intento->serviciosPagar()->sync([$this->servicioImpago->id]);
+
+        $servicios = $this->invocarResolutor('lote_abc-123-uuid');
+
+        $this->assertCount(1, $servicios);
+        $this->assertEquals($this->servicioImpago->id, $servicios->first()->id);
+    }
+
+    public function test_resuelve_lote_desconocido_devuelve_vacio()
+    {
+        $servicios = $this->invocarResolutor('lote_token-inexistente');
 
         $this->assertTrue($servicios->isEmpty());
     }
@@ -555,6 +583,71 @@ class MercadoPagoWebhookControllerTest extends TestCase
 
         $respuesta->assertStatus(200);
         $this->assertEquals('pago', $servicioImpagoDuena->fresh()->estado);
+    }
+
+    public function test_webhook_no_reaplica_un_payment_id_ya_procesado()
+    {
+        Queue::fake();
+
+        $paymentId = '444444444';
+        MercadoPagoPagoProcesado::create(['payment_id' => $paymentId]);
+
+        Http::fake([
+            'api.mercadopago.com/v1/payments/*' => Http::response([
+                'id' => $paymentId,
+                'status' => 'approved',
+                'external_reference' => 'servicio_pagar_' . $this->servicioImpago->id,
+                'transaction_amount' => 1000.0,
+                'transaction_details' => ['net_received_amount' => 980.0],
+            ], 200),
+        ]);
+
+        $respuesta = $this->postJson('/mercadopago/webhook', [
+            'type' => 'payment',
+            'data' => ['id' => $paymentId],
+            'empresa_id' => $this->empresa->id,
+        ]);
+
+        $respuesta->assertStatus(200);
+        $this->assertEquals('impago', $this->servicioImpago->fresh()->estado);
+        Queue::assertNothingPushed();
+    }
+
+    public function test_webhook_marca_intento_como_pago()
+    {
+        Queue::fake();
+
+        $intento = MercadoPagoPagoIntento::create([
+            'token' => 'lote-token-proc',
+            'referencia' => 'lote_lote-token-proc',
+            'cliente_id' => $this->cliente->id,
+            'empresa_id' => $this->empresa->id,
+            'estado' => 'pendiente',
+            'monto' => 1000.00,
+        ]);
+        $intento->serviciosPagar()->sync([$this->servicioImpago->id]);
+
+        $paymentId = '333333333';
+
+        Http::fake([
+            'api.mercadopago.com/v1/payments/*' => Http::response([
+                'id' => $paymentId,
+                'status' => 'approved',
+                'external_reference' => 'lote_lote-token-proc',
+                'transaction_amount' => 1000.0,
+                'transaction_details' => ['net_received_amount' => 980.0],
+            ], 200),
+        ]);
+
+        $respuesta = $this->postJson('/mercadopago/webhook', [
+            'type' => 'payment',
+            'data' => ['id' => $paymentId],
+            'empresa_id' => $this->empresa->id,
+        ]);
+
+        $respuesta->assertStatus(200);
+        $this->assertEquals('pago', $this->servicioImpago->fresh()->estado);
+        $this->assertEquals('pago', $intento->fresh()->estado);
     }
 
     private function invocarResolvedorToken(array $contexto, $serviciosPagar)

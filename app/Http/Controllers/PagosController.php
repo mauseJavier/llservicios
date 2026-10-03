@@ -1092,7 +1092,8 @@ class PagosController extends Controller
                     'id_usuario' => $idUsuarioPago,
                     'forma_pago' => $formaPagoId,
                     'importe' => $montoNeto,
-                    'comentario' => $comentario
+                    'comentario' => $comentario,
+                    'mp_payment_id' => (string) $payment_id,
                 ]);
 
                 return redirect()->route('panel')->with('success', 'Pago procesado exitosamente!');

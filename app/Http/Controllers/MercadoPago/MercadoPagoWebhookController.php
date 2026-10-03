@@ -6,12 +6,15 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Models\Empresa;
+use App\Models\MercadoPagoPagoIntento;
+use App\Models\MercadoPagoPagoProcesado;
 use App\Models\ServicioPagar;
 use App\Models\Pagos;
 use App\Jobs\ProcesarPagoJob;
 use App\Services\MercadoPago\MercadoPagoApiService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 class MercadoPagoWebhookController extends Controller
@@ -243,18 +246,50 @@ class MercadoPagoWebhookController extends Controller
             $esAgregado = $serviciosPagar->count() > 1;
             $importesPorServicio = [];
 
-            if ($esAgregado) {
-                $montoNeto = (float) ($payment->transaction_details->net_received_amount ?? $payment->transaction_amount ?? 0);
-                $importesPorServicio = $this->distribuirImportes($serviciosPagar, $montoNeto);
-            }
+            // Referencia efectiva del pago y, si aplica, el intento agrupado asociado.
+            $referenciaPago = (string) ($payment->external_reference ?? ($contexto['external_reference'] ?? ''));
+            $intentoPago = MercadoPagoPagoIntento::porReferencia($referenciaPago);
 
-            foreach ($serviciosPagar as $servicioPagar) {
-                $this->processPaymentNotification($servicioPagar, $payment, [
-                    'importe' => $esAgregado ? ($importesPorServicio[$servicioPagar->id] ?? null) : null,
-                ]);
-            }
+            return DB::transaction(function () use ($payment, $paymentId, $serviciosPagar, $esAgregado, $referenciaPago, $intentoPago) {
+                // Idempotencia y aplicación del pago ocurren en la misma transacción.
+                if (($payment->status ?? null) === 'approved') {
+                    $pagoProcesado = MercadoPagoPagoProcesado::firstOrCreate(
+                        ['payment_id' => (string) $paymentId],
+                        [
+                            'external_reference' => $referenciaPago !== '' ? $referenciaPago : null,
+                            'intento_id' => $intentoPago->id ?? null,
+                            'monto' => (float) ($payment->transaction_amount ?? 0),
+                            'estado' => (string) $payment->status,
+                        ]
+                    );
 
-            return self::RESULTADO_PROCESADO;
+                    if (!$pagoProcesado->wasRecentlyCreated) {
+                        Log::info('Pago ya aplicado previamente; se omite', [
+                            'event' => 'mp_payment_already_processed',
+                            'payment_id' => $paymentId,
+                            'external_reference' => $referenciaPago,
+                        ]);
+
+                        return self::RESULTADO_IGNORADO;
+                    }
+                }
+
+                if ($esAgregado) {
+                    $montoNeto = (float) ($payment->transaction_details->net_received_amount ?? $payment->transaction_amount ?? 0);
+                    $importesPorServicio = $this->distribuirImportes($serviciosPagar, $montoNeto);
+                }
+
+                foreach ($serviciosPagar as $servicioPagar) {
+                    $this->processPaymentNotification($servicioPagar, $payment, [
+                        'importe' => $esAgregado ? ($importesPorServicio[$servicioPagar->id] ?? null) : null,
+                    ]);
+                }
+                if ($intentoPago && ($payment->status ?? null) === 'approved') {
+                    $intentoPago->update(['estado' => 'pago']);
+                }
+
+                return self::RESULTADO_PROCESADO;
+            });
         } finally {
             Cache::forget($lockKey);
         }
@@ -540,6 +575,18 @@ class MercadoPagoWebhookController extends Controller
             return $servicioPagar ? collect([$servicioPagar]) : collect();
         }
 
+        if (preg_match('/^lote_([A-Za-z0-9\-]+)$/', $externalReference, $matches)) {
+            $intento = MercadoPagoPagoIntento::with('serviciosPagar.servicio.empresa')
+                ->where('token', $matches[1])
+                ->first();
+
+            if (!$intento) {
+                return collect();
+            }
+
+            return $intento->serviciosPagar;
+        }
+
         if (preg_match('/^cliente_impagos_(\d+)_(\d+)$/', $externalReference, $matches)) {
             $clienteId = (int) $matches[1];
             $empresaId = (int) $matches[2];
@@ -656,7 +703,8 @@ class MercadoPagoWebhookController extends Controller
                         [
                             'id_usuario' => $this->resolverUsuarioSistemaId(),
                             'importe' => $contexto['importe'] ?? $montoNeto,
-                            'comentario' => $comentario
+                            'comentario' => $comentario,
+                            'mp_payment_id' => (string) $paymentId,
                         ]
                     );
 

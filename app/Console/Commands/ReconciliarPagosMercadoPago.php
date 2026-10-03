@@ -3,6 +3,8 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use App\Models\MercadoPagoPagoIntento;
+use App\Models\MercadoPagoPagoProcesado;
 use App\Models\ServicioPagar;
 use App\Services\MercadoPago\MercadoPagoApiService;
 use App\Http\Controllers\MercadoPago\MercadoPagoWebhookController;
@@ -41,8 +43,10 @@ class ReconciliarPagosMercadoPago extends Command
             ->where('estado', 'impago')
             ->get();
 
-        // Deduplicar búsquedas por (empresa_id, external_reference):
-        // cada servicio genera su referencia individual y la agrupada de su cliente en la empresa.
+        // Deduplicar búsquedas por (empresa_id, external_reference). Cada deuda usa
+        // su referencia individual única y cada link agrupado su referencia de intento
+        // (lote_{token}), también única. Ya no se usa la referencia genérica
+        // cliente_impagos_{cliente}_{empresa}, que causaba el cruce entre meses.
         $busquedas = [];
 
         foreach ($serviciosImpagos as $servicioPagar) {
@@ -55,7 +59,22 @@ class ReconciliarPagosMercadoPago extends Command
             $empresaId = (int) $empresa->id;
 
             $busquedas[$empresaId]['servicio_pagar_' . $servicioPagar->id] = (string) $empresa->MP_ACCESS_TOKEN;
-            $busquedas[$empresaId]['cliente_impagos_' . $servicioPagar->cliente_id . '_' . $empresaId] = (string) $empresa->MP_ACCESS_TOKEN;
+        }
+
+        $intentosPendientes = MercadoPagoPagoIntento::with('empresa')
+            ->where('estado', 'pendiente')
+            ->get();
+
+        foreach ($intentosPendientes as $intento) {
+            $empresa = $intento->empresa;
+
+            if (!$empresa || empty($empresa->MP_ACCESS_TOKEN)) {
+                continue;
+            }
+
+            $empresaId = (int) $empresa->id;
+
+            $busquedas[$empresaId][$intento->referencia] = (string) $empresa->MP_ACCESS_TOKEN;
         }
 
         if (empty($busquedas)) {
@@ -79,6 +98,11 @@ class ReconciliarPagosMercadoPago extends Command
 
                 foreach ($paymentIds as $paymentId) {
                     $this->line("Procesando pago {$paymentId} (ref: {$externalReference})...");
+
+                    if (MercadoPagoPagoProcesado::where('payment_id', (string) $paymentId)->exists()) {
+                        $this->line("Pago {$paymentId} ya procesado; se omite.");
+                        continue;
+                    }
 
                     $procesado = $webhookController->procesarPagoDesdeRetorno((string) $paymentId, $externalReference);
 

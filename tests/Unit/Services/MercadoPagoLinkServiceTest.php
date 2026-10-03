@@ -142,7 +142,9 @@ class MercadoPagoLinkServiceTest extends TestCase
             ], 201)
         ]);
 
-        $servicios = [$this->servicioPagar];
+        $servicios = (function () {
+            yield $this->servicioPagar;
+        })();
 
         $url = $this->linkService->linkClienteImpagos(
             $this->cliente->id,
@@ -155,10 +157,16 @@ class MercadoPagoLinkServiceTest extends TestCase
 
         Http::assertSent(function ($request) {
             $body = $request->data();
-            return $body['external_reference'] === 'cliente_impagos_' . $this->cliente->id . '_' . $this->empresa->id
+            return str_starts_with($body['external_reference'], 'lote_')
                 && count($body['items']) === 1
                 && $body['payer']['email'] === 'cliente@test.com';
         });
+
+        $intento = \App\Models\MercadoPagoPagoIntento::first();
+        $this->assertNotNull($intento);
+        $this->assertEquals('pendiente', $intento->estado);
+        $this->assertEquals($intento->referencia, 'lote_' . $intento->token);
+        $this->assertEquals([$this->servicioPagar->id], $intento->serviciosPagar()->pluck('servicio_pagar.id')->all());
     }
 
     public function test_link_cliente_impagos_devuelve_null_sin_token()

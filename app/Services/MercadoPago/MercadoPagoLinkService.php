@@ -4,9 +4,12 @@ namespace App\Services\MercadoPago;
 
 use App\Models\Cliente;
 use App\Models\Empresa;
+use App\Models\MercadoPagoPagoIntento;
 use App\Models\ServicioPagar;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class MercadoPagoLinkService
 {
@@ -115,6 +118,8 @@ class MercadoPagoLinkService
             return null;
         }
 
+        // Normalizar una sola vez para soportar Collection, arrays y generators.
+        $serviciosPagar = collect($serviciosPagar)->values();
         $items = MercadoPagoApiService::itemsDesdeServiciosPagar($serviciosPagar);
 
         if (empty($items)) {
@@ -123,9 +128,39 @@ class MercadoPagoLinkService
 
         $cliente = Cliente::find($clienteId);
 
+        // Snapshot de las deudas incluidas en este link, con una referencia única
+        // e irrepetible (lote_{token}) para que el pago no se confunda entre meses.
+        $intento = DB::transaction(function () use ($clienteId, $empresaId, $serviciosPagar) {
+            $intento = MercadoPagoPagoIntento::create([
+                'token' => (string) Str::uuid(),
+                'cliente_id' => $clienteId,
+                'empresa_id' => $empresaId,
+                'estado' => 'pendiente',
+                'monto' => $serviciosPagar->sum(
+                    fn ($servicio) => (float) ($servicio->precio ?? 0) * max(1, (int) ($servicio->cantidad ?? 1))
+                ),
+            ]);
+
+            $intento->referencia = 'lote_' . $intento->token;
+            $intento->save();
+
+            $ids = $serviciosPagar->pluck('id')
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+
+            if (!empty($ids)) {
+                $intento->serviciosPagar()->sync($ids);
+            }
+
+            return $intento;
+        });
+
         $result = $this->apiService->crearPreferenciaCheckout(
             $items,
-            'cliente_impagos_' . $clienteId . '_' . $empresaId,
+            $intento->referencia,
             $cliente->correo ?? null,
             $empresa->MP_ACCESS_TOKEN,
             null,
@@ -134,13 +169,20 @@ class MercadoPagoLinkService
         );
 
         if (empty($result['success'])) {
+            $intento->serviciosPagar()->detach();
+            $intento->delete();
+
             Log::warning('MercadoPagoLink - Error generando link agrupado', [
                 'cliente_id' => $clienteId,
                 'empresa_id' => $empresaId,
+                'intento_id' => $intento->id,
                 'error' => $result['error'] ?? 'desconocido',
             ]);
             return null;
         }
+
+        $intento->mp_preference_id = $result['preference_id'] ?? null;
+        $intento->save();
 
         return $result['checkout_url'];
     }
