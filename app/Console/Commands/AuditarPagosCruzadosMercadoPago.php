@@ -18,7 +18,8 @@ class AuditarPagosCruzadosMercadoPago extends Command
      */
     protected $signature = 'mp:auditar-pagos-cruzados
         {--empresa= : ID de empresa, o "all"/"todas" para auditar todas}
-        {--apply : Revierte los pagos cruzados detectados}';
+        {--apply : Revierte los pagos cruzados detectados}
+        {--huerfanos : Detecta (y con --apply elimina) pagos de MercadoPago huérfanos en servicios impago}';
 
     /**
      * @var string
@@ -61,6 +62,10 @@ class AuditarPagosCruzadosMercadoPago extends Command
             }
 
             $alcance = "empresa {$empresa->nombre} (#{$empresa->id})";
+        }
+
+        if ($this->option('huerfanos')) {
+            return $this->reconciliarHuerfanos($todas, $empresa, $apply, $alcance);
         }
 
         $consulta = ServicioPagar::with(['pago', 'cliente', 'servicio.empresa'])
@@ -193,9 +198,7 @@ class AuditarPagosCruzadosMercadoPago extends Command
                     'mp_payment_id' => null,
                 ]);
 
-                Pagos::where('id_servicio_pagar', $servicioPagar->id)
-                    ->where('mp_payment_id', $a['payment_id'])
-                    ->delete();
+                Pagos::where('id_servicio_pagar', $servicioPagar->id)->delete();
             });
 
             Log::warning('Remediación de pago cruzado MercadoPago', [
@@ -209,6 +212,88 @@ class AuditarPagosCruzadosMercadoPago extends Command
         }
 
         $this->info("Remediación finalizada: revertidos={$revertidos}, omitidos={$omitidos}");
+
+        return 0;
+    }
+
+    /**
+     * Detecta (y con --apply elimina) pagos de MercadoPago que quedaron asociados
+     * a un servicio_pagar en estado impago. Es el estado residual que deja la
+     * remediación de pagos cruzados cuando no se borraba el pago asociado.
+     */
+    private function reconciliarHuerfanos(bool $todas, ?Empresa $empresa, bool $apply, string $alcance): int
+    {
+        $huerfanos = Pagos::with(['servicioPagar.servicio.empresa', 'servicioPagar.cliente'])
+            ->whereHas('servicioPagar', function ($q) use ($todas, $empresa) {
+                $q->where('estado', 'impago');
+
+                if (! $todas) {
+                    $q->whereHas('servicio', fn ($qq) => $qq->where('empresa_id', $empresa->id));
+                }
+            })
+            ->whereNull('afip_cae')
+            ->where('importe', '>', 0)
+            ->where(function ($q) {
+                $q->whereHas('formaPago', fn ($qq) => $qq->where('nombre', 'like', '%mercado%'))
+                    ->orWhere('comentario', 'like', '%MP ID:%')
+                    ->orWhere('comentario', 'like', '%Payment ID:%');
+            })
+            ->get();
+
+        if ($huerfanos->isEmpty()) {
+            $this->info("No se detectaron pagos huérfanos de MercadoPago en servicios impago ({$alcance}).");
+
+            return 0;
+        }
+
+        $this->warn(sprintf('Se detectaron %d pagos huérfanos de MercadoPago en servicios impago (%s):', $huerfanos->count(), $alcance));
+
+        $this->table(
+            ['pago', 'servicio_pagar', 'empresa', 'cliente', 'importe', 'comentario'],
+            $huerfanos->map(function (Pagos $pago) {
+                $servicioPagar = $pago->servicioPagar;
+                $empresaPago = $servicioPagar->servicio->empresa ?? null;
+
+                return [
+                    $pago->id,
+                    $pago->id_servicio_pagar,
+                    $empresaPago ? $empresaPago->nombre.' (#'.$empresaPago->id.')' : '-',
+                    $servicioPagar->cliente->nombre ?? '-',
+                    number_format((float) $pago->importe, 2, ',', '.'),
+                    $pago->comentario ?? '-',
+                ];
+            })->all()
+        );
+
+        if (! $apply) {
+            $this->info('Modo auditoría (sin cambios). Ejecutá con --apply para eliminarlos.');
+
+            return 0;
+        }
+
+        if (! $this->confirm("¿Eliminar estos pagos huérfanos de MercadoPago ({$alcance})?", false)) {
+            $this->info('Operación cancelada.');
+
+            return 0;
+        }
+
+        $eliminados = 0;
+
+        foreach ($huerfanos as $pago) {
+            DB::transaction(function () use ($pago) {
+                Pagos::whereKey($pago->id)->delete();
+            });
+
+            Log::warning('Limpieza de pago huérfano MercadoPago', [
+                'pago_id' => $pago->id,
+                'servicio_pagar_id' => $pago->id_servicio_pagar,
+                'comentario' => $pago->comentario,
+            ]);
+
+            $eliminados++;
+        }
+
+        $this->info("Limpieza finalizada: eliminados={$eliminados}");
 
         return 0;
     }
