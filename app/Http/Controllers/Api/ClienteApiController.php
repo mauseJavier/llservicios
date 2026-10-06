@@ -44,50 +44,74 @@ class ClienteApiController extends Controller
             }
 
             // Buscar el cliente (normalizando DNI/CUIT)
-            $query = Cliente::query();
+            $consultaClientes = Cliente::query();
 
+            // Agrupar los criterios de búsqueda en una sola condición para no
+            // mezclarlos con otros filtros de la consulta.
+            $consultaClientes->where(function ($q) use ($dni, $correo, $nombre) {
+                if ($dni) {
+                    $dniNormalizado = DniHelper::extractDni($dni);
+                    $q->where(function ($sub) use ($dniNormalizado) {
+                        $sub->where('dni', $dniNormalizado)
+                            ->orWhere('dni', 'like', '%' . $dniNormalizado . '%');
+                    });
+                }
+
+                if ($correo) {
+                    $q->orWhere('correo', 'LIKE', "%{$correo}%");
+                }
+
+                if ($nombre) {
+                    $q->orWhere('nombre', 'LIKE', "%{$nombre}%");
+                }
+            });
+
+            // Priorizar la coincidencia exacta de DNI/CUIT sobre las parciales
             if ($dni) {
                 $dniNormalizado = DniHelper::extractDni($dni);
-                $query->where(function($q) use ($dniNormalizado) {
-                    $q->where('dni', $dniNormalizado)
-                      ->orWhere('dni', 'like', '%' . $dniNormalizado . '%');
-                });
-            }
-
-            if ($correo) {
-                $query->orWhere('correo', 'LIKE', "%{$correo}%");
-            }
-
-            if ($nombre) {
-                $query->orWhere('nombre', 'LIKE', "%{$nombre}%");
-            }
-
-            $cliente = $query->first();
-
-            if (!$cliente) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cliente no encontrado'
-                ], 404);
+                $consultaClientes->orderByRaw('CASE WHEN dni = ? THEN 0 ELSE 1 END', [$dniNormalizado]);
             }
 
             // Verificar si los datos de empresa están presentes
             if ($empresaId || $nombreEmpresa) {
-                // Verificar si el cliente está vinculado a la empresa
-                $estaVinculado = $cliente->empresas()->where(function ($q) use ($empresaId, $nombreEmpresa) {
-                    if ($empresaId) {
-                        $q->where('empresas.id', $empresaId);
-                    }
-                    if ($nombreEmpresa) {
-                        $q->where('empresas.nombre', 'LIKE', "%{$nombreEmpresa}%");
-                    }
-                })->exists();
+                // Buscar primero al cliente vinculado a la empresa indicada. Esto evita
+                // devolver un cliente homónimo o con DNI similar de otra empresa, como
+                // ocurre cuando el DNI buscado está contenido en el CUIT de otro cliente.
+                $cliente = (clone $consultaClientes)
+                    ->whereHas('empresas', function ($q) use ($empresaId, $nombreEmpresa) {
+                        if ($empresaId) {
+                            $q->where('empresas.id', $empresaId);
+                        }
+                        if ($nombreEmpresa) {
+                            $q->where('empresas.nombre', 'LIKE', "%{$nombreEmpresa}%");
+                        }
+                    })
+                    ->first();
 
-                if (!$estaVinculado) {
+                if (!$cliente) {
+                    // El cliente existe pero no está vinculado a la empresa indicada
+                    $cliente = $consultaClientes->first();
+
+                    if (!$cliente) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Cliente no encontrado'
+                        ], 404);
+                    }
+
                     return response()->json([
                         'success' => false,
                         'message' => 'El cliente no está vinculado a la empresa especificada'
                     ], 403);
+                }
+            } else {
+                $cliente = $consultaClientes->first();
+
+                if (!$cliente) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Cliente no encontrado'
+                    ], 404);
                 }
             }
 
