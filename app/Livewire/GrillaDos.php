@@ -102,6 +102,15 @@ class GrillaDos extends Component
                 }
             }
             $clientes[$clave]->datos = $datos_completos;
+
+            $valor->servicios = DB::select(
+                'SELECT s.nombre, s.precio
+                 FROM cliente_servicio cs
+                 INNER JOIN servicios s ON cs.servicio_id = s.id
+                 WHERE cs.cliente_id = ? AND s.empresa_id = ?
+                 ORDER BY s.nombre ASC',
+                [$valor->id, $usuario->empresa_id]
+            );
         }
 
 

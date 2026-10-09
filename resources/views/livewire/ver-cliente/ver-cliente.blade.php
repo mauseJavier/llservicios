@@ -54,6 +54,7 @@
                 <thead>
                     <tr>
                         <th>Nombre</th>
+                        <th style="min-width: 160px;">Servicios</th>
                         <th>Titular</th>
                         <th>Correo</th>
                         <th>Teléfono</th>
@@ -81,6 +82,15 @@
                                 @endif
 
 
+                            </td>
+                            <td style="min-width: 160px;">
+                                @if ($cliente->servicios->count() > 0)
+                                    @foreach ($cliente->servicios as $servicio)
+                                        <div style="border: 1px solid var(--pico-muted-border-color, #ccc); border-radius: 8px; padding: 2px 8px; margin-bottom: 4px; display: inline-block; white-space: nowrap;">{{ $servicio->nombre }} — ${{ number_format($servicio->precio, 2, ',', '.') }}</div>
+                                    @endforeach
+                                @else
+                                    <span style="color: #999;">Sin servicios</span>
+                                @endif
                             </td>
                             <td>{{ $cliente->titular }}</td>
                             <td>{{ $cliente->correo }}</td>

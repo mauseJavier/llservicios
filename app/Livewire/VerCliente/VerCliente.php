@@ -172,7 +172,10 @@ class VerCliente extends Component
                 'servicios as servicios_vinculados_count' => function($q) use ($empresa) {
                     $q->where('servicios.empresa_id', $empresa->id);
                 }
-            ]);
+            ])
+            ->with(['servicios' => function($q) use ($empresa) {
+                $q->where('servicios.empresa_id', $empresa->id);
+            }]);
         
         // Aplicar filtro de búsqueda si existe
         if ($this->buscarCliente) {

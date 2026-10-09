@@ -52,6 +52,7 @@
                                 <th scope="col" style="text-align: right; min-width: 100px;">Octubre</th>
                                 <th scope="col" style="text-align: right; min-width: 100px;">Noviembre</th>
                                 <th scope="col" style="text-align: right; min-width: 100px;">Diciembre</th>
+                                <th scope="col" style="text-align: center; min-width: 160px;">Servicios</th>
                                 <th scope="col" style="text-align: center; min-width: 100px;">Titular</th>
 
                             </tr>
@@ -75,6 +76,15 @@
                                             @endforeach
                                         @endif
 
+                                        <td style="min-width: 160px;">
+                                            @if (!empty($c->servicios))
+                                                @foreach ($c->servicios as $servicio)
+                                                    <div style="border: 1px solid var(--pico-muted-border-color, #ccc); border-radius: 8px; padding: 2px 8px; margin-bottom: 4px; display: inline-block; white-space: nowrap;">{{ $servicio->nombre }} — ${{ number_format($servicio->precio, 2, ',', '.') }}</div>
+                                                @endforeach
+                                            @else
+                                                <span style="color: #999;">Sin servicios</span>
+                                            @endif
+                                        </td>
                                         <td style="text-align: center;">
                                             <a  href="{{route('ServicioPagarBuscarCliente',['estado'=>'impago','buscar'=>$c->nombre])}}" data-tooltip="Ver Impagos">{{$c->titular}}</a>
                                         </td>
@@ -88,6 +98,7 @@
                                         <td style="text-align: right;"><h5 style="color: #e3342f;">${{$item['impago']}}</h5></td>
                                     @endforeach
                                 @endif
+                                <td></td>
                                 <td style="text-align: center; background-color: var(--pico-background-color, white); box-shadow: 2px 0 5px rgba(0,0,0,0.1);"><h5 class="pico-color-red-450">Impago</h5></td>
 
                             </tr>
@@ -98,6 +109,7 @@
                                         <td style="text-align: right;"><h5 style="color: #38c172;">${{$item['pago']}}</h5></td>
                                     @endforeach
                                 @endif
+                                <td></td>
                                 <td style="text-align: center; background-color: var(--pico-background-color, white); box-shadow: 2px 0 5px rgba(0,0,0,0.1);"><h5 class="pico-color-jade-500">Pago</h5></td>
 
                             </tr>

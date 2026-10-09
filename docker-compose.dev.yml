@@ -20,7 +20,6 @@ services:
       - ./tests:/var/www/html/tests
     networks:
       - redPrincipal
-    restart: always
     #QUITAR LOS PUERTOS Y LA DEPENDENCIA DE MARIADB
     ports:
       - "1234:80"
@@ -46,7 +45,6 @@ services:
     entrypoint: ["/bin/sh", "-c", "chmod -R 777 /var/www/html/storage /var/www/html/bootstrap/cache && while true; do php /var/www/html/artisan schedule:run --no-interaction & sleep 60; done"]
     networks:
       - redPrincipal
-    restart: always
 
 
   localllfactura-queue-worker-v2:
@@ -89,7 +87,6 @@ services:
         done
     networks:
       - redPrincipal
-    restart: always
     healthcheck:
       test: ["CMD-SHELL", "ps aux | grep -q 'queue:work' || exit 1"]
       interval: 30s
@@ -136,7 +133,6 @@ services:
         done
     networks:
       - redPrincipal
-    restart: always
     healthcheck:
       test: ["CMD-SHELL", "ps aux | grep -q 'queue:work' || exit 1"]
       interval: 30s
