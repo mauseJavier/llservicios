@@ -66,5 +66,6 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'RolSuper' => \App\Http\Middleware\RolSuper::class,
         'RolAdmin' => \App\Http\Middleware\RolAdmin::class,
+        'empresa.token' => \App\Http\Middleware\AuthenticateEmpresaApi::class,
     ];
 }

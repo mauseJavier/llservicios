@@ -135,3 +135,13 @@ Route::get('/cliente/buscar', [App\Http\Controllers\Api\ClienteApiController::cl
             // }
 
 Route::post('/cliente/guardar', [App\Http\Controllers\Api\ClienteApiController::class, 'guardarCliente']);
+
+// ============================================================
+// RUTAS DE REGISTROS DE CERRADURA (autenticadas por token de empresa)
+// ============================================================
+
+// Endpoint para que el DLL de cada empresa envíe los registros de cerradura.
+// Requiere el header: Authorization: Bearer <token global de la empresa>
+Route::middleware('empresa.token')
+    ->post('/registros-cerradura', [App\Http\Controllers\Api\RegistroCerraduraApiController::class, 'store'])
+    ->name('api.registros-cerradura.store');

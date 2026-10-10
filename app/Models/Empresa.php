@@ -17,9 +17,59 @@ class Empresa extends Model
     protected $table = 'empresas';
     protected $guarded = [];
 
+    protected $hidden = [
+        'api_token',
+    ];
+
     protected $casts = [
         'dia_notificacion' => 'integer',
     ];
+
+    /**
+     * Algoritmo usado para hashear los tokens de API de las empresas.
+     */
+    public const API_TOKEN_HASH_ALGO = 'sha256';
+
+    /**
+     * Devuelve el hash almacenable del token de API.
+     */
+    public static function hashApiToken(string $token): string
+    {
+        return hash(self::API_TOKEN_HASH_ALGO, $token);
+    }
+
+    /**
+     * Busca una empresa por su token de API en claro.
+     */
+    public static function findByApiToken(string $token): ?self
+    {
+        if (empty($token)) {
+            return null;
+        }
+
+        return self::where('api_token', self::hashApiToken($token))->first();
+    }
+
+    /**
+     * Genera un nuevo token de API para la empresa, lo guarda hasheado
+     * y devuelve el token en claro (solo disponible en este momento).
+     */
+    public function generateApiToken(): string
+    {
+        $plainToken = \Illuminate\Support\Str::random(64);
+        $this->api_token = self::hashApiToken($plainToken);
+        $this->save();
+
+        return $plainToken;
+    }
+
+    /**
+     * Registros de cerradura de la empresa.
+     */
+    public function registrosCerradura(): HasMany
+    {
+        return $this->hasMany(RegistroCerradura::class, 'empresa_id', 'id');
+    }
 
     /**
      * Indica si la empresa debe notificarse en el día del mes indicado.

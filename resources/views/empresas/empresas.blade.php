@@ -57,7 +57,8 @@
               <th>
                   <strong><a href="{{route('UsuariosEmpresasVer',['idEmpresa'=>$e->id])}}" data-tooltip="Editar">Usuarios</a></strong> |
                   <strong><a href="{{route('empresas.edit',['empresa'=>$e->id])}}" data-tooltip="Editar">Editar</a></strong> |
-                  <strong><a href="#" data-tooltip="Borrar">Borrar</a></strong>
+                  <strong><a href="#" data-tooltip="Borrar">Borrar</a></strong> |
+                  @livewire('empresa-token', ['empresaId' => $e->id])
               </th>
             </tr>
           @endforeach

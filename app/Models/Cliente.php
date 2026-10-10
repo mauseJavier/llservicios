@@ -119,4 +119,14 @@ class Cliente extends Model
         return $this->belongsToMany(Segmento::class, 'cliente_segmento', 'cliente_id', 'segmento_id');
     }
 
+    /**
+     * Los registros de cerradura del cliente
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function registrosCerradura(): HasMany
+    {
+        return $this->hasMany(RegistroCerradura::class, 'cliente_id');
+    }
+
 }

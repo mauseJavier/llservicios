@@ -13,6 +13,7 @@ use App\Models\Servicio;
 use App\Models\ServicioPagar;
 use App\Models\Pagos;
 use App\Models\Segmento;
+use App\Models\RegistroCerradura;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -26,6 +27,10 @@ class VerCliente extends Component
     public $segmentoFiltro = '';
     public $clienteAEliminar = null;
     public $mostrarModalConfirmacion = false;
+
+    public $clienteEventos = null;
+    public $eventosCerradura = [];
+    public $mostrarModalEventos = false;
 
 
     public function mount($idCliente = null)
@@ -59,6 +64,46 @@ class VerCliente extends Component
     {
         $this->clienteAEliminar = null;
         $this->mostrarModalConfirmacion = false;
+    }
+
+    /**
+     * Carga los registros de cerradura del cliente para la empresa actual
+     * y abre el modal de visualización.
+     */
+    public function verEventosCerradura($clienteId)
+    {
+        $empresaId = Auth::user()->empresa_id;
+
+        // Validar que el cliente pertenece a esta empresa
+        $clientePerteneceAEmpresa = DB::table('cliente_empresa')
+            ->where('cliente_id', $clienteId)
+            ->where('empresa_id', $empresaId)
+            ->exists();
+
+        if (!$clientePerteneceAEmpresa) {
+            session()->flash('error', 'El cliente no pertenece a esta empresa.');
+            return;
+        }
+
+        $this->clienteEventos = Cliente::find($clienteId);
+
+        $this->eventosCerradura = RegistroCerradura::where('empresa_id', $empresaId)
+            ->where('cliente_id', $clienteId)
+            ->orderByDesc('fecha_hora')
+            ->limit(200)
+            ->get();
+
+        $this->mostrarModalEventos = true;
+    }
+
+    /**
+     * Cierra el modal de registros de cerradura.
+     */
+    public function cerrarModalEventos()
+    {
+        $this->mostrarModalEventos = false;
+        $this->clienteEventos = null;
+        $this->eventosCerradura = [];
     }
 
     /**

@@ -516,6 +516,157 @@ class ApiDocumentationController extends Controller
             ],
 
             // ============================================================
+            // GRUPO: REGISTROS DE CERRADURA
+            // ============================================================
+            [
+                'group' => 'registros-cerradura',
+                'group_description' => 'Endpoints para el registro de eventos de cerradura enviados por el DLL',
+                'name' => 'Registrar Evento de Cerradura',
+                'method' => 'POST',
+                'endpoint' => '/api/registros-cerradura',
+                'description' => 'Guarda un evento de cerradura enviado por el DLL. Requiere el token global de la empresa. El cliente puede identificarse por cliente_id o, si no se envía, por documento (dni/cuit/cuil) o correo.',
+                'authentication' => true,
+                'authentication_details' => [
+                    'type' => 'Bearer',
+                    'header' => 'Authorization: Bearer <token global de la empresa>',
+                    'description' => 'El token es único por empresa y se genera/rota con: php artisan empresa:token {id|nombre}'
+                ],
+                'parameters' => [
+                    'body' => [
+                        [
+                            'name' => 'empresa_id',
+                            'type' => 'integer',
+                            'required' => false,
+                            'description' => 'ID de la empresa. Si se envía, debe coincidir con la empresa del token',
+                            'example' => 1
+                        ],
+                        [
+                            'name' => 'cliente_id',
+                            'type' => 'integer',
+                            'required' => false,
+                            'description' => 'ID del cliente. Tiene prioridad sobre documento/correo',
+                            'example' => 252
+                        ],
+                        [
+                            'name' => 'dni',
+                            'type' => 'string',
+                            'required' => false,
+                            'description' => 'DNI del cliente (puede ser parte de un CUIT/CUIL guardado)',
+                            'example' => '33426781'
+                        ],
+                        [
+                            'name' => 'cuit',
+                            'type' => 'string',
+                            'required' => false,
+                            'description' => 'CUIT del cliente',
+                            'example' => '20-33426781-6'
+                        ],
+                        [
+                            'name' => 'cuil',
+                            'type' => 'string',
+                            'required' => false,
+                            'description' => 'CUIL del cliente',
+                            'example' => '20-33426781-6'
+                        ],
+                        [
+                            'name' => 'correo',
+                            'type' => 'email',
+                            'required' => false,
+                            'description' => 'Correo del cliente (se usa si no hay coincidencia por documento)',
+                            'example' => 'alcarazjorge85@gmail.com'
+                        ],
+                        [
+                            'name' => 'nombre_cerradura',
+                            'type' => 'string',
+                            'required' => true,
+                            'description' => 'Nombre de la cerradura',
+                            'example' => 'Portón principal'
+                        ],
+                        [
+                            'name' => 'fecha_hora',
+                            'type' => 'datetime',
+                            'required' => true,
+                            'description' => 'Fecha y hora del evento',
+                            'example' => '2026-10-09 14:30:00'
+                        ],
+                        [
+                            'name' => 'tipo',
+                            'type' => 'string',
+                            'required' => false,
+                            'description' => 'Tipo de evento (ej: entrada, salida)',
+                            'example' => 'entrada'
+                        ],
+                        [
+                            'name' => 'dispositivo_id',
+                            'type' => 'string',
+                            'required' => false,
+                            'description' => 'Identificador/serial del dispositivo (DLL)',
+                            'example' => 'DLL-001'
+                        ],
+                        [
+                            'name' => 'datos_extra',
+                            'type' => 'object',
+                            'required' => false,
+                            'description' => 'Datos adicionales del evento',
+                            'example' => [
+                                'metodo' => 'huella'
+                            ]
+                        ]
+                    ]
+                ],
+                'request_example' => [
+                    'curl_usuario_unico' => 'curl -X POST "' . url('/api') . '/registros-cerradura" -H "Authorization: Bearer <TOKEN_EMPRESA_PRUEBA>" -H "Content-Type: application/json" -d \'{"cliente_id":252,"nombre_cerradura":"Portón principal","fecha_hora":"2026-10-09 14:30:00","tipo":"entrada","dispositivo_id":"DLL-001","datos_extra":{"metodo":"huella"}}\'',
+                    'curl_usuario_compartido' => 'curl -X POST "' . url('/api') . '/registros-cerradura" -H "Authorization: Bearer <TOKEN_EMPRESA_LLFACTURA>" -H "Content-Type: application/json" -d \'{"dni":"35079663","nombre_cerradura":"Portón principal","fecha_hora":"2026-10-09 14:30:00","tipo":"entrada"}\'',
+                    'json' => [
+                        'cliente_id' => 252,
+                        'nombre_cerradura' => 'Portón principal',
+                        'fecha_hora' => '2026-10-09 14:30:00',
+                        'tipo' => 'entrada',
+                        'dispositivo_id' => 'DLL-001',
+                        'datos_extra' => [
+                            'metodo' => 'huella'
+                        ]
+                    ]
+                ],
+                'response_success' => [
+                    'code' => 201,
+                    'example' => [
+                        'success' => true,
+                        'message' => 'Registro de cerradura guardado exitosamente.',
+                        'data' => [
+                            'id' => 1,
+                            'empresa_id' => 1,
+                            'cliente_id' => 252,
+                            'nombre_cerradura' => 'Portón principal',
+                            'tipo' => 'entrada',
+                            'dispositivo_id' => 'DLL-001',
+                            'fecha_hora' => '2026-10-09T17:30:00.000000Z',
+                            'recibido_en' => '2026-10-09T17:30:05.000000Z',
+                            'datos_extra' => [
+                                'metodo' => 'huella'
+                            ]
+                        ]
+                    ]
+                ],
+                'response_error' => [
+                    'code' => 422,
+                    'example' => [
+                        'success' => false,
+                        'code' => 422,
+                        'message' => 'No se pudo identificar el cliente con los datos proporcionados.'
+                    ]
+                ],
+                'notes' => [
+                    'Requiere el token global de la empresa en el header Authorization: Bearer <token>',
+                    'Identificación del cliente (prioridad): cliente_id > dni/cuit/cuil > correo, siempre acotado a la empresa del token',
+                    'Contempla que el cliente esté guardado como DNI o como CUIT/CUIL y que el DLL envíe solo el DNI (u otra parte)',
+                    'Un usuario compartido entre varias empresas se resuelve con el token de cualquiera de ellas',
+                    'Si el documento coincide con más de un cliente de la misma empresa, responde 422 pidiendo cliente_id',
+                    'Códigos de error: 401 (sin token o inválido), 403 (cliente de otra empresa o empresa_id no coincide), 422 (sin identificadores, no encontrado o ambiguo)'
+                ]
+            ],
+
+            // ============================================================
             // GRUPO: DOCUMENTACIÓN
             // ============================================================
             [

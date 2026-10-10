@@ -103,6 +103,12 @@
 
                                 <div role="group">
                                     
+                                        <button
+                                            wire:click="verEventosCerradura({{ $cliente->id }})"
+                                            data-tooltip="Ver registros de cerradura"
+                                            style="background-color: transparent; cursor: pointer; padding: 0.3rem 0.6rem; border-radius: 3px; color: #FFD43B;">
+                                            <i class="fas fa-door-closed"></i>
+                                        </button>
                                         <a role="button" href="{{ route('Cliente.edit', ['Cliente' => $cliente->id]) }}" style="background-color: transparent; cursor: pointer; padding: 0.3rem 0.6rem; border-radius: 3px; color: white;"
                                     
                                             data-tooltip="Editar" style="margin-right: 10px;">
@@ -177,6 +183,65 @@
                         style="background-color: #dc3545;">
                         Sí, Eliminar Definitivamente
                     </button>
+                </footer>
+            </article>
+        </dialog>
+    @endif
+
+    {{-- Modal de Registros de Cerradura --}}
+    @if ($mostrarModalEventos && $clienteEventos)
+        <dialog open>
+            <article style="max-width: 900px; width: 95%;">
+                <header>
+                    <h3>🔓 Registros de cerradura</h3>
+                </header>
+                <p>
+                    <strong>Cliente:</strong> {{ $clienteEventos->nombre }}
+                    @if ($clienteEventos->dni)
+                        — <strong>DNI:</strong> {{ $clienteEventos->dni }}
+                    @endif
+                </p>
+
+                @if ($eventosCerradura->isEmpty())
+                    <p style="color: #999;">Este cliente no tiene registros de cerradura.</p>
+                @else
+                    <div class="overflow-auto" style="max-height: 60vh;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Fecha y hora</th>
+                                    <th>Cerradura</th>
+                                    <th>Tipo</th>
+                                    <th>Dispositivo</th>
+                                    <th>Datos extra</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($eventosCerradura as $evento)
+                                    <tr>
+                                        <td>{{ $evento->fecha_hora?->format('d/m/Y H:i:s') }}</td>
+                                        <td>{{ $evento->nombre_cerradura }}</td>
+                                        <td>{{ $evento->tipo ?? '-' }}</td>
+                                        <td>{{ $evento->dispositivo_id ?? '-' }}</td>
+                                        <td>
+                                            @if ($evento->datos_extra)
+                                                <code style="font-size: 0.75rem;">{{ json_encode($evento->datos_extra, JSON_UNESCAPED_UNICODE) }}</code>
+                                            @else
+                                                -
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <p style="margin-top: 0.5rem; color: #999; font-size: 0.85rem;">
+                        Mostrando {{ $eventosCerradura->count() }} registro(s) más reciente(s).
+                    </p>
+                @endif
+
+                <footer style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button wire:click="cerrarModalEventos" class="secondary">Cerrar</button>
                 </footer>
             </article>
         </dialog>
