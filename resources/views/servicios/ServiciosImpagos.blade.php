@@ -98,7 +98,16 @@
                   </a></strong>
                   
                   @if(Auth::user()->role_id == 2 || Auth::user()->role_id == 3)
-                  | 
+                  |
+                  <strong>
+                  <a role="button" href="#" class="btn-vencimiento"
+                    data-id="{{ $e->idServicioPagar }}"
+                    data-fecha="{{ $e->fecha_vencimiento ? \Carbon\Carbon::parse($e->fecha_vencimiento)->format('Y-m-d') : '' }}"
+                    data-cliente="{{ $e->nombreCliente }}"
+                    data-servicio="{{ $e->nombreServicio }}"
+                    data-tooltip="Modificar vencimiento">📅</a>
+                  </strong>
+                  |
                   <strong>
                   <a role="button" href="#" 
                    onclick="event.preventDefault(); if(confirm('¿Está seguro que desea eliminar este servicio impago?\n\nCliente: {{$e->nombreCliente}}\nServicio: {{$e->nombreServicio}}\nTotal: ${{$e->total}}\n\nEsta acción no se puede deshacer.')) { document.getElementById('delete-form-{{$e->idServicioPagar}}').submit(); }" 
@@ -159,7 +168,61 @@
 
 
 @endif
+
+  <dialog id="modalVencimiento">
+    <article>
+      <header>
+        <button aria-label="Close" rel="prev" id="cerrarModalVencimiento"></button>
+        <strong>Modificar fecha de vencimiento</strong>
+      </header>
+      <p id="modalVencimientoInfo" style="margin-bottom: 0.5rem;"></p>
+      <form id="formVencimiento" method="POST" data-action-template="{{ route('ExtenderVencimiento', ['idServicioPagar' => '__ID__']) }}">
+        @csrf
+        <label for="inputVencimiento">
+          Nueva fecha de vencimiento
+          <input type="date" id="inputVencimiento" name="fecha_vencimiento" required>
+        </label>
+        <footer>
+          <button type="button" class="secondary" id="cancelarModalVencimiento">Cancelar</button>
+          <button type="submit">Guardar</button>
+        </footer>
+      </form>
+    </article>
+  </dialog>
 </div>
 
 
-@endsection 
+@endsection
+
+@push('scripts')
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var modal = document.getElementById('modalVencimiento');
+    if (!modal) {
+      return;
+    }
+
+    var form = document.getElementById('formVencimiento');
+    var input = document.getElementById('inputVencimiento');
+    var info = document.getElementById('modalVencimientoInfo');
+
+    document.querySelectorAll('.btn-vencimiento').forEach(function (btn) {
+      btn.addEventListener('click', function (event) {
+        event.preventDefault();
+        form.action = form.dataset.actionTemplate.replace('__ID__', btn.dataset.id);
+        input.value = btn.dataset.fecha || '';
+        info.textContent = 'Cliente: ' + btn.dataset.cliente + ' — Servicio: ' + btn.dataset.servicio;
+        modal.showModal();
+      });
+    });
+
+    document.getElementById('cerrarModalVencimiento').addEventListener('click', function () {
+      modal.close();
+    });
+
+    document.getElementById('cancelarModalVencimiento').addEventListener('click', function () {
+      modal.close();
+    });
+  });
+</script>
+@endpush

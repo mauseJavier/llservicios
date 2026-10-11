@@ -140,6 +140,7 @@ Route::middleware('auth')->group(function () {
             Route::get('NuevoCobro', [ServicioPagarController::class, 'NuevoCobro'])->name('NuevoCobro'); 
             Route::post('AgregarNuevoCobro', [ServicioPagarController::class, 'AgregarNuevoCobro'])->name('AgregarNuevoCobro');
             Route::delete('EliminarServicioImpago/{idServicioPagar}', [ServicioPagarController::class, 'EliminarServicioImpago'])->name('EliminarServicioImpago');
+            Route::post('ExtenderVencimiento/{idServicioPagar}', [ServicioPagarController::class, 'ExtenderVencimiento'])->name('ExtenderVencimiento');
 
             // dos rutas corregir servicios  impagos 
             

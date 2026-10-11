@@ -887,6 +887,74 @@ class ServicioPagarController extends Controller
     }
 
     /**
+     * Modificar la fecha de vencimiento de un servicio impago.
+     * Solo puede ser ejecutado por usuarios Admin (role_id = 2) o Super (role_id = 3)
+     * (el grupo de rutas ya está detrás del middleware RolAdmin).
+     * Solo modifica la fecha; no toca precio, mora ni comentario.
+     */
+    public function ExtenderVencimiento(Request $request, $idServicioPagar)
+    {
+        $request->validate([
+            'fecha_vencimiento' => 'required|date',
+        ], [
+            'fecha_vencimiento.required' => 'Debes indicar la nueva fecha de vencimiento.',
+            'fecha_vencimiento.date' => 'La fecha de vencimiento no es válida.',
+        ]);
+
+        $usuario = Auth::user();
+
+        try {
+            $servicioPagar = ServicioPagar::find($idServicioPagar);
+
+            if (!$servicioPagar) {
+                return redirect()->back()->withErrors(['El servicio no existe.']);
+            }
+
+            // Verificar que el servicio pertenece a la empresa del usuario
+            $servicio = Servicio::find($servicioPagar->servicio_id);
+            if (!$servicio || $servicio->empresa_id != $usuario->empresa_id) {
+                return redirect()->back()
+                    ->withErrors(['No puedes modificar servicios de otra empresa.']);
+            }
+
+            // Solo se modifican servicios impagos
+            if ($servicioPagar->estado !== 'impago') {
+                return redirect()->back()
+                    ->withErrors(['Solo se puede modificar el vencimiento de servicios en estado IMPAGO. Este servicio está: ' . strtoupper($servicioPagar->estado)]);
+            }
+
+            $fechaAnterior = $servicioPagar->fecha_vencimiento;
+
+            $nuevaFecha = \Carbon\Carbon::parse($request->fecha_vencimiento);
+
+            $servicioPagar->fecha_vencimiento = $nuevaFecha->toDateString();
+            $servicioPagar->save();
+
+            \Log::info('Vencimiento de servicio modificado', [
+                'usuario_id' => $usuario->id,
+                'usuario_nombre' => $usuario->name,
+                'servicio_pagar_id' => $idServicioPagar,
+                'fecha_anterior' => $fechaAnterior ? $fechaAnterior->toDateString() : null,
+                'fecha_nueva' => $nuevaFecha->toDateString(),
+            ]);
+
+            return redirect()->back()
+                ->with('status', 'Vencimiento actualizado al ' . $nuevaFecha->format('d/m/Y') . '.');
+
+        } catch (\Exception $e) {
+            \Log::error('Error al modificar vencimiento', [
+                'usuario_id' => Auth::id(),
+                'servicio_pagar_id' => $idServicioPagar,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return redirect()->back()
+                ->withErrors(['Error al modificar el vencimiento: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
      * Contar la cantidad de servicios impagos de la empresa
      * Retorna el número total de registros que cumplen los criterios
      */
