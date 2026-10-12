@@ -131,8 +131,11 @@ class MercadoPagoLinkService
         // Snapshot de las deudas incluidas en este link, con una referencia única
         // e irrepetible (lote_{token}) para que el pago no se confunda entre meses.
         $intento = DB::transaction(function () use ($clienteId, $empresaId, $serviciosPagar) {
+            $token = (string) Str::uuid();
+
             $intento = MercadoPagoPagoIntento::create([
-                'token' => (string) Str::uuid(),
+                'token' => $token,
+                'referencia' => 'lote_' . $token,
                 'cliente_id' => $clienteId,
                 'empresa_id' => $empresaId,
                 'estado' => 'pendiente',
@@ -140,9 +143,6 @@ class MercadoPagoLinkService
                     fn ($servicio) => (float) ($servicio->precio ?? 0) * max(1, (int) ($servicio->cantidad ?? 1))
                 ),
             ]);
-
-            $intento->referencia = 'lote_' . $intento->token;
-            $intento->save();
 
             $ids = $serviciosPagar->pluck('id')
                 ->filter()

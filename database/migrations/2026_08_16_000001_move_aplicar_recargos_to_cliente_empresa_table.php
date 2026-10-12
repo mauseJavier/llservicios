@@ -20,9 +20,13 @@ return new class extends Migration
         });
 
         DB::statement(
-            'UPDATE cliente_empresa ce
-             INNER JOIN clientes c ON c.id = ce.cliente_id
-             SET ce.aplicar_recargos = c.aplicar_recargos'
+            'UPDATE cliente_empresa
+             SET aplicar_recargos = (
+                 SELECT c.aplicar_recargos FROM clientes c WHERE c.id = cliente_empresa.cliente_id
+             )
+             WHERE EXISTS (
+                 SELECT 1 FROM clientes c WHERE c.id = cliente_empresa.cliente_id
+             )'
         );
 
         Schema::table('clientes', function (Blueprint $table) {
@@ -40,13 +44,13 @@ return new class extends Migration
         });
 
         DB::statement(
-            'UPDATE clientes c
-             INNER JOIN (
-                SELECT ce.cliente_id, MAX(ce.aplicar_recargos) AS aplicar_recargos
-                FROM cliente_empresa ce
-                GROUP BY ce.cliente_id
-             ) p ON p.cliente_id = c.id
-             SET c.aplicar_recargos = p.aplicar_recargos'
+            'UPDATE clientes
+             SET aplicar_recargos = (
+                 SELECT MAX(ce.aplicar_recargos) FROM cliente_empresa ce WHERE ce.cliente_id = clientes.id
+             )
+             WHERE EXISTS (
+                 SELECT 1 FROM cliente_empresa ce WHERE ce.cliente_id = clientes.id
+             )'
         );
 
         Schema::table('cliente_empresa', function (Blueprint $table) {

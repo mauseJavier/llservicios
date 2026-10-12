@@ -80,10 +80,7 @@ class ExtenderVencimientoTest extends TestCase
         $response->assertRedirect();
         $response->assertSessionHas('status');
 
-        $this->assertDatabaseHas('servicio_pagar', [
-            'id' => $this->servicioPagar->id,
-            'fecha_vencimiento' => $nuevaFecha,
-        ]);
+        $this->assertSame($nuevaFecha, $this->servicioPagar->fresh()->fecha_vencimiento->toDateString());
     }
 
     public function test_permite_fijar_una_fecha_pasada()
@@ -97,10 +94,7 @@ class ExtenderVencimientoTest extends TestCase
 
         $response->assertRedirect();
 
-        $this->assertDatabaseHas('servicio_pagar', [
-            'id' => $this->servicioPagar->id,
-            'fecha_vencimiento' => $nuevaFecha,
-        ]);
+        $this->assertSame($nuevaFecha, $this->servicioPagar->fresh()->fecha_vencimiento->toDateString());
     }
 
     public function test_no_permite_modificar_un_servicio_pagado()
@@ -115,10 +109,7 @@ class ExtenderVencimientoTest extends TestCase
 
         $response->assertSessionHasErrors();
 
-        $this->assertDatabaseHas('servicio_pagar', [
-            'id' => $this->servicioPagar->id,
-            'fecha_vencimiento' => $fechaOriginal,
-        ]);
+        $this->assertSame($fechaOriginal, $this->servicioPagar->fresh()->fecha_vencimiento->toDateString());
     }
 
     public function test_no_permite_modificar_servicio_de_otra_empresa()
@@ -154,10 +145,7 @@ class ExtenderVencimientoTest extends TestCase
 
         $response->assertSessionHasErrors();
 
-        $this->assertDatabaseHas('servicio_pagar', [
-            'id' => $servicioPagarAjeno->id,
-            'fecha_vencimiento' => $fechaOriginal,
-        ]);
+        $this->assertSame($fechaOriginal, $servicioPagarAjeno->fresh()->fecha_vencimiento->toDateString());
     }
 
     public function test_rechaza_una_fecha_invalida()
@@ -171,10 +159,7 @@ class ExtenderVencimientoTest extends TestCase
 
         $response->assertSessionHasErrors('fecha_vencimiento');
 
-        $this->assertDatabaseHas('servicio_pagar', [
-            'id' => $this->servicioPagar->id,
-            'fecha_vencimiento' => $fechaOriginal,
-        ]);
+        $this->assertSame($fechaOriginal, $this->servicioPagar->fresh()->fecha_vencimiento->toDateString());
     }
 
     public function test_rechaza_una_fecha_vacia()
@@ -188,9 +173,6 @@ class ExtenderVencimientoTest extends TestCase
 
         $response->assertSessionHasErrors('fecha_vencimiento');
 
-        $this->assertDatabaseHas('servicio_pagar', [
-            'id' => $this->servicioPagar->id,
-            'fecha_vencimiento' => $fechaOriginal,
-        ]);
+        $this->assertSame($fechaOriginal, $this->servicioPagar->fresh()->fecha_vencimiento->toDateString());
     }
 }

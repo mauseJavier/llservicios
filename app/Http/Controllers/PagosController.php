@@ -953,7 +953,7 @@ class PagosController extends Controller
 
             // Usar el cliente de pagos del SDK moderno
             $paymentClient = new \MercadoPago\Client\Payment\PaymentClient();
-            $payment = $paymentClient->get($paymentId);
+            $payment = $paymentClient->get((int) $paymentId);
 
             return response()->json([
                 'success' => true,

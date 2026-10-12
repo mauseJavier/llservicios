@@ -134,3 +134,58 @@ con un commit/PR verificable por etapa:
 - [ ] `vendor/bin/pint --test` en verde.
 - [ ] Smoke test de integraciones críticas.
 - [ ] `docs/` actualizado con incidencias encontradas.
+
+---
+
+## Progreso Etapa 1 (Laravel 10 → 11)
+
+Estado: **aplicada**. `laravel/framework 11.57.0`, `sanctum 4.3`,
+`tinker 2.x`, `phpunit 11`, `collision 8`. Esqueleto migrado a
+`bootstrap/app.php` + `bootstrap/providers.php`; schedule movido a
+`routes/console.php`; Kernels, `RouteServiceProvider` y middleware
+redundante eliminados. `php artisan route:list` → 159 rutas. Smoke test dev
+(`/login`, `/`, `/up` → 200; middleware `empresa.token` → 401; scheduler OK).
+
+### Entorno de verificación (sin tocar el Dockerfile)
+
+- Composer/tests se corren en **contenedores efímeros**. Imagen de test
+  `llservicios-test:local` (PHP 8.4 + soap/zip/bcmath/gd), Dockerfile en
+  `/tmp/opencode/php-test/Dockerfile`.
+- `composer update` en `composer:2` con `--no-blocking` (Laravel 11 ya está
+  EOL y Composer 2.10 bloquea por advisories) y `--ignore-platform-req=ext-soap`.
+- Tests con **SQLite in-memory** (`phpunit.xml`).
+
+### Resultado de tests e incidencias pendientes
+
+La suite completa quedó en **115 tests, 5 errores, 12 fallos y 17
+deprecaciones**. `ExtenderVencimientoTest` pasó sus 6 tests tras hacer las
+aserciones compatibles con SQLite. No se pudo ejecutar la suite de la línea
+base: su `composer.lock` fija `mercadopago/dx-php 3.12.0`, que exige PHP ≥ 8.5,
+mientras `config.platform.php` fija PHP 8.4. Por ello no se puede afirmar que
+todos los errores/fallos restantes sean preexistentes.
+
+Corregido durante la etapa:
+
+- `PagosController::obtenerInfoPago` → `PaymentClient::get((int) $paymentId)`
+  (regresión del bump a mercadopago 3.16, que tipa `int`).
+- `MercadoPagoLinkService` setea `referencia` en el `create` (fallaba por NOT
+  NULL en SQLite).
+- `ExtenderVencimientoTest`: aserciones de fecha portables a SQLite.
+- Migraciones con SQL MySQL-específico (`SHOW INDEX`, `information_schema`,
+  multi-table UPDATE) hechas portables.
+
+Fallos pendientes por categoría:
+
+| Categoría | Tests | Causa |
+| --- | --- | --- |
+| URLs MP (`httpbin.org`/`llservicios.com`) | 5 fallos | `APP_URL` es ngrok en el entorno de test |
+| Obtener pagos MercadoPago | 5 fallos | respuestas 401 por credenciales/API del entorno |
+| Persistencia de pago MP | 1 fallo | test esperaba `id_usuario=1`, persistió `0` |
+| WhatsApp | 3 errores + 1 fallo | métodos de test inexistentes y expectativa de error distinta |
+| Helpers MP | 2 errores | `Undefined array key` en datos de test |
+
+### Pendiente para cerrar la etapa
+
+- Checkpoint manual en dev: grilla de servicios, AFIP/ARCA, MercadoPago, QR,
+  WhatsApp y PDF.
+- Revisar si conviene un `config:cache`/`route:cache` en el entrypoint.
