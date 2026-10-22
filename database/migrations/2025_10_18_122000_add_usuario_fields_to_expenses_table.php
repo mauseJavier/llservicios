@@ -31,28 +31,18 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Laravel 11 ya no incluye doctrine/dbal, así que no se puede usar
+        // getDoctrineSchemaManager(). Se intenta eliminar la FK por columnas
+        // y, si no existe o el motor no la soporta, se ignora.
+        try {
+            Schema::table('expenses', function (Blueprint $table) {
+                $table->dropForeign(['usuario_id']);
+            });
+        } catch (Throwable $e) {
+            // La FK no existe o el motor no soporta dropForeign (p. ej. SQLite).
+        }
+
         Schema::table('expenses', function (Blueprint $table) {
-            // Eliminar FK si existe
-            $sm = Schema::getConnection()->getDoctrineSchemaManager();
-            $doctrineTable = null;
-            try {
-                $doctrineTable = $sm->listTableDetails($table->getTable());
-            } catch (\Exception $e) {
-                // noop
-            }
-
-            if ($doctrineTable && $doctrineTable->hasForeignKey('expenses_usuario_id_foreign')) {
-                $table->dropForeign('expenses_usuario_id_foreign');
-            } elseif ($doctrineTable) {
-                // intentar eliminar por columnas si el nombre es distinto
-                try {
-                    $table->dropForeign([$table->getTable().'_usuario_id_foreign']);
-                } catch (\Exception $e) {
-                    // noop
-                }
-            }
-
-            // Eliminar columnas si existen
             if (Schema::hasColumn('expenses', 'usuario_id')) {
                 $table->dropColumn('usuario_id');
             }

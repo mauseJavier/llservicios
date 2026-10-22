@@ -2,12 +2,14 @@
 
 namespace App\Services;
 
+use App\Helpers\DniHelper;
+use App\Models\Empresa;
+use App\Models\Pagos;
+use Exception;
+use Illuminate\Support\Facades\Log;
 use Mause\LaravelArca\Facades\ArcaWsaa;
 use Mause\LaravelArca\Facades\ArcaWsfev1;
 use Mause\LaravelArca\Facades\ArcaWsPadron;
-use App\Helpers\DniHelper;
-use Exception;
-use Illuminate\Support\Facades\Log;
 
 class AfipService
 {
@@ -15,15 +17,16 @@ class AfipService
 
     /**
      * Constructor del servicio AFIP → ARCA
-     * 
-     * @param int $empresaId ID de la empresa
-     * @param bool $inicializar Si debe inicializar/validar certificados
+     *
+     * @param  int  $empresaId  ID de la empresa
+     * @param  bool  $inicializar  Si debe inicializar/validar certificados
+     *
      * @throws Exception Si la empresa no tiene configuración
      */
     public function __construct($empresaId = null, $inicializar = true)
     {
         if ($empresaId) {
-            $this->empresa = \App\Models\Empresa::findOrFail($empresaId);
+            $this->empresa = Empresa::findOrFail($empresaId);
 
             if ($inicializar) {
                 $this->validarCertificados();
@@ -78,27 +81,27 @@ class AfipService
             if (file_exists($certPath) && file_exists($keyPath)) {
                 // Validar que los archivos no estén vacíos
                 if (trim((string) @file_get_contents($certPath)) === '') {
-                    throw new Exception('El archivo cert.crt está vacío: ' . $certPath);
+                    throw new Exception('El archivo cert.crt está vacío: '.$certPath);
                 }
 
                 if (trim((string) @file_get_contents($keyPath)) === '') {
-                    throw new Exception('El archivo key.key está vacío: ' . $keyPath);
+                    throw new Exception('El archivo key.key está vacío: '.$keyPath);
                 }
 
                 return [$certPath, $keyPath];
             }
 
             // Log si los archivos no existen
-            if (!file_exists($certPath)) {
+            if (! file_exists($certPath)) {
                 Log::warning('El archivo cert.crt no existe en la ruta esperada', ['path' => $certPath]);
             }
 
-            if (!file_exists($keyPath)) {
+            if (! file_exists($keyPath)) {
                 Log::warning('El archivo key.key no existe en la ruta esperada', ['path' => $keyPath]);
             }
         }
 
-        throw new Exception('Certificados ARCA no encontrados para CUIT ' . $this->empresa->cuit);
+        throw new Exception('Certificados ARCA no encontrados para CUIT '.$this->empresa->cuit);
     }
 
     /**
@@ -144,7 +147,7 @@ class AfipService
             $cuit
         );
 
-        return dirname($keyPath) . DIRECTORY_SEPARATOR . 'request.csr';
+        return dirname($keyPath).DIRECTORY_SEPARATOR.'request.csr';
     }
 
     /**
@@ -173,11 +176,11 @@ class AfipService
         $targetCertDir = dirname($targetCertPath);
         $targetKeyDir = dirname($targetKeyPath);
 
-        if (!is_dir($targetCertDir)) {
+        if (! is_dir($targetCertDir)) {
             @mkdir($targetCertDir, 0775, true);
         }
 
-        if (!is_dir($targetKeyDir)) {
+        if (! is_dir($targetKeyDir)) {
             @mkdir($targetKeyDir, 0775, true);
         }
 
@@ -198,8 +201,8 @@ class AfipService
 
     /**
      * Crear una factura electrónica
-     * 
-     * @param array $data Datos de la factura
+     *
+     * @param  array  $data  Datos de la factura
      * @return array Respuesta con CAE y detalles
      */
     public function crearFactura(array $data)
@@ -214,7 +217,7 @@ class AfipService
                 $data['CbteTipo']
             );
 
-            if (!$lastResult || !isset($lastResult['cbte_nro'])) {
+            if (! $lastResult || ! isset($lastResult['cbte_nro'])) {
                 throw new Exception('No se pudo obtener el último número de comprobante');
             }
 
@@ -244,8 +247,8 @@ class AfipService
                         'MonId' => $data['MonId'] ?? 'PES',
                         'MonCotiz' => $normalizeImporte($data['MonCotiz'] ?? 1),
                         'CondicionIVAReceptorId' => $data['CondicionIVAReceptorId'] ?? 5,
-                    ]
-                ]
+                    ],
+                ],
             ];
 
             // Agregar fechas de servicio si aplica (Concepto 2 o 3)
@@ -266,14 +269,14 @@ class AfipService
                 $invoice['FeDetReq']['FECAEDetRequest']['CbtesAsoc'] = $data['CbtesAsoc'];
             }
 
-            if (env('APP_ENV') === 'local') {
+            if (app()->environment() === 'local') {
                 Log::info('Solicitando CAE a ARCA', ['empresa_id' => $this->empresa->id, 'data' => $invoice]);
             }
 
             // Solicitar CAE a ARCA
             $response = ArcaWsfev1::requestCae($this->empresa->cuit, $invoice);
 
-            if (!$response || isset($response['error'])) {
+            if (! $response || isset($response['error'])) {
                 $mensaje = $response['error'] ?? 'Error desconocido al solicitar CAE';
                 $mensaje = $this->mensajeErrorArca($mensaje);
                 throw new Exception($mensaje);
@@ -296,7 +299,7 @@ class AfipService
             Log::info('CAE obtenido exitosamente desde ARCA', [
                 'empresa_id' => $this->empresa->id,
                 'cae' => $cae,
-                'numero_comprobante' => $siguienteNumero
+                'numero_comprobante' => $siguienteNumero,
             ]);
 
             return [
@@ -304,27 +307,27 @@ class AfipService
                 'data' => $response,
                 'numero_comprobante' => $siguienteNumero,
                 'cae' => $cae,
-                'cae_vencimiento' => $caeVencimiento
+                'cae_vencimiento' => $caeVencimiento,
             ];
 
         } catch (Exception $e) {
             Log::error('Error al crear factura con ARCA', [
                 'empresa_id' => $this->empresa->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
 
     /**
      * Obtener el último número de comprobante
-     * 
-     * @param int $puntoVenta Punto de venta
-     * @param int $tipoComprobante Tipo de comprobante
+     *
+     * @param  int  $puntoVenta  Punto de venta
+     * @param  int  $tipoComprobante  Tipo de comprobante
      * @return int Último número
      */
     public function obtenerUltimoComprobante($puntoVenta, $tipoComprobante)
@@ -340,7 +343,7 @@ class AfipService
         } catch (Exception $e) {
             Log::error('Error obtener último comprobante', [
                 'empresa_id' => $this->empresa->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -348,7 +351,7 @@ class AfipService
 
     /**
      * Obtener tipos de comprobantes disponibles
-     * 
+     *
      * @return array|null
      */
     public function obtenerTiposComprobantes()
@@ -358,7 +361,7 @@ class AfipService
         } catch (Exception $e) {
             Log::error('Error obtener tipos de comprobantes', [
                 'empresa_id' => $this->empresa->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -366,7 +369,7 @@ class AfipService
 
     /**
      * Obtener puntos de venta disponibles
-     * 
+     *
      * @return array
      */
     public function obtenerPuntosVenta()
@@ -374,7 +377,7 @@ class AfipService
         try {
             $ta = ArcaWsaa::requestTa($this->empresa->cuit, 'wsfe');
 
-            if (!$ta || empty($ta['token']) || empty($ta['sign'])) {
+            if (! $ta || empty($ta['token']) || empty($ta['sign'])) {
                 throw new Exception('No se pudo obtener TA de WSAA para consultar puntos de venta');
             }
 
@@ -384,7 +387,7 @@ class AfipService
                 ? 'https://servicios1.afip.gov.ar/wsfev1/service.asmx'
                 : 'https://wswhomo.afip.gov.ar/wsfev1/service.asmx';
 
-            $client = new \SoapClient($wsfeUrl . '?wsdl', [
+            $client = new \SoapClient($wsfeUrl.'?wsdl', [
                 'exceptions' => true,
                 'trace' => true,
                 'soap_version' => SOAP_1_1,
@@ -408,7 +411,7 @@ class AfipService
 
             $resultado = [];
             foreach ($puntos as $punto) {
-                if (!is_object($punto) && !is_array($punto)) {
+                if (! is_object($punto) && ! is_array($punto)) {
                     continue;
                 }
 
@@ -424,8 +427,8 @@ class AfipService
                     'id' => (int) $numero,
                     'numero' => (int) $numero,
                     'Nro' => (int) $numero,
-                    'nombre' => 'Punto de Venta ' . $numero,
-                    'Nombre' => 'Punto de Venta ' . $numero,
+                    'nombre' => 'Punto de Venta '.$numero,
+                    'Nombre' => 'Punto de Venta '.$numero,
                 ];
             }
 
@@ -439,7 +442,7 @@ class AfipService
         } catch (Exception $e) {
             Log::error('Error obtener puntos de venta', [
                 'empresa_id' => $this->empresa->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -449,7 +452,7 @@ class AfipService
      * Obtener tipos de documentos disponibles
      * Nota: ARCA no expone listado, valores comunes:
      * 80=CUIT, 86=CUIL, 96=Documento Extranjero, 99=Sin especificar
-     * 
+     *
      * @return array
      */
     public function obtenerTiposDocumentos()
@@ -464,7 +467,7 @@ class AfipService
         } catch (Exception $e) {
             Log::error('Error obtener tipos de documentos', [
                 'empresa_id' => $this->empresa->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -474,7 +477,7 @@ class AfipService
      * Obtener tipos de IVA disponibles
      * Nota: ARCA no expone listado, valores comunes:
      * 3=0%, 4=10.5%, 5=21%, etc.
-     * 
+     *
      * @return array
      */
     public function obtenerTiposIva()
@@ -489,7 +492,7 @@ class AfipService
         } catch (Exception $e) {
             Log::error('Error obtener tipos de IVA', [
                 'empresa_id' => $this->empresa->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -497,8 +500,8 @@ class AfipService
 
     /**
      * Consultar contribuyente por DNI/CUIT/CUIL (auto-detecta tipo)
-     * 
-     * @param string|int $identificador DNI, CUIT o CUIL
+     *
+     * @param  string|int  $identificador  DNI, CUIT o CUIL
      * @return array
      */
     public function consultarContribuyente($identificador)
@@ -506,38 +509,38 @@ class AfipService
         try {
             $result = ArcaWsPadron::consultarPadron($this->empresa->cuit, $identificador);
 
-            if (!$result || isset($result['error'])) {
+            if (! $result || isset($result['error'])) {
                 return [
                     'success' => false,
-                    'error' => $result['error'] ?? 'Error en consulta de padrón'
+                    'error' => $result['error'] ?? 'Error en consulta de padrón',
                 ];
             }
 
             return [
                 'success' => true,
                 'data' => $result['data'] ?? $result,
-                'type' => $result['type'] ?? null
+                'type' => $result['type'] ?? null,
             ];
         } catch (Exception $e) {
             Log::error('Error consultarContribuyente', [
                 'empresa_id' => $this->empresa->id,
                 'identificador' => $identificador,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
 
     /**
      * Crear factura desde un pago del sistema
-     * 
-     * @param \App\Models\Pagos $pago Pago del sistema
-     * @param int $puntoVenta Punto de venta
-     * @param int $tipoComprobante Tipo de comprobante (6=Factura B, 1=Factura A, etc)
+     *
+     * @param  Pagos  $pago  Pago del sistema
+     * @param  int  $puntoVenta  Punto de venta
+     * @param  int  $tipoComprobante  Tipo de comprobante (6=Factura B, 1=Factura A, etc)
      * @return array Respuesta de AFIP
      */
     public function crearFacturaDesdePago($pago, $puntoVenta = 1, $tipoComprobante = 6, $condicionIvaReceptorId = null, $tipoDocumentoReceptor = null)
@@ -559,15 +562,15 @@ class AfipService
         // Se usa el total del pago (importe + importe2) para que la factura coincida
         // con el QR y con la Nota de Crédito cuando el cobro se divide en dos formas de pago.
         $impTotal = (float) $pago->total;
-        
+
         // Determinar si el tipo de comprobante discrimina IVA
         // Tipos A y B (1,2,3,4,6,7,8,9) discriminan IVA
         // Tipos C (11,12,13,15) NO discriminan IVA
         $tiposConIVA = [1, 2, 3, 4, 6, 7, 8, 9];
         $tiposSinIVA = [11, 12, 13, 15];
-        
+
         $discriminaIVA = in_array($tipoComprobante, $tiposConIVA);
-        
+
         if ($discriminaIVA) {
             // Factura A o B: Calcular IVA (asumiendo 21%)
             $impNeto = round($impTotal / 1.21, 2);
@@ -576,8 +579,8 @@ class AfipService
                 [
                     'Id' => 5, // 21%
                     'BaseImp' => $normalizeImporte($impNeto),
-                    'Importe' => $normalizeImporte($impIva)
-                ]
+                    'Importe' => $normalizeImporte($impIva),
+                ],
             ];
         } else {
             // Factura C: No discriminar IVA
@@ -604,12 +607,11 @@ class AfipService
                 ?? $pago->servicioPagar->cliente->condicion_iva_id
                 ?? 5, // 5=Consumidor Final
         ];
-        
+
         // Solo agregar array de IVA si el comprobante lo requiere
         if ($ivaArray !== null) {
             $facturaData['Iva'] = $ivaArray;
         }
- 
 
         return $this->crearFactura($facturaData);
     }
@@ -619,7 +621,7 @@ class AfipService
      *
      * Mapeo automático: Factura A (1) → NC A (3), Factura B (6) → NC B (8), Factura C (11) → NC C (13)
      *
-     * @param \App\Models\Pagos $pagoOriginal Pago con CAE ya generado
+     * @param  Pagos  $pagoOriginal  Pago con CAE ya generado
      * @return array Respuesta de AFIP con success, cae, numero_comprobante, tipo_comprobante
      */
     public function crearNotaCredito($pagoOriginal)
@@ -629,32 +631,32 @@ class AfipService
         $mapaNc = [1 => 3, 6 => 8, 11 => 13];
         $tipoOriginal = (int) $pagoOriginal->afip_tipo_comprobante;
 
-        if (!array_key_exists($tipoOriginal, $mapaNc)) {
+        if (! array_key_exists($tipoOriginal, $mapaNc)) {
             return [
                 'success' => false,
-                'error'   => 'No se puede emitir NC para el tipo de comprobante ' . $tipoOriginal,
+                'error' => 'No se puede emitir NC para el tipo de comprobante '.$tipoOriginal,
             ];
         }
 
-        $tipoNc     = $mapaNc[$tipoOriginal];
+        $tipoNc = $mapaNc[$tipoOriginal];
         $puntoVenta = (int) $pagoOriginal->afip_punto_venta;
-        $impTotal   = $pagoOriginal->total; // importe + importe2
+        $impTotal = $pagoOriginal->total; // importe + importe2
 
         // Misma lógica IVA que crearFacturaDesdePago
-        $tiposConIVA  = [1, 2, 3, 4, 6, 7, 8, 9];
+        $tiposConIVA = [1, 2, 3, 4, 6, 7, 8, 9];
         $discriminaIVA = in_array($tipoNc, $tiposConIVA);
 
         if ($discriminaIVA) {
-            $impNeto  = round($impTotal / 1.21, 2);
-            $impIva   = $normalizeImporte($impTotal - $impNeto);
+            $impNeto = round($impTotal / 1.21, 2);
+            $impIva = $normalizeImporte($impTotal - $impNeto);
             $ivaArray = [[
-                'Id'      => 5,
+                'Id' => 5,
                 'BaseImp' => $normalizeImporte($impNeto),
                 'Importe' => $impIva,
             ]];
         } else {
-            $impNeto  = $impTotal;
-            $impIva   = 0;
+            $impNeto = $impTotal;
+            $impIva = 0;
             $ivaArray = null;
         }
 
@@ -665,25 +667,25 @@ class AfipService
             ?? DniHelper::tipoDocumentoReceptor($dniNorm);
 
         $facturaData = [
-            'PtoVta'                 => $puntoVenta,
-            'CbteTipo'               => $tipoNc,
-            'Concepto'               => 2, // Servicios
-            'DocTipo'                => $docTipo,
-            'DocNro'                 => DniHelper::soloDigitos($dniNorm) ?: 0,
-            'ImpTotal'               => $normalizeImporte($impTotal),
-            'ImpNeto'                => $normalizeImporte($impNeto),
-            'ImpIVA'                 => $normalizeImporte($impIva),
-            'ImpTotConc'             => 0,
-            'ImpOpEx'                => 0,
-            'ImpTrib'                => 0,
-            'MonId'                  => 'PES',
-            'MonCotiz'               => 1,
+            'PtoVta' => $puntoVenta,
+            'CbteTipo' => $tipoNc,
+            'Concepto' => 2, // Servicios
+            'DocTipo' => $docTipo,
+            'DocNro' => DniHelper::soloDigitos($dniNorm) ?: 0,
+            'ImpTotal' => $normalizeImporte($impTotal),
+            'ImpNeto' => $normalizeImporte($impNeto),
+            'ImpIVA' => $normalizeImporte($impIva),
+            'ImpTotConc' => 0,
+            'ImpOpEx' => 0,
+            'ImpTrib' => 0,
+            'MonId' => 'PES',
+            'MonCotiz' => 1,
             'CondicionIVAReceptorId' => $pagoOriginal->servicioPagar->cliente->condicion_iva_id ?? 5,
-            'CbtesAsoc'              => [[
-                'Tipo'   => $tipoOriginal,
+            'CbtesAsoc' => [[
+                'Tipo' => $tipoOriginal,
                 'PtoVta' => $puntoVenta,
-                'Nro'    => (int) $pagoOriginal->afip_numero_comprobante,
-                'Cuit'   => (int) $this->empresa->cuit,
+                'Nro' => (int) $pagoOriginal->afip_numero_comprobante,
+                'Cuit' => (int) $this->empresa->cuit,
             ]],
         ];
 
@@ -766,7 +768,7 @@ class AfipService
 
     /**
      * Verificar certificados y conectividad con ARCA
-     * 
+     *
      * @return array
      */
     public function verificarCertificados()
@@ -775,42 +777,40 @@ class AfipService
             [$certPath, $keyPath] = $this->resolveCredentialPaths();
             $this->syncCredentialsToNormalizedPath($certPath, $keyPath);
 
-            log::info('Certificados encontrados para ARCA', [
+            Log::info('Certificados encontrados para ARCA', [
                 'empresa_id' => $this->empresa->id,
                 'certPath' => $certPath,
-                'keyPath' => $keyPath
+                'keyPath' => $keyPath,
             ]);
 
-
-
             // Evita falsos positivos por archivos existentes pero vacíos/corruptos.
-            if (!is_readable($certPath) || trim((string) @file_get_contents($certPath)) === '') {
+            if (! is_readable($certPath) || trim((string) @file_get_contents($certPath)) === '') {
                 return [
                     'success' => false,
-                    'message' => 'El certificado cert.crt está vacío o no se puede leer'
+                    'message' => 'El certificado cert.crt está vacío o no se puede leer',
                 ];
             }
 
-            if (!is_readable($keyPath) || trim((string) @file_get_contents($keyPath)) === '') {
+            if (! is_readable($keyPath) || trim((string) @file_get_contents($keyPath)) === '') {
                 return [
                     'success' => false,
-                    'message' => 'La clave key.key está vacía o no se puede leer'
+                    'message' => 'La clave key.key está vacía o no se puede leer',
                 ];
             }
 
             // Validar WSAA. Si ARCA devuelve "TA ya valido", se considera un estado correcto.
             try {
                 $ta = ArcaWsaa::requestTa($this->empresa->cuit, 'wsfe');
-                if (!$ta || empty($ta['token']) || empty($ta['sign'])) {
+                if (! $ta || empty($ta['token']) || empty($ta['sign'])) {
                     return [
                         'success' => false,
-                        'message' => 'No se pudo obtener TA de WSAA. Revisa certificado, clave y autorización del servicio wsfe'
+                        'message' => 'No se pudo obtener TA de WSAA. Revisa certificado, clave y autorización del servicio wsfe',
                     ];
                 }
 
-                log ::info('TA obtenido de WSAA', [
+                Log::info('TA obtenido de WSAA', [
                     'empresa_id' => $this->empresa->id,
-                    'ta_expiration' => $ta['expiration'] ?? null
+                    'ta_expiration' => $ta['expiration'] ?? null,
                 ]);
 
             } catch (Exception $wsaaException) {
@@ -819,7 +819,7 @@ class AfipService
                     || stripos($wsaaMessage, 'TA válido') !== false
                     || stripos($wsaaMessage, 'posee un TA') !== false;
 
-                if (!$taVigente) {
+                if (! $taVigente) {
                     throw $wsaaException;
                 }
             }
@@ -827,27 +827,26 @@ class AfipService
             // Intentar obtener tipos de comprobantes (verifica conectividad)
             $types = ArcaWsfev1::getInvoiceTypes($this->empresa->cuit);
 
-            log::info('Tipos de comprobantes obtenidos de ARCA', [
+            Log::info('Tipos de comprobantes obtenidos de ARCA', [
                 'empresa_id' => $this->empresa->id,
-                'tipos_comprobantes' => $types
-            ]);     
+                'tipos_comprobantes' => $types,
+            ]);
 
-
-            if (!$types) {
+            if (! $types) {
                 return [
                     'success' => false,
-                    'message' => 'TA válido, pero WSFE no devolvió tipos de comprobantes'
+                    'message' => 'TA válido, pero WSFE no devolvió tipos de comprobantes',
                 ];
             }
 
             return [
                 'success' => true,
-                'message' => 'Certificados válidos y conectividad con ARCA OK'
+                'message' => 'Certificados válidos y conectividad con ARCA OK',
             ];
         } catch (Exception $e) {
             return [
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ];
         }
     }
@@ -855,8 +854,8 @@ class AfipService
     /**
      * Generar CSR (Certificate Signing Request) para la empresa
      * Genera key.key y request.csr en storage/app/public/{cuit}/
-     * 
-     * @param array $data con organizationName, commonName, email, etc.
+     *
+     * @param  array  $data  con organizationName, commonName, email, etc.
      * @return array
      */
     public function generarCertificadosDesarrollo(array $data)
@@ -880,23 +879,23 @@ class AfipService
 
             Log::info('CSR generado con ARCA', [
                 'empresa_id' => $this->empresa->id,
-                'cuit' => $this->empresa->cuit
+                'cuit' => $this->empresa->cuit,
             ]);
 
             return [
                 'success' => true,
                 'message' => 'CSR generado. Descárgalo y sube a ARCA para obtener cert.crt',
-                'csr_path' => $this->resolveConfiguredCsrPath($normalizedCuit)
+                'csr_path' => $this->resolveConfiguredCsrPath($normalizedCuit),
             ];
         } catch (Exception $e) {
             Log::error('Error generando CSR', [
                 'empresa_id' => $this->empresa->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -904,8 +903,7 @@ class AfipService
     /**
      * Alias para compatibilidad: generarCertificadosProduccion
      * En ARCA es el mismo proceso que desarrollo
-     * 
-     * @param array $data
+     *
      * @return array
      */
     public function generarCertificadosProduccion(array $data)
@@ -915,15 +913,15 @@ class AfipService
 
     /**
      * Helper para obtener tipos de comprobantes según condición IVA
-     * 
+     *
      * Mapeo de comprobantes por condición:
      * - RI (1): Tipos A, B, M
      * - Monotributo (6): Tipo C
      * - Consumidor Final (5): Tipos B, C
      * - Exento (4): Tipos B, C
      * - Sujeto No Categorizado (7): Tipos B, C
-     * 
-     * @param int|null $condicionIvaId Condición frente al IVA
+     *
+     * @param  int|null  $condicionIvaId  Condición frente al IVA
      * @return array
      */
     public static function tiposComprobantesComunes($condicionIvaId = null)
@@ -990,7 +988,6 @@ class AfipService
         ];
     }
 
-
     /**
      * Tipos de documento más comunes
      */
@@ -1001,7 +998,7 @@ class AfipService
             86 => 'CUIL',
             87 => 'CDI',
             96 => 'DNI',
-            99 => 'Sin identificar'
+            99 => 'Sin identificar',
         ];
     }
 
@@ -1026,5 +1023,4 @@ class AfipService
 
         return $mensajeLimpio;
     }
-
 }

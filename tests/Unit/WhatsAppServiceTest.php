@@ -4,8 +4,8 @@ namespace Tests\Unit;
 
 use App\Services\WhatsAppService;
 use Illuminate\Support\Facades\Http;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class WhatsAppServiceTest extends TestCase
 {
@@ -14,26 +14,26 @@ class WhatsAppServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Configurar variables de entorno de prueba
         config([
             'services.whatsapp.api_url' => 'https://api-test.whatsapp.com',
             'services.whatsapp.api_key' => 'test_api_key',
-            'services.whatsapp.instance_id' => 'test-instance-id'
+            'services.whatsapp.instance_id' => 'test-instance-id',
         ]);
 
-        $this->whatsappService = new WhatsAppService();
+        $this->whatsappService = new WhatsAppService;
     }
 
-    /** @test */
+    #[Test]
     public function puede_enviar_mensaje_de_texto()
     {
         // Mock de la respuesta HTTP
         Http::fake([
             '*' => Http::response([
                 'success' => true,
-                'message_id' => 'test123'
-            ], 200)
+                'message_id' => 'test123',
+            ], 200),
         ]);
 
         $resultado = $this->whatsappService->sendTextMessage(
@@ -45,14 +45,14 @@ class WhatsAppServiceTest extends TestCase
         $this->assertArrayHasKey('data', $resultado);
     }
 
-    /** @test */
+    #[Test]
     public function puede_enviar_mensaje_con_botones()
     {
         Http::fake([
             '*' => Http::response([
                 'success' => true,
-                'message_id' => 'btn123'
-            ], 200)
+                'message_id' => 'btn123',
+            ], 200),
         ]);
 
         $resultado = $this->whatsappService->sendButtons(
@@ -72,13 +72,13 @@ class WhatsAppServiceTest extends TestCase
         $this->assertEquals('Mensaje con botones enviado correctamente', $resultado['message']);
     }
 
-    /** @test */
+    #[Test]
     public function maneja_errores_de_api_en_botones()
     {
         Http::fake([
             '*' => Http::response([
-                'error' => 'API Error'
-            ], 500)
+                'error' => 'API Error',
+            ], 500),
         ]);
 
         $resultado = $this->whatsappService->sendButtons(
@@ -93,11 +93,11 @@ class WhatsAppServiceTest extends TestCase
         $this->assertStringContainsString('Error al enviar mensaje con botones', $resultado['message']);
     }
 
-    /** @test */
+    #[Test]
     public function formatea_numero_correctamente_en_botones()
     {
         Http::fake([
-            '*' => Http::response(['success' => true], 200)
+            '*' => Http::response(['success' => true], 200),
         ]);
 
         $resultado = $this->whatsappService->sendButtons(
@@ -121,14 +121,14 @@ class WhatsAppServiceTest extends TestCase
         $this->assertTrue($resultado2['success']);
     }
 
-    /** @test */
+    #[Test]
     public function puede_enviar_documento()
     {
         Http::fake([
             '*' => Http::response([
                 'success' => true,
-                'message_id' => 'doc123'
-            ], 200)
+                'message_id' => 'doc123',
+            ], 200),
         ]);
 
         $resultado = $this->whatsappService->sendDocument(
@@ -142,14 +142,14 @@ class WhatsAppServiceTest extends TestCase
         $this->assertArrayHasKey('data', $resultado);
     }
 
-    /** @test */
+    #[Test]
     public function puede_enviar_imagen()
     {
         Http::fake([
             '*' => Http::response([
                 'success' => true,
-                'message_id' => 'img123'
-            ], 200)
+                'message_id' => 'img123',
+            ], 200),
         ]);
 
         $resultado = $this->whatsappService->sendImage(
@@ -161,13 +161,13 @@ class WhatsAppServiceTest extends TestCase
         $this->assertTrue($resultado['success']);
     }
 
-    /** @test */
+    #[Test]
     public function maneja_errores_de_api()
     {
         Http::fake([
             '*' => Http::response([
-                'error' => 'API Error'
-            ], 500)
+                'error' => 'API Error',
+            ], 500),
         ]);
 
         $resultado = $this->whatsappService->sendTextMessage(
@@ -179,11 +179,11 @@ class WhatsAppServiceTest extends TestCase
         $this->assertArrayHasKey('error', $resultado);
     }
 
-    /** @test */
+    #[Test]
     public function formatea_numero_correctamente()
     {
         Http::fake([
-            '*' => Http::response(['success' => true], 200)
+            '*' => Http::response(['success' => true], 200),
         ]);
 
         // Test con número simple
@@ -203,7 +203,7 @@ class WhatsAppServiceTest extends TestCase
         $this->assertTrue($resultado2['success']);
     }
 
-    /** @test */
+    #[Test]
     public function valida_configuracion()
     {
         $validacion = $this->whatsappService->validateConfiguration();
@@ -212,38 +212,38 @@ class WhatsAppServiceTest extends TestCase
         $this->assertArrayHasKey('config', $validacion);
     }
 
-    /** @test */
+    #[Test]
     public function detecta_configuracion_invalida()
     {
         config([
             'services.whatsapp.api_url' => null,
-            'services.whatsapp.instance_id' => null
+            'services.whatsapp.instance_id' => null,
         ]);
 
-        $service = new WhatsAppService();
+        $service = new WhatsAppService;
         $validacion = $service->validateConfiguration();
 
         $this->assertFalse($validacion['valid']);
         $this->assertNotEmpty($validacion['errors']);
     }
 
-    /** @test */
+    #[Test]
     public function puede_enviar_mensaje_personalizado()
     {
         Http::fake([
-            '*' => Http::response(['success' => true], 200)
+            '*' => Http::response(['success' => true], 200),
         ]);
 
         $payload = [
             'key' => [
                 'remoteJid' => '5492942506803@s.whatsapp.net',
                 'fromMe' => true,
-                'id' => 'TEST123'
+                'id' => 'TEST123',
             ],
             'message' => [
-                'conversation' => 'Test message'
+                'conversation' => 'Test message',
             ],
-            'messageType' => 'conversation'
+            'messageType' => 'conversation',
         ];
 
         $resultado = $this->whatsappService->sendCustomMessage($payload);
@@ -251,13 +251,13 @@ class WhatsAppServiceTest extends TestCase
         $this->assertTrue($resultado['success']);
     }
 
-    /** @test */
+    #[Test]
     public function rechaza_mensaje_personalizado_sin_campos_requeridos()
     {
         $payload = [
             'message' => [
-                'conversation' => 'Test'
-            ]
+                'conversation' => 'Test',
+            ],
             // Falta key.remoteJid
         ];
 
@@ -267,7 +267,7 @@ class WhatsAppServiceTest extends TestCase
         $this->assertStringContainsString('remoteJid', $resultado['error']);
     }
 
-    /** @test */
+    #[Test]
     public function puede_conectar_instancia()
     {
         Http::fake([
@@ -276,7 +276,7 @@ class WhatsAppServiceTest extends TestCase
                 'code' => '2@exemple',
                 'base64' => 'data:image/png;base64,abc123',
                 'count' => 1,
-            ], 200)
+            ], 200),
         ]);
 
         $resultado = $this->whatsappService->connect('test-instance-id');
@@ -290,14 +290,14 @@ class WhatsAppServiceTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function maneja_errores_al_conectar_instancia()
     {
         Http::fake([
             '*' => Http::response([
                 'success' => false,
                 'error' => ['code' => 'NOT_FOUND', 'message' => 'Instance not found'],
-            ], 404)
+            ], 404),
         ]);
 
         $resultado = $this->whatsappService->connect('instancia-inexistente');
@@ -306,14 +306,14 @@ class WhatsAppServiceTest extends TestCase
         $this->assertStringContainsString('Error al conectar', $resultado['message']);
     }
 
-    /** @test */
+    #[Test]
     public function puede_desconectar_instancia()
     {
         Http::fake([
             '*' => Http::response([
                 'success' => true,
                 'message' => 'Instance logged out successfully',
-            ], 200)
+            ], 200),
         ]);
 
         $resultado = $this->whatsappService->logout('test-instance-id');
@@ -326,14 +326,14 @@ class WhatsAppServiceTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function maneja_errores_al_desconectar_instancia()
     {
         Http::fake([
             '*' => Http::response([
                 'success' => false,
                 'error' => ['code' => 'NOT_FOUND', 'message' => 'Instance not found'],
-            ], 404)
+            ], 404),
         ]);
 
         $resultado = $this->whatsappService->logout('instancia-inexistente');
@@ -342,14 +342,14 @@ class WhatsAppServiceTest extends TestCase
         $this->assertStringContainsString('Error al desconectar', $resultado['message']);
     }
 
-    /** @test */
+    #[Test]
     public function puede_obtener_instancias_del_servidor()
     {
         Http::fake([
             '*' => Http::response([
                 ['instance' => ['instanceName' => 'instancia-1', 'status' => 'open']],
                 ['instance' => ['instanceName' => 'instancia-2', 'status' => 'close']],
-            ], 200)
+            ], 200),
         ]);
 
         $resultado = $this->whatsappService->getInstances();

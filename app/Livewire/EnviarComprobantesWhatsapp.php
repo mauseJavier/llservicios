@@ -2,37 +2,45 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
-use App\Models\Pagos;
-use App\Models\Empresa;
 use App\Helpers\DniHelper;
+use App\Models\Empresa;
+use App\Models\Pagos;
 use App\Services\WhatsAppService;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Writer\PngWriter;
 use Exception;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Livewire\Component;
 
 class EnviarComprobantesWhatsapp extends Component
 {
     public $pagoId;
+
     public $idServicioPagar;
 
     public $telefono = '';
+
     public $pago;
+
     public $cliente;
+
     public $servicio;
+
     public $empresa;
 
     public $loading = false;
+
     public $successMessage = '';
+
     public $errorMessage = '';
 
     public $instanciaWS;
-    public $tokenWS;
 
+    public $tokenWS;
 
     protected $rules = [
         'telefono' => 'required|string|min:6|max:25',
@@ -51,8 +59,8 @@ class EnviarComprobantesWhatsapp extends Component
         $this->cargarPago();
 
         $this->telefono = $this->cliente?->telefono ?? '';
-        $this->instanciaWS = $this->empresa?->instanciaWS ?? env('WHATSAPP_INSTANCE_ID', null);
-        $this->tokenWS = $this->empresa?->tokenWS ?? env('WHATSAPP_API_KEY', null);
+        $this->instanciaWS = $this->empresa?->instanciaWS ?? config('services.whatsapp.instance_id');
+        $this->tokenWS = $this->empresa?->tokenWS ?? config('services.whatsapp.api_key');
     }
 
     public function cargarPago()
@@ -60,8 +68,9 @@ class EnviarComprobantesWhatsapp extends Component
         $this->pago = Pagos::with(['servicioPagar.cliente', 'servicioPagar.servicio', 'usuario', 'formaPago', 'formaPago2'])
             ->find($this->pagoId);
 
-        if (!$this->pago) {
+        if (! $this->pago) {
             $this->errorMessage = 'Pago no encontrado';
+
             return;
         }
 
@@ -79,23 +88,23 @@ class EnviarComprobantesWhatsapp extends Component
         $this->errorMessage = '';
 
         try {
-            if (!$this->pago) {
+            if (! $this->pago) {
                 throw new Exception('Pago no encontrado');
             }
 
-            if (!$this->empresa) {
+            if (! $this->empresa) {
                 throw new Exception('Empresa no encontrada');
             }
 
             $datosRecibo = $this->obtenerDatosRecibo();
-            if (!$datosRecibo) {
+            if (! $datosRecibo) {
                 throw new Exception('No se pudieron obtener los datos del recibo');
             }
 
             $whatsappService = app()->make(WhatsAppService::class, [
 
-            'instanciaWS' => $this->instanciaWS ?? null,
-            'tokenWS' => $this->tokenWS ?? null,
+                'instanciaWS' => $this->instanciaWS ?? null,
+                'tokenWS' => $this->tokenWS ?? null,
 
             ]);
 
@@ -111,14 +120,14 @@ class EnviarComprobantesWhatsapp extends Component
                 $reciboBase64
             );
 
-            if (!($respuestaRecibo['success'] ?? false)) {
+            if (! ($respuestaRecibo['success'] ?? false)) {
                 throw new Exception($respuestaRecibo['message'] ?? 'Error al enviar el recibo');
             }
 
             $facturaEnviada = false;
             if ($this->pago->tieneFacturaAfip()) {
                 $datosFactura = $this->obtenerDatosFactura();
-                if (!$datosFactura) {
+                if (! $datosFactura) {
                     throw new Exception('No se pudieron obtener los datos de la factura');
                 }
 
@@ -134,7 +143,7 @@ class EnviarComprobantesWhatsapp extends Component
                     $facturaBase64
                 );
 
-                if (!($respuestaFactura['success'] ?? false)) {
+                if (! ($respuestaFactura['success'] ?? false)) {
                     throw new Exception($respuestaFactura['message'] ?? 'Error al enviar la factura');
                 }
 
@@ -152,7 +161,7 @@ class EnviarComprobantesWhatsapp extends Component
                 'error' => $e->getMessage(),
             ]);
 
-            $this->errorMessage = 'Error al enviar comprobantes: ' . $e->getMessage();
+            $this->errorMessage = 'Error al enviar comprobantes: '.$e->getMessage();
         } finally {
             $this->loading = false;
         }
@@ -245,7 +254,7 @@ class EnviarComprobantesWhatsapp extends Component
     private function generarQrAfipBase64ParaPdf($pago, $empresa, $cliente, $datos): ?string
     {
         try {
-            $fechaEmision = \Carbon\Carbon::parse($pago->updated_at)->format('Y-m-d');
+            $fechaEmision = Carbon::parse($pago->updated_at)->format('Y-m-d');
             $importeTotal = (float) (($datos->importe ?? 0) + ($datos->importe2 ?? 0));
             $nroDocRec = $cliente?->dni ? DniHelper::soloDigitos($cliente->dni) : null;
             $tipoDocRec = $cliente?->tipo_documento_id
@@ -272,9 +281,9 @@ class EnviarComprobantesWhatsapp extends Component
 
             $qrJson = json_encode($qrPayload, JSON_UNESCAPED_SLASHES);
             $qrBase64Data = base64_encode($qrJson);
-            $qrUrl = 'https://www.arca.gob.ar/fe/qr/?p=' . $qrBase64Data;
+            $qrUrl = 'https://www.arca.gob.ar/fe/qr/?p='.$qrBase64Data;
 
-            $writer = new PngWriter();
+            $writer = new PngWriter;
             $qrCode = new QrCode($qrUrl);
             $result = $writer->write($qrCode);
 
@@ -292,7 +301,7 @@ class EnviarComprobantesWhatsapp extends Component
     private function construirMensaje($datos): string
     {
         $total = number_format(($datos->importe ?? 0) + ($datos->importe2 ?? 0), 2);
-        $fecha = \Carbon\Carbon::parse($datos->created_at)->format('d/m/Y H:i');
+        $fecha = Carbon::parse($datos->created_at)->format('d/m/Y H:i');
 
         return "Recibo A4\nEmpresa: {$this->empresa->nombre}\nServicio: {$datos->Servicio}\nCliente: {$datos->Cliente}\nPago ID: {$this->pagoId}\nServicio ID: {$this->idServicioPagar}\nTotal: $$total\nFecha: {$fecha}";
     }
@@ -300,7 +309,7 @@ class EnviarComprobantesWhatsapp extends Component
     private function construirMensajeFactura($datos): string
     {
         $total = number_format(($datos->importe ?? 0) + ($datos->importe2 ?? 0), 2);
-        $fecha = \Carbon\Carbon::parse($datos->created_at)->format('d/m/Y H:i');
+        $fecha = Carbon::parse($datos->created_at)->format('d/m/Y H:i');
 
         return "Factura AFIP A4\nEmpresa: {$this->empresa->nombre}\nServicio: {$datos->Servicio}\nCliente: {$datos->Cliente}\nPago ID: {$this->pagoId}\nServicio ID: {$this->idServicioPagar}\nTotal: $$total\nFecha: {$fecha}";
     }
@@ -310,12 +319,12 @@ class EnviarComprobantesWhatsapp extends Component
         $cliente = preg_replace('/[^A-Za-z0-9\-_ ]/', '', $datos->Cliente ?? 'Cliente');
         $servicio = preg_replace('/[^A-Za-z0-9\-_ ]/', '', $datos->Servicio ?? 'Servicio');
 
-        return trim($cliente . ' ' . $servicio) . '.pdf';
+        return trim($cliente.' '.$servicio).'.pdf';
     }
 
     private function nombreArchivoFactura(): string
     {
-        return 'Factura_AFIP_' . ($this->pago->afip_cae ?? $this->pagoId) . '.pdf';
+        return 'Factura_AFIP_'.($this->pago->afip_cae ?? $this->pagoId).'.pdf';
     }
 
     public function render()

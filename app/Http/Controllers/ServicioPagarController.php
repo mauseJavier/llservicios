@@ -2,38 +2,26 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-
+use App\Events\NuevoServicioPagarEvent;
+use App\Jobs\GenerarFacturaAfipJob;
+use App\Jobs\ProcesarPagoJob;
+use App\Models\Cliente;
+use App\Models\Empresa;
 use App\Models\FormaPago;
+use App\Models\MercadoPagoPOS;
+use App\Models\MercadoPagoQROrder;
 use App\Models\Pagos;
 use App\Models\Servicio;
 use App\Models\ServicioPagar;
-use App\Models\Cliente;
-use App\Models\Empresa;
-use App\Models\MercadoPagoPOS;
-use App\Models\MercadoPagoQROrder;
-
-
-use App\Jobs\GenerarFacturaAfipJob;
-use App\Jobs\ProcesarPagoJob;
-
 use App\Services\MercadoPago\MercadoPagoQRService;
-use Illuminate\Support\Str;
-
-
-
-
-use App\Events\NuevoServicioPagarEvent;
-
-
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Pagination\Paginator;
-use Illuminate\Support\Collection;
-
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ServicioPagarController extends Controller
 {
@@ -54,7 +42,7 @@ class ServicioPagarController extends Controller
      *  - comentario: string (opcional)
      *  - fechaPago: string (opcional, formato d/m/Y H:i)
      *
-     * @param array $datosPago Datos requeridos para el comprobante
+     * @param  array  $datosPago  Datos requeridos para el comprobante
      * @return string base64
      */
     public function GenerarComprobantePagoPDFBase64(array $datosPago)
@@ -74,8 +62,8 @@ class ServicioPagarController extends Controller
         return $base64;
     }
 
-    
-    public function ServiciosImpagos(Request $request){
+    public function ServiciosImpagos(Request $request)
+    {
 
         $usuario = Auth::user();
 
@@ -99,8 +87,7 @@ class ServicioPagarController extends Controller
                                 clientes e
                             WHERE
                                 a.servicio_id = b.id AND b.empresa_id = c.id AND a.cliente_id = e.id AND a.estado = ? AND c.id = ?
-                            ORDER BY a.id DESC', ['impago',$usuario->empresa_id,]);
-
+                            ORDER BY a.id DESC', ['impago', $usuario->empresa_id]);
 
         // Número de elementos por página
         $perPage = 15;
@@ -119,25 +106,26 @@ class ServicioPagarController extends Controller
             'path' => LengthAwarePaginator::resolveCurrentPath(),
         ]);
 
-                //ESTO ES PARA EL PAGINADOR
+        // ESTO ES PARA EL PAGINADOR
         // $usuarios->withPath('/admin/users');
         // $clientesPaginados->appends(['Buscar' => $datoBuscado]);
-    
+
         // return $clientes;
-        
-     return view('servicios.ServiciosImpagos',['servicios'=>$datosPaginados,
-               ]
-            )->render();
+
+        return view('servicios.ServiciosImpagos', ['servicios' => $datosPaginados,
+        ]
+        )->render();
     }
 
-    public function ServicioPagarBuscarCliente(Request $request,$estado){
+    public function ServicioPagarBuscarCliente(Request $request, $estado)
+    {
 
         // return [$estado,$request];
 
-        $datoBuscado= $request->buscar;
+        $datoBuscado = $request->buscar;
 
         $fechaDesde = (isset($request->fechaDesde)) ? $request->fechaDesde : '2000-01-01';
-        $fechaHasta  = (isset($request->fechaHasta)) ? $request->fechaHasta : '3000-01-01';
+        $fechaHasta = (isset($request->fechaHasta)) ? $request->fechaHasta : '3000-01-01';
 
         $usuario = Auth::user();
 
@@ -167,15 +155,14 @@ class ServicioPagarController extends Controller
                                 e.correo LIKE ? or
                                 e.dni LIKE ? or
                                 b.nombre LIKE ?)
-                            ORDER BY a.id DESC', [ $fechaDesde,
-                                                    $fechaHasta,
-                                                    $estado,
-                                                    $usuario->empresa_id,
-                                                    '%'.$datoBuscado. '%',
-                                                    '%'.$datoBuscado. '%',
-                                                    '%'.$datoBuscado. '%',
-                                                    '%'.$datoBuscado. '%']);
-
+                            ORDER BY a.id DESC', [$fechaDesde,
+            $fechaHasta,
+            $estado,
+            $usuario->empresa_id,
+            '%'.$datoBuscado.'%',
+            '%'.$datoBuscado.'%',
+            '%'.$datoBuscado.'%',
+            '%'.$datoBuscado.'%']);
 
         // Número de elementos por página
         $perPage = 15;
@@ -194,27 +181,26 @@ class ServicioPagarController extends Controller
             'path' => LengthAwarePaginator::resolveCurrentPath(),
         ]);
 
-                //ESTO ES PARA EL PAGINADOR
+        // ESTO ES PARA EL PAGINADOR
         // $usuarios->withPath('/admin/users');
         $datosPaginados->appends(['buscar' => $datoBuscado]);
-    
+
         // return $datosPaginados;
-        
-        if ($estado == 'pago'){
-            
-            return view('servicios.ServiciosPagos',['servicios'=>$datosPaginados, 'buscar'=>$datoBuscado,'fechaDesde'=>$fechaDesde,'fechaHasta'=>$fechaHasta]
+
+        if ($estado == 'pago') {
+
+            return view('servicios.ServiciosPagos', ['servicios' => $datosPaginados, 'buscar' => $datoBuscado, 'fechaDesde' => $fechaDesde, 'fechaHasta' => $fechaHasta]
             )->render();
 
-        }else{
-            return view('servicios.ServiciosImpagos',['servicios'=>$datosPaginados, 'buscar'=>$datoBuscado,'fechaDesde'=>$fechaDesde,'fechaHasta'=>$fechaHasta]
+        } else {
+            return view('servicios.ServiciosImpagos', ['servicios' => $datosPaginados, 'buscar' => $datoBuscado, 'fechaDesde' => $fechaDesde, 'fechaHasta' => $fechaHasta]
             )->render();
         }
 
-
     }
 
-    public function ServiciosPagos(Request $request){
-
+    public function ServiciosPagos(Request $request)
+    {
 
         $usuario = Auth::user();
 
@@ -236,8 +222,7 @@ class ServicioPagarController extends Controller
                                 clientes e
                             WHERE
                                 a.servicio_id = b.id AND b.empresa_id = c.id AND a.cliente_id = e.id AND a.estado = ? AND c.id = ?
-                            ORDER BY a.id DESC', ['pago',$usuario->empresa_id,]);
-
+                            ORDER BY a.id DESC', ['pago', $usuario->empresa_id]);
 
         // Número de elementos por página
         $perPage = 15;
@@ -256,18 +241,18 @@ class ServicioPagarController extends Controller
             'path' => LengthAwarePaginator::resolveCurrentPath(),
         ]);
 
-                //ESTO ES PARA EL PAGINADOR
+        // ESTO ES PARA EL PAGINADOR
         // $usuarios->withPath('/admin/users');
         // $clientesPaginados->appends(['Buscar' => $datoBuscado]);
-    
+
         // return $clientes;
-        
-     return view('servicios.ServiciosPagos',['servicios'=>$datosPaginados, 'fechaDesde'=>date('Y-m-d', strtotime('first day of this month'))
-                                                                            ,'fechaHasta'=>date('Y-m-d', strtotime('last day of this month')),]
-            )->render();
+
+        return view('servicios.ServiciosPagos', ['servicios' => $datosPaginados, 'fechaDesde' => date('Y-m-d', strtotime('first day of this month')), 'fechaHasta' => date('Y-m-d', strtotime('last day of this month'))]
+        )->render();
     }
 
-    public function ConfirmarPago (Request $request){
+    public function ConfirmarPago(Request $request)
+    {
 
         $request->validate([
             'comentario' => 'max:200',
@@ -312,12 +297,12 @@ class ServicioPagarController extends Controller
             $importeOriginal = floatval($request->importeOriginal);
 
             if ($request->tipoAjuste === 'descuento') {
-                $comentarioAjuste = "Descuento aplicado: "
-                    . ($request->ajusteTipo === 'porcentaje' ? $request->valorAjuste . '%' : '$' . $request->valorAjuste)
-                    . " (Importe original: \${$importeOriginal}, Importe final: \${$importeFinal})";
+                $comentarioAjuste = 'Descuento aplicado: '
+                    .($request->ajusteTipo === 'porcentaje' ? $request->valorAjuste.'%' : '$'.$request->valorAjuste)
+                    ." (Importe original: \${$importeOriginal}, Importe final: \${$importeFinal})";
 
                 $comentarioFinal = $request->comentario
-                    ? $request->comentario . ' | ' . $comentarioAjuste
+                    ? $request->comentario.' | '.$comentarioAjuste
                     : $comentarioAjuste;
             }
         }
@@ -334,7 +319,7 @@ class ServicioPagarController extends Controller
             $servicioPagar = ServicioPagar::select(['id', 'cliente_id', 'servicio_id', 'precio', 'cantidad', 'estado'])
                 ->with([
                     'cliente:id,nombre,dni,telefono',
-                    'servicio:id,nombre'
+                    'servicio:id,nombre',
                 ])
                 ->where('id', $idServicioPagar)
                 ->lockForUpdate()
@@ -343,6 +328,7 @@ class ServicioPagarController extends Controller
             // Re-verificar estado después del lock (protege contra pagos duplicados concurrentes)
             if ($servicioPagar->estado === 'pago') {
                 DB::rollBack();
+
                 return redirect()->route('ServiciosImpagos')
                     ->with('status', 'Servicio ya ha sido pagado.');
             }
@@ -379,11 +365,11 @@ class ServicioPagarController extends Controller
             DB::rollBack();
             \Log::error('Error al confirmar pago', [
                 'error' => $e->getMessage(),
-                'servicio_pagar_id' => $idServicioPagar
+                'servicio_pagar_id' => $idServicioPagar,
             ]);
 
             return redirect()->back()
-                ->withErrors(['Error al procesar el pago: ' . $e->getMessage()]);
+                ->withErrors(['Error al procesar el pago: '.$e->getMessage()]);
         }
 
         // Notificaciones al cliente
@@ -395,14 +381,14 @@ class ServicioPagarController extends Controller
         if ($request->filled('formaPago2') && $request->importe2 > 0) {
             $mensaje .= "• Forma de pago 1: {$nombreFormaPago1} - \${$request->importe1}\n";
             $mensaje .= "• Forma de pago 2: {$nombreFormaPago2} - \${$request->importe2}\n";
-            $mensaje .= "• Total pagado: \$" . ($request->importe1 + $request->importe2) . "\n";
+            $mensaje .= '• Total pagado: $'.($request->importe1 + $request->importe2)."\n";
         } else {
             $mensaje .= "• Forma de pago: {$nombreFormaPago1}\n";
             $mensaje .= "• Importe: \${$request->importe1}\n";
         }
 
-        $mensaje .= "• Fecha: " . now()->format('d/m/Y H:i') . "\n\n";
-        $mensaje .= "¡Gracias por su preferencia!";
+        $mensaje .= '• Fecha: '.now()->format('d/m/Y H:i')."\n\n";
+        $mensaje .= '¡Gracias por su preferencia!';
 
         $datosPDF = [
             'nombreCliente' => $cliente->nombre,
@@ -467,24 +453,22 @@ class ServicioPagarController extends Controller
             ->with('status', 'Pagado correcto.');
     }
 
-    public function PagarServicio($idServicioPagar,$importe){
-
+    public function PagarServicio($idServicioPagar, $importe)
+    {
 
         // de esta manera buscamos el id de la caja de mercado pago asignada al usuario
         $this->posMpId = auth()->user()->mercadoPagoPOS()->first()->id ?? 1;
-
-
 
         // foreach (auth()->user()->mercadoPagoPOS as $pos) {
         //     @dump($pos->id);
         // }
 
         $formaPago = FormaPago::all();
-        
+
         // Utilizar el modelo ServicioPagar con sus relaciones
         $servicioPagar = ServicioPagar::with(['servicio', 'cliente'])
             ->findOrFail($idServicioPagar);
-        
+
         // Preparar datos para la vista con información del cliente y servicio
         $datosServicio = (object) [
             'id' => $servicioPagar->id,
@@ -541,7 +525,7 @@ class ServicioPagarController extends Controller
     {
         $servicioPagar = ServicioPagar::with(['servicio', 'cliente'])
             ->findOrFail($servicioPagar);
-        
+
         return view('servicios.QRPago', [
             'servicioPagar' => $servicioPagar,
             'importe' => $importe,
@@ -557,7 +541,7 @@ class ServicioPagarController extends Controller
         $request->validate([
             'servicioPagar' => 'required|integer',
             'importe' => 'required|numeric',
-            'posMpId' => 'required|integer'
+            'posMpId' => 'required|integer',
         ]);
 
         try {
@@ -566,31 +550,31 @@ class ServicioPagarController extends Controller
                 ->findOrFail($request->servicioPagar);
 
             $pos = MercadoPagoPOS::findOrFail($request->posMpId);
-            
+
             // Configurar credenciales
             config([
                 'services.mercadopago.access_token' => $pos->store->empresa->MP_ACCESS_TOKEN,
                 'services.mercadopago.user_id' => $pos->store->empresa->MP_USER_ID,
-                'services.mercadopago.sandbox' => false
+                'services.mercadopago.sandbox' => false,
             ]);
-            
-            $qrService = new MercadoPagoQRService();
-            
+
+            $qrService = new MercadoPagoQRService;
+
             // Generar referencia única
-            $orderReference = 'QR-' . time() . '-' . Str::random(6);
-            
+            $orderReference = 'QR-'.time().'-'.Str::random(6);
+
             $baseUrl = config('app.env') === 'local' ? 'https://prepositionally-vacciniaceous-irving.ngrok-free.dev' : config('app.url');
-            
+
             // Datos de la orden
             $orderData = [
                 'external_reference' => $orderReference,
                 'title' => $servicioPagar->servicio->nombre ?: 'Pago en caja',
                 'description' => $servicioPagar->servicio->descripcion ?: 'Cobro mediante código QR',
                 'total_amount' => floatval($servicioPagar->precio) * floatval($servicioPagar->cantidad),
-                'notification_url' => env('APP_ENV') == 'local' ? $baseUrl .'/api/mercadopago/webhook/qr' : route('api.mercadopago.webhook.qr'),
+                'notification_url' => app()->environment() == 'local' ? $baseUrl.'/api/mercadopago/webhook/qr' : route('api.mercadopago.webhook.qr'),
                 'items' => [
                     [
-                        'sku_number' => 'ITEM-001-' . $orderReference,
+                        'sku_number' => 'ITEM-001-'.$orderReference,
                         'category' => 'marketplace',
                         'title' => $servicioPagar->servicio->nombre ?: 'Producto/Servicio',
                         'description' => $servicioPagar->servicio->descripcion ?: 'Cobro mediante código QR',
@@ -598,21 +582,21 @@ class ServicioPagarController extends Controller
                         'quantity' => floatval($servicioPagar->cantidad),
                         'unit_measure' => 'unit',
                         'total_amount' => floatval($servicioPagar->precio) * floatval($servicioPagar->cantidad),
-                    ]
+                    ],
                 ],
-                'expiration_date' => now()->addMinutes(10)->format('Y-m-d\TH:i:s.vP')
+                'expiration_date' => now()->addMinutes(10)->format('Y-m-d\TH:i:s.vP'),
             ];
-            
+
             // Crear orden en MercadoPago
             $response = $qrService->createQROrder($pos->external_id, $orderData);
-            
-            if (!$response['success']) {
+
+            if (! $response['success']) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Error al crear orden: ' . $response['error']
+                    'error' => 'Error al crear orden: '.$response['error'],
                 ], 400);
             }
-            
+
             // Guardar orden en BD
             $order = MercadoPagoQROrder::create([
                 'mercadopago_pos_id' => $pos->id,
@@ -622,24 +606,24 @@ class ServicioPagarController extends Controller
                 'total_amount' => $orderData['total_amount'],
                 'status' => 'pending',
                 'items' => $orderData['items'],
-                'expires_at' => now()->addMinutes(10)
+                'expires_at' => now()->addMinutes(10),
             ]);
-            
+
             return response()->json([
                 'success' => true,
                 'qr_data' => $response['qr_data'],
                 'order_id' => $order->id,
             ]);
-            
+
         } catch (\Exception $e) {
             \Log::error('Error creando orden QR', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'error' => 'Error: ' . $e->getMessage()
+                'error' => 'Error: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -650,16 +634,16 @@ class ServicioPagarController extends Controller
     public function checkPaymentStatus(Request $request)
     {
         $request->validate([
-            'order_id' => 'required|integer'
+            'order_id' => 'required|integer',
         ]);
 
         try {
             $order = MercadoPagoQROrder::find($request->order_id);
-            
-            if (!$order) {
+
+            if (! $order) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Orden no encontrada'
+                    'error' => 'Orden no encontrada',
                 ], 404);
             }
 
@@ -667,18 +651,18 @@ class ServicioPagarController extends Controller
                 'success' => true,
                 'status' => $order->status,
                 'payment_id' => $order->payment_id,
-                'amount' => $order->total_amount
+                'amount' => $order->total_amount,
             ]);
-            
+
         } catch (\Exception $e) {
             \Log::error('Error verificando estado de pago', [
                 'error' => $e->getMessage(),
-                'order_id' => $request->order_id
+                'order_id' => $request->order_id,
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'error' => 'Error al verificar estado'
+                'error' => 'Error al verificar estado',
             ], 500);
         }
     }
@@ -689,59 +673,59 @@ class ServicioPagarController extends Controller
     public function cancelOrder(Request $request)
     {
         $request->validate([
-            'order_id' => 'required|integer'
+            'order_id' => 'required|integer',
         ]);
 
         try {
             $order = MercadoPagoQROrder::find($request->order_id);
-            
-            if (!$order) {
+
+            if (! $order) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Orden no encontrada'
+                    'error' => 'Orden no encontrada',
                 ], 404);
             }
-            
+
             if ($order->isPending()) {
                 $pos = $order->pos;
-                
+
                 // Configurar credenciales
                 config([
                     'services.mercadopago.access_token' => $pos->store->empresa->MP_ACCESS_TOKEN,
                     'services.mercadopago.user_id' => $pos->store->empresa->MP_USER_ID,
                 ]);
-                
-                $qrService = new MercadoPagoQRService();
+
+                $qrService = new MercadoPagoQRService;
                 $qrService->deleteQROrder($pos->external_id);
-                
+
                 $order->update(['status' => 'cancelled']);
-                
+
                 return response()->json([
                     'success' => true,
-                    'message' => 'Orden cancelada correctamente'
+                    'message' => 'Orden cancelada correctamente',
                 ]);
             }
-            
+
             return response()->json([
                 'success' => false,
-                'error' => 'La orden no puede ser cancelada en su estado actual'
+                'error' => 'La orden no puede ser cancelada en su estado actual',
             ], 400);
-            
+
         } catch (\Exception $e) {
             \Log::error('Error cancelando orden', [
                 'error' => $e->getMessage(),
-                'order_id' => $request->order_id
+                'order_id' => $request->order_id,
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'error' => 'Error al cancelar la orden'
+                'error' => 'Error al cancelar la orden',
             ], 500);
         }
     }
 
-    public function NuevoCobro (){
-
+    public function NuevoCobro()
+    {
 
         $usuario = Auth::user();
         // return $usuario->empresa_id;
@@ -750,18 +734,19 @@ class ServicioPagarController extends Controller
         $clientes = DB::select('SELECT b.* FROM cliente_empresa a, clientes b WHERE a.cliente_id = b.id AND a.empresa_id = ? ORDER BY b.nombre ASC;', [$usuario->empresa_id]);
 
         // return $servicios;
-        
-       return view('servicios.NuevoCobro',compact('servicios','clientes'))->render();
+
+        return view('servicios.NuevoCobro', compact('servicios', 'clientes'))->render();
     }
 
-    public function AgregarNuevoCobro (Request $request){
+    public function AgregarNuevoCobro(Request $request)
+    {
 
         $request->validate([
             'precio' => 'required|numeric|min:1',
             'cantidad' => 'required|numeric|min:0.5',
             'fecha_vencimiento' => 'nullable|date',
             'comentario' => 'nullable|string|max:1000',
-            'periodo_servicio' => 'nullable|string|max:255'
+            'periodo_servicio' => 'nullable|string|max:255',
         ]);
 
         // return $request;
@@ -771,7 +756,7 @@ class ServicioPagarController extends Controller
         // Convertir periodo_servicio (YYYY-MM) al primer día del mes (YYYY-MM-01)
         $periodoServicio = null;
         if ($request->periodo_servicio) {
-            $periodoServicio = $request->periodo_servicio . '-01';
+            $periodoServicio = $request->periodo_servicio.'-01';
         }
 
         // {
@@ -796,20 +781,18 @@ class ServicioPagarController extends Controller
             'periodo_servicio' => $periodoServicio,
         ]);
 
+        $empresa = Empresa::find(Auth::user()->empresa_id);
 
-        $empresa = \App\Models\Empresa::find(Auth::user()->empresa_id);
-
-                // Enviar WhatsApp
+        // Enviar WhatsApp
         // EnviarWhatsAppNuevoServicioJob::dispatch($id, $instanciaWS, $tokenWS);
         // \App\Jobs\EnviarWhatsAppNuevoServicioJob::dispatch($id, $empresa->instanciaWS, $empresa->tokenWS);
 
-    
         // este metodo envia wharsapp y correo al cliente avisando que se le ha generado un nuevo servicio a pagar, con los detalles del servicio y un link para pagar (si el servicio tiene linkPago)
         // use App\Events\NuevoServicioPagarEvent;
         NuevoServicioPagarEvent::dispatch($id);
 
-        return redirect()->route('ServiciosImpagos')->with('status','Cobro correcto id:' .$id);
-        
+        return redirect()->route('ServiciosImpagos')->with('status', 'Cobro correcto id:'.$id);
+
     }
 
     /**
@@ -823,7 +806,7 @@ class ServicioPagarController extends Controller
             $usuario = Auth::user();
 
             // Validación 1: Verificar que el usuario sea Admin (2) o Super (3)
-            if (!in_array($usuario->role_id, [2, 3])) {
+            if (! in_array($usuario->role_id, [2, 3])) {
                 return redirect()->back()
                     ->withErrors(['No tienes permisos para eliminar servicios. Solo usuarios Admin o Super pueden hacerlo.']);
             }
@@ -832,7 +815,7 @@ class ServicioPagarController extends Controller
             $servicioPagar = ServicioPagar::find($idServicioPagar);
 
             // Validación 2: Verificar que el servicio existe
-            if (!$servicioPagar) {
+            if (! $servicioPagar) {
                 return redirect()->back()
                     ->withErrors(['El servicio no existe.']);
             }
@@ -847,7 +830,7 @@ class ServicioPagarController extends Controller
             // Validación 4: Verificar que el servicio está en estado 'impago'
             if ($servicioPagar->estado !== 'impago') {
                 return redirect()->back()
-                    ->withErrors(['Solo se pueden eliminar servicios en estado IMPAGO. Este servicio está: ' . strtoupper($servicioPagar->estado)]);
+                    ->withErrors(['Solo se pueden eliminar servicios en estado IMPAGO. Este servicio está: '.strtoupper($servicioPagar->estado)]);
             }
 
             // Obtener información para el log antes de eliminar
@@ -867,7 +850,7 @@ class ServicioPagarController extends Controller
                 'cliente' => $cliente->nombre ?? 'N/A',
                 'servicio' => $servicioNombre,
                 'total' => $total,
-                'fecha_eliminacion' => now()
+                'fecha_eliminacion' => now(),
             ]);
 
             return redirect()->route('ServiciosImpagos')
@@ -878,11 +861,11 @@ class ServicioPagarController extends Controller
                 'usuario_id' => Auth::id(),
                 'servicio_pagar_id' => $idServicioPagar,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return redirect()->back()
-                ->withErrors(['Error al eliminar el servicio: ' . $e->getMessage()]);
+                ->withErrors(['Error al eliminar el servicio: '.$e->getMessage()]);
         }
     }
 
@@ -906,13 +889,13 @@ class ServicioPagarController extends Controller
         try {
             $servicioPagar = ServicioPagar::find($idServicioPagar);
 
-            if (!$servicioPagar) {
+            if (! $servicioPagar) {
                 return redirect()->back()->withErrors(['El servicio no existe.']);
             }
 
             // Verificar que el servicio pertenece a la empresa del usuario
             $servicio = Servicio::find($servicioPagar->servicio_id);
-            if (!$servicio || $servicio->empresa_id != $usuario->empresa_id) {
+            if (! $servicio || $servicio->empresa_id != $usuario->empresa_id) {
                 return redirect()->back()
                     ->withErrors(['No puedes modificar servicios de otra empresa.']);
             }
@@ -920,12 +903,12 @@ class ServicioPagarController extends Controller
             // Solo se modifican servicios impagos
             if ($servicioPagar->estado !== 'impago') {
                 return redirect()->back()
-                    ->withErrors(['Solo se puede modificar el vencimiento de servicios en estado IMPAGO. Este servicio está: ' . strtoupper($servicioPagar->estado)]);
+                    ->withErrors(['Solo se puede modificar el vencimiento de servicios en estado IMPAGO. Este servicio está: '.strtoupper($servicioPagar->estado)]);
             }
 
             $fechaAnterior = $servicioPagar->fecha_vencimiento;
 
-            $nuevaFecha = \Carbon\Carbon::parse($request->fecha_vencimiento);
+            $nuevaFecha = Carbon::parse($request->fecha_vencimiento);
 
             $servicioPagar->fecha_vencimiento = $nuevaFecha->toDateString();
             $servicioPagar->save();
@@ -939,7 +922,7 @@ class ServicioPagarController extends Controller
             ]);
 
             return redirect()->back()
-                ->with('status', 'Vencimiento actualizado al ' . $nuevaFecha->format('d/m/Y') . '.');
+                ->with('status', 'Vencimiento actualizado al '.$nuevaFecha->format('d/m/Y').'.');
 
         } catch (\Exception $e) {
             \Log::error('Error al modificar vencimiento', [
@@ -950,7 +933,7 @@ class ServicioPagarController extends Controller
             ]);
 
             return redirect()->back()
-                ->withErrors(['Error al modificar el vencimiento: ' . $e->getMessage()]);
+                ->withErrors(['Error al modificar el vencimiento: '.$e->getMessage()]);
         }
     }
 
@@ -974,27 +957,27 @@ class ServicioPagarController extends Controller
                                     AND b.empresa_id = c.id 
                                     AND a.cliente_id = e.id 
                                     AND a.estado = ? 
-                                    AND c.id = ?', 
-                                ['impago', $usuario->empresa_id]);
+                                    AND c.id = ?',
+                ['impago', $usuario->empresa_id]);
 
             $total = $resultado[0]->total ?? 0;
 
             return response()->json([
                 'success' => true,
                 'total' => $total,
-                'mensaje' => "Se encontraron {$total} servicios impagos."
+                'mensaje' => "Se encontraron {$total} servicios impagos.",
             ]);
 
         } catch (\Exception $e) {
             \Log::error('Error al contar servicios impagos', [
                 'usuario_id' => Auth::id(),
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'error' => 'Error al contar los servicios: ' . $e->getMessage()
+                'error' => 'Error al contar los servicios: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1003,8 +986,8 @@ class ServicioPagarController extends Controller
      * Eliminar múltiples servicios impagos de la empresa
      * Solo puede ser ejecutado por usuarios Admin (role_id = 2) o Super (role_id = 3)
      * Elimina todos los servicios impagos que pertenecen a la empresa del usuario
-     * 
-     * @param Request $request - Puede incluir confirmación
+     *
+     * @param  Request  $request  - Puede incluir confirmación
      */
     public function EliminarTodosServiciosImpagos(Request $request)
     {
@@ -1012,7 +995,7 @@ class ServicioPagarController extends Controller
             $usuario = Auth::user();
 
             // Validación 1: Verificar que el usuario sea Admin (2) o Super (3)
-            if (!in_array($usuario->role_id, [2, 3])) {
+            if (! in_array($usuario->role_id, [2, 3])) {
                 return redirect()->back()
                     ->withErrors(['No tienes permisos para eliminar servicios. Solo usuarios Admin o Super pueden hacerlo.']);
             }
@@ -1035,8 +1018,8 @@ class ServicioPagarController extends Controller
                                     AND b.empresa_id = c.id 
                                     AND a.cliente_id = e.id 
                                     AND a.estado = ? 
-                                    AND c.id = ?', 
-                                ['impago', $usuario->empresa_id]);
+                                    AND c.id = ?',
+                ['impago', $usuario->empresa_id]);
 
             $totalServicios = count($serviciosImpagos);
 
@@ -1046,7 +1029,7 @@ class ServicioPagarController extends Controller
             }
 
             // Extraer los IDs
-            $ids = array_map(function($servicio) {
+            $ids = array_map(function ($servicio) {
                 return $servicio->idServicioPagar;
             }, $serviciosImpagos);
 
@@ -1063,7 +1046,7 @@ class ServicioPagarController extends Controller
                 'empresa_id' => $usuario->empresa_id,
                 'total_eliminados' => $eliminados,
                 'ids_eliminados' => $ids,
-                'fecha_eliminacion' => now()
+                'fecha_eliminacion' => now(),
             ]);
 
             return redirect()->route('ServiciosImpagos')
@@ -1073,12 +1056,11 @@ class ServicioPagarController extends Controller
             \Log::error('Error al eliminar servicios impagos masivamente', [
                 'usuario_id' => Auth::id(),
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return redirect()->back()
-                ->withErrors(['Error al eliminar los servicios: ' . $e->getMessage()]);
+                ->withErrors(['Error al eliminar los servicios: '.$e->getMessage()]);
         }
     }
-
 }

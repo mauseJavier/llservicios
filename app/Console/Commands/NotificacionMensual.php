@@ -2,18 +2,15 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-
-use App\Mail\NotificacionTodosServiciosMail;
-use Illuminate\Support\Facades\Mail;
 use App\Jobs\EnviarWhatsAppJob;
-use App\Services\MercadoPago\MercadoPagoLinkService;
+use App\Mail\NotificacionTodosServiciosMail;
 use App\Models\Cliente;
-
+use App\Services\MercadoPago\MercadoPagoLinkService;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class NotificacionMensual extends Command
 {
@@ -60,16 +57,17 @@ class NotificacionMensual extends Command
                 servicios c,
                 empresas d
             WHERE
-                a.cliente_id = b.id AND a.servicio_id = c.id AND c.empresa_id = d.id AND a.estado = ?' . $filtroEmpresa . '
+                a.cliente_id = b.id AND a.servicio_id = c.id AND c.empresa_id = d.id AND a.estado = ?'.$filtroEmpresa.'
             GROUP BY
                 a.cliente_id, b.nombre, b.correo, b.telefono', $paramsClientes);
 
         if (empty($clientes)) {
             $this->info('✅ No hay clientes con servicios impagos.');
+
             return;
         }
 
-        $this->info("📊 Se encontraron " . count($clientes) . " clientes con servicios impagos");
+        $this->info('📊 Se encontraron '.count($clientes).' clientes con servicios impagos');
 
         $serviciosImpagos = [];
         $i = 0;
@@ -103,7 +101,7 @@ class NotificacionMensual extends Command
                                                 servicios b,
                                                 empresas c
                                             WHERE
-                                                a.servicio_id = b.id AND b.empresa_id = c.id AND a.cliente_id = ? AND a.estado = ?' . $filtroEmpresaServicios, $paramsServicios);
+                                                a.servicio_id = b.id AND b.empresa_id = c.id AND a.cliente_id = ? AND a.estado = ?'.$filtroEmpresaServicios, $paramsServicios);
 
             foreach ($serviciosImpagos[$i]['servicios'] as $datos) {
                 $totalServicios = $totalServicios + $datos->total;
@@ -120,37 +118,37 @@ class NotificacionMensual extends Command
         $errores = 0;
 
         foreach ($serviciosImpagos as $key => $datos) {
-            $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            $this->info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             $this->info("📤 Procesando cliente: {$datos['nombreCliente']}");
 
             // Generar links de pago firmados agrupados por empresa (la app resuelve los impagos al hacer clic)
             $datos['linksPago'] = $this->generarLinksImpagos($datos);
             $datos['linkPago'] = count($datos['linksPago']) === 1 ? $datos['linksPago'][0]['url'] : null;
-            
+
             // Enviar email
             if (empty($datos['correoCliente'])) {
-                $this->warn("  ⚠️  Cliente sin correo registrado");
+                $this->warn('  ⚠️  Cliente sin correo registrado');
             } else {
                 $emailEnviado = false;
-                
+
                 // Intenta primero con SMTP
                 try {
                     Mail::mailer('smtp')->to($datos['correoCliente'])->send(new NotificacionTodosServiciosMail($datos));
                     $this->info("  ✅ Email enviado vía SMTP: {$datos['correoCliente']}");
                     $emailEnviado = true;
                 } catch (\Exception $e) {
-                    $this->warn("  ⚠️  Fallo SMTP: " . $e->getMessage());
-                    
+                    $this->warn('  ⚠️  Fallo SMTP: '.$e->getMessage());
+
                     // Si SMTP falla, intenta con secundario
                     try {
                         Mail::mailer('secundario')->to($datos['correoCliente'])->send(new NotificacionTodosServiciosMail($datos));
                         $this->info("  ✅ Email enviado vía secundario: {$datos['correoCliente']}");
                         $emailEnviado = true;
                     } catch (\Exception $e2) {
-                        $this->error("  ❌ Error en ambos mailers - SMTP: " . $e->getMessage() . " | Secundario: " . $e2->getMessage());
+                        $this->error('  ❌ Error en ambos mailers - SMTP: '.$e->getMessage().' | Secundario: '.$e2->getMessage());
                     }
                 }
-                
+
                 if ($emailEnviado) {
                     $emailsEnviados++;
                 } else {
@@ -159,15 +157,13 @@ class NotificacionMensual extends Command
             }
 
             // Enviar WhatsApp si tiene teléfono
-            if (!empty($datos['telefonoCliente'])) {
+            if (! empty($datos['telefonoCliente'])) {
 
+                // no se enviara whatsapp por el momento para que no vaneen el numero de ws
 
-                //no se enviara whatsapp por el momento para que no vaneen el numero de ws
-
-                
                 // try {
                 //     $mensajeWhatsApp = $this->generarMensajeWhatsApp($datos);
-                    
+
                 //     // Despachar Job para envío asíncrono
                 //     $datos = [
                 //         'phoneNumber' => $datos['telefonoCliente'],
@@ -189,20 +185,20 @@ class NotificacionMensual extends Command
                 //     $errores++;
                 // }
             } else {
-                $this->warn("  ⚠️  Cliente sin teléfono registrado");
+                $this->warn('  ⚠️  Cliente sin teléfono registrado');
             }
         }
 
         // Mostrar resumen
-        $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        $this->info("📊 RESUMEN DE NOTIFICACIONES");
-        $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        $this->info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        $this->info('📊 RESUMEN DE NOTIFICACIONES');
+        $this->info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         $this->info("  📧 Emails enviados: {$emailsEnviados}");
         $this->info("  📱 WhatsApps programados: {$whatsappsEnviados}");
         if ($errores > 0) {
             $this->error("  ⚠️  Errores encontrados: {$errores}");
         }
-        $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        $this->info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
         // Guardar log del proceso
         $this->guardarLog($serviciosImpagos, $emailsEnviados, $whatsappsEnviados, $errores);
@@ -236,47 +232,40 @@ class NotificacionMensual extends Command
 
     /**
      * Generar mensaje de WhatsApp formateado
-     * 
-     * @param array $datos Datos del cliente y servicios
-     * @return string
+     *
+     * @param  array  $datos  Datos del cliente y servicios
      */
     private function generarMensajeWhatsApp(array $datos): string
     {
         $mensaje = "⚠️ *RECORDATORIO DE SERVICIOS IMPAGOS*\n\n";
         $mensaje .= "Hola *{$datos['nombreCliente']}*,\n\n";
         $mensaje .= "Te recordamos que tienes *{$datos['cantidad']}* servicio(s) pendiente(s) de pago:\n\n";
-        
+
         foreach ($datos['servicios'] as $servicio) {
             $mensaje .= "📋 *{$servicio->nombreServicio}*\n";
             $mensaje .= "   • Empresa: {$servicio->nombreEmpresa}\n";
             $mensaje .= "   • Cantidad: {$servicio->cantidad}\n";
             $mensaje .= "   • Precio unitario: \${$servicio->precio}\n";
-            $mensaje .= "   • Total: \$" . number_format($servicio->total, 2) . "\n";
-            $mensaje .= "   • Fecha: " . date('d/m/Y', strtotime($servicio->fecha)) . "\n\n";
+            $mensaje .= '   • Total: $'.number_format($servicio->total, 2)."\n";
+            $mensaje .= '   • Fecha: '.date('d/m/Y', strtotime($servicio->fecha))."\n\n";
         }
-        
+
         $mensaje .= "━━━━━━━━━━━━━━━━━━━━━\n";
-        $mensaje .= "*TOTAL ADEUDADO: \$" . number_format($datos['total'], 2) . "*\n";
+        $mensaje .= '*TOTAL ADEUDADO: $'.number_format($datos['total'], 2)."*\n";
         $mensaje .= "━━━━━━━━━━━━━━━━━━━━━\n\n";
 
-        $mensaje .= "Realice el pago del servicio en la plataforma: " . env('APP_URL') . ".\n\n"; 
-        
-        $mensaje .= "Para registrarse, visite: " . env('APP_URL') . "/registro\n\n";
-        
+        $mensaje .= 'Realice el pago del servicio en la plataforma: '.config('app.url').".\n\n";
+
+        $mensaje .= 'Para registrarse, visite: '.config('app.url')."/registro\n\n";
+
         $mensaje .= "Cualquier consulta, no dudes en contactarnos.\n\n";
-        $mensaje .= "_Mensaje automático - " . config('app.name') . "_";
-        
+        $mensaje .= '_Mensaje automático - '.config('app.name').'_';
+
         return $mensaje;
     }
 
     /**
      * Guardar log del proceso
-     * 
-     * @param array $serviciosImpagos
-     * @param int $emailsEnviados
-     * @param int $whatsappsEnviados
-     * @param int $errores
-     * @return void
      */
     private function guardarLog(array $serviciosImpagos, int $emailsEnviados, int $whatsappsEnviados, int $errores): void
     {
@@ -286,9 +275,9 @@ class NotificacionMensual extends Command
                 'total_clientes' => count($serviciosImpagos),
                 'emails_enviados' => $emailsEnviados,
                 'whatsapps_programados' => $whatsappsEnviados,
-                'errores' => $errores
+                'errores' => $errores,
             ],
-            'datos' => $serviciosImpagos
+            'datos' => $serviciosImpagos,
         ];
 
         $rutaArchivo = 'logs/NotificacionMailMensual.txt';
@@ -296,14 +285,14 @@ class NotificacionMensual extends Command
 
         try {
             if (Storage::exists($rutaArchivo)) {
-                Storage::append($rutaArchivo, "\n" . $texto);
+                Storage::append($rutaArchivo, "\n".$texto);
             } else {
                 Storage::disk('local')->put($rutaArchivo, $texto);
             }
-            
+
             $this->info("📝 Log guardado en: storage/app/{$rutaArchivo}");
         } catch (\Exception $e) {
-            $this->error("❌ Error guardando log: " . $e->getMessage());
+            $this->error('❌ Error guardando log: '.$e->getMessage());
         }
     }
 }

@@ -3,10 +3,9 @@
 namespace Tests\Unit\Services;
 
 use App\Services\MercadoPago\MercadoPagoApiService;
-use Tests\TestCase;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
+use Tests\TestCase;
 
 class MercadoPagoApiServiceTest extends TestCase
 {
@@ -15,13 +14,13 @@ class MercadoPagoApiServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Configurar credenciales de prueba
         Config::set('services.mercadopago.access_token', 'TEST-123456789-access-token');
         Config::set('services.mercadopago.sandbox', true);
         Config::set('app.url', 'https://test-app.com');
-        
-        $this->mercadoPagoApiService = new MercadoPagoApiService();
+
+        $this->mercadoPagoApiService = new MercadoPagoApiService;
     }
 
     public function test_create_preference_success()
@@ -37,10 +36,10 @@ class MercadoPagoApiServiceTest extends TestCase
                         'id' => 'item-1',
                         'title' => 'Test Product',
                         'quantity' => 1,
-                        'unit_price' => 100.00
-                    ]
-                ]
-            ], 201)
+                        'unit_price' => 100.00,
+                    ],
+                ],
+            ], 201),
         ]);
 
         $data = [
@@ -51,15 +50,15 @@ class MercadoPagoApiServiceTest extends TestCase
                     'description' => 'Product for testing',
                     'quantity' => 1,
                     'unit_price' => 100.00,
-                    'currency_id' => 'ARS'
-                ]
+                    'currency_id' => 'ARS',
+                ],
             ],
             'external_reference' => 'test-ref-123',
             'payer' => [
                 'name' => 'Test',
                 'surname' => 'User',
-                'email' => 'test@example.com'
-            ]
+                'email' => 'test@example.com',
+            ],
         ];
 
         $result = $this->mercadoPagoApiService->createPreference($data);
@@ -77,8 +76,8 @@ class MercadoPagoApiServiceTest extends TestCase
             'api.mercadopago.com/checkout/preferences' => Http::response([
                 'message' => 'Invalid access token',
                 'error' => 'unauthorized',
-                'status' => 401
-            ], 401)
+                'status' => 401,
+            ], 401),
         ]);
 
         $data = [
@@ -86,9 +85,9 @@ class MercadoPagoApiServiceTest extends TestCase
                 [
                     'title' => 'Test Product',
                     'quantity' => 1,
-                    'unit_price' => 100.00
-                ]
-            ]
+                    'unit_price' => 100.00,
+                ],
+            ],
         ];
 
         $result = $this->mercadoPagoApiService->createPreference($data);
@@ -101,7 +100,7 @@ class MercadoPagoApiServiceTest extends TestCase
     public function test_get_payment_success()
     {
         $paymentId = '12345678901';
-        
+
         // Mock de la respuesta exitosa
         Http::fake([
             "api.mercadopago.com/v1/payments/{$paymentId}" => Http::response([
@@ -109,8 +108,8 @@ class MercadoPagoApiServiceTest extends TestCase
                 'status' => 'approved',
                 'status_detail' => 'accredited',
                 'transaction_amount' => 100.00,
-                'currency_id' => 'ARS'
-            ], 200)
+                'currency_id' => 'ARS',
+            ], 200),
         ]);
 
         $result = $this->mercadoPagoApiService->getPayment($paymentId);
@@ -123,14 +122,14 @@ class MercadoPagoApiServiceTest extends TestCase
     public function test_get_payment_not_found()
     {
         $paymentId = 'non-existent-payment';
-        
+
         // Mock de respuesta de pago no encontrado
         Http::fake([
             "api.mercadopago.com/v1/payments/{$paymentId}" => Http::response([
                 'message' => 'Payment not found',
                 'error' => 'not_found',
-                'status' => 404
-            ], 404)
+                'status' => 404,
+            ], 404),
         ]);
 
         $result = $this->mercadoPagoApiService->getPayment($paymentId);
@@ -142,7 +141,7 @@ class MercadoPagoApiServiceTest extends TestCase
     public function test_get_preference_success()
     {
         $preferenceId = 'test-preference-id';
-        
+
         // Mock de la respuesta exitosa
         Http::fake([
             "api.mercadopago.com/checkout/preferences/{$preferenceId}" => Http::response([
@@ -152,11 +151,11 @@ class MercadoPagoApiServiceTest extends TestCase
                         'id' => 'item-1',
                         'title' => 'Test Product',
                         'quantity' => 1,
-                        'unit_price' => 100.00
-                    ]
+                        'unit_price' => 100.00,
+                    ],
                 ],
-                'init_point' => 'https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=' . $preferenceId
-            ], 200)
+                'init_point' => 'https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id='.$preferenceId,
+            ], 200),
         ]);
 
         $result = $this->mercadoPagoApiService->getPreference($preferenceId);
@@ -176,8 +175,8 @@ class MercadoPagoApiServiceTest extends TestCase
                 'status_detail' => 'pending_waiting_payment',
                 'transaction_amount' => 100.00,
                 'currency_id' => 'ARS',
-                'payment_method_id' => 'rapipago'
-            ], 201)
+                'payment_method_id' => 'rapipago',
+            ], 201),
         ]);
 
         $paymentData = [
@@ -185,8 +184,8 @@ class MercadoPagoApiServiceTest extends TestCase
             'description' => 'Test payment',
             'payment_method_id' => 'rapipago',
             'payer' => [
-                'email' => 'test@example.com'
-            ]
+                'email' => 'test@example.com',
+            ],
         ];
 
         $result = $this->mercadoPagoApiService->createPayment($paymentData);
@@ -206,15 +205,15 @@ class MercadoPagoApiServiceTest extends TestCase
                     'id' => 'visa',
                     'name' => 'Visa',
                     'payment_type_id' => 'credit_card',
-                    'status' => 'active'
+                    'status' => 'active',
                 ],
                 [
                     'id' => 'rapipago',
                     'name' => 'Rapipago',
                     'payment_type_id' => 'ticket',
-                    'status' => 'active'
-                ]
-            ], 200)
+                    'status' => 'active',
+                ],
+            ], 200),
         ]);
 
         $result = $this->mercadoPagoApiService->getPaymentMethods();
@@ -233,9 +232,9 @@ class MercadoPagoApiServiceTest extends TestCase
                 [
                     'id' => 'visa',
                     'name' => 'Visa',
-                    'payment_type_id' => 'credit_card'
-                ]
-            ], 200)
+                    'payment_type_id' => 'credit_card',
+                ],
+            ], 200),
         ]);
 
         $result = $this->mercadoPagoApiService->validateCredentials();
@@ -248,7 +247,7 @@ class MercadoPagoApiServiceTest extends TestCase
     {
         // Configurar access token vacío
         Config::set('services.mercadopago.access_token', '');
-        $service = new MercadoPagoApiService();
+        $service = new MercadoPagoApiService;
 
         $result = $service->validateCredentials();
 
@@ -260,7 +259,7 @@ class MercadoPagoApiServiceTest extends TestCase
     {
         // Configurar access token con formato inválido
         Config::set('services.mercadopago.access_token', 'invalid-token-format');
-        $service = new MercadoPagoApiService();
+        $service = new MercadoPagoApiService;
 
         $result = $service->validateCredentials();
 
@@ -274,8 +273,8 @@ class MercadoPagoApiServiceTest extends TestCase
         Http::fake([
             'api.mercadopago.com/v1/payment_methods' => Http::response([
                 'message' => 'Invalid credentials',
-                'error' => 'unauthorized'
-            ], 401)
+                'error' => 'unauthorized',
+            ], 401),
         ]);
 
         $result = $this->mercadoPagoApiService->validateCredentials();
@@ -293,12 +292,12 @@ class MercadoPagoApiServiceTest extends TestCase
                 'description' => 'Description 1',
                 'quantity' => 2,
                 'price' => 50.00,
-                'currency_id' => 'ARS'
+                'currency_id' => 'ARS',
             ],
             [
                 'title' => 'Product 2',
-                'unit_price' => 75.50
-            ]
+                'unit_price' => 75.50,
+            ],
         ];
 
         $items = MercadoPagoApiService::createItems($products);
@@ -321,17 +320,17 @@ class MercadoPagoApiServiceTest extends TestCase
             'email' => 'john.doe@example.com',
             'phone' => [
                 'area_code' => '11',
-                'number' => '12345678'
+                'number' => '12345678',
             ],
             'identification' => [
                 'type' => 'DNI',
-                'number' => '12345678'
+                'number' => '12345678',
             ],
             'address' => [
                 'street_name' => 'Main Street',
                 'street_number' => 123,
-                'zip_code' => '1234'
-            ]
+                'zip_code' => '1234',
+            ],
         ];
 
         $payer = MercadoPagoApiService::createPayer($payerData);
@@ -346,21 +345,22 @@ class MercadoPagoApiServiceTest extends TestCase
 
     public function test_get_valid_urls_localhost()
     {
+        Config::set('services.mercadopago.test_mode', true);
+        Config::set('services.mercadopago.public_url', 'https://public.example.com');
         Config::set('app.url', 'http://localhost:8000');
-        Config::set('app.env', 'local');
-        Config::set('app.name', 'Test App');
 
         $urls = MercadoPagoApiService::getValidUrls();
 
-        $this->assertStringContainsString('httpbin.org', $urls['success']);
-        $this->assertStringContainsString('success=true', $urls['success']);
-        $this->assertStringContainsString('httpbin.org', $urls['webhook']);
+        $this->assertEquals('https://public.example.com/mercadopago/success', $urls['success']);
+        $this->assertEquals('https://public.example.com/mercadopago/failure', $urls['failure']);
+        $this->assertEquals('https://public.example.com/mercadopago/pending', $urls['pending']);
+        $this->assertEquals('https://public.example.com/mercadopago/webhook', $urls['webhook']);
     }
 
     public function test_get_valid_urls_production()
     {
+        Config::set('services.mercadopago.test_mode', false);
         Config::set('app.url', 'https://myapp.com');
-        Config::set('app.env', 'production');
 
         $urls = MercadoPagoApiService::getValidUrls();
 

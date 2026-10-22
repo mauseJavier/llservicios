@@ -2,12 +2,12 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use App\Models\ServicioPagar;
-use Illuminate\Support\Facades\Log;
 use App\Jobs\EnviarEmailIncrementoMoraJob;
 use App\Jobs\EnviarWhatsAppJob;
+use App\Models\ServicioPagar;
 use App\Services\MercadoPago\MercadoPagoLinkService;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class AplicarIncrementoMora extends Command
 {
@@ -58,11 +58,11 @@ class AplicarIncrementoMora extends Command
                 $servicio = $servicioPagar->servicio;
                 $cliente = $servicioPagar->cliente;
 
-                if (!$servicio || !$servicio->tieneIncrementoMora()) {
+                if (! $servicio || ! $servicio->tieneIncrementoMora()) {
                     continue;
                 }
 
-                if (!$cliente || !$cliente->aplicaRecargos($servicio->empresa_id)) {
+                if (! $cliente || ! $cliente->aplicaRecargos($servicio->empresa_id)) {
                     continue;
                 }
 
@@ -85,7 +85,7 @@ class AplicarIncrementoMora extends Command
                 $servicioPagar->precio = $nuevoPrecio;
                 $servicioPagar->incremento_mora_aplicado = true;
                 $servicioPagar->comentario = $comentarioBase !== ''
-                    ? $comentarioBase . ' | ' . $detalleRecargo
+                    ? $comentarioBase.' | '.$detalleRecargo
                     : $detalleRecargo;
                 $servicioPagar->save();
 
@@ -111,7 +111,7 @@ class AplicarIncrementoMora extends Command
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                 ]);
-                $this->error("❌ Error en ServicioPagar #{$servicioPagar->id}: " . $e->getMessage());
+                $this->error("❌ Error en ServicioPagar #{$servicioPagar->id}: ".$e->getMessage());
             }
         }
 
@@ -152,7 +152,7 @@ class AplicarIncrementoMora extends Command
 
             EnviarEmailIncrementoMoraJob::dispatch($servicioPagar->id, $datos);
 
-            if (!empty($cliente->telefono) && $empresa && !empty($empresa->instanciaWS) && !empty($empresa->tokenWS)) {
+            if (! empty($cliente->telefono) && $empresa && ! empty($empresa->instanciaWS) && ! empty($empresa->tokenWS)) {
                 $mensajeWhatsApp = $this->generarMensajeWhatsAppMora($datos);
 
                 $buttons = [
@@ -191,27 +191,27 @@ class AplicarIncrementoMora extends Command
         $mensaje .= "Le informamos desde *{$datos['nombreEmpresa']}* que tu servicio se encuentra *vencido* y se le aplicó un *recargo por mora*.\n\n";
         $mensaje .= "📋 *{$datos['nombreServicio']}*\n";
         $mensaje .= "   • Cantidad: {$datos['cantidadServicio']}\n";
-        $mensaje .= "   • Total original: \$" . number_format($datos['totalOriginal'], 2) . "\n";
+        $mensaje .= '   • Total original: $'.number_format($datos['totalOriginal'], 2)."\n";
         $mensaje .= "   • Vencimiento: {$datos['fechaVencimiento']}\n\n";
 
         if ($datos['tipoRecargo'] === 'fijo') {
-            $mensaje .= "💰 *Recargo fijo:* \$" . number_format($datos['montoRecargo'], 2) . "\n";
+            $mensaje .= '💰 *Recargo fijo:* $'.number_format($datos['montoRecargo'], 2)."\n";
         } else {
-            $mensaje .= "📈 *Recargo porcentual ({$datos['valorRecargo']}%):* \$" . number_format($datos['montoRecargo'], 2) . "\n";
+            $mensaje .= "📈 *Recargo porcentual ({$datos['valorRecargo']}%):* \$".number_format($datos['montoRecargo'], 2)."\n";
         }
 
         $mensaje .= "━━━━━━━━━━━━━━━━━━━━━\n";
-        $mensaje .= "*NUEVO TOTAL: \$" . number_format($datos['totalConRecargo'], 2) . "*\n";
+        $mensaje .= '*NUEVO TOTAL: $'.number_format($datos['totalConRecargo'], 2)."*\n";
         $mensaje .= "━━━━━━━━━━━━━━━━━━━━━\n\n";
 
-        if (!empty($datos['linkPago'])) {
+        if (! empty($datos['linkPago'])) {
             $mensaje .= "💳 Realice el pago aquí: {$datos['linkPago']}\n\n";
         } else {
-            $mensaje .= "Realice el pago del servicio en la plataforma: " . env('APP_URL') . ".\n\n";
+            $mensaje .= 'Realice el pago del servicio en la plataforma: '.config('app.url').".\n\n";
         }
 
         $mensaje .= "Cualquier consulta, no dudes en contactarnos.\n\n";
-        $mensaje .= "_Mensaje automático - " . $datos['nombreEmpresa'] . "_";
+        $mensaje .= '_Mensaje automático - '.$datos['nombreEmpresa'].'_';
 
         return $mensaje;
     }

@@ -2,29 +2,35 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
 use App\Models\MercadoPagoPOS;
 use App\Models\MercadoPagoQROrder;
 use App\Services\MercadoPago\MercadoPagoQRService;
 use Illuminate\Support\Str;
+use Livewire\Component;
 
 class QRPayment extends Component
 {
     public $posId;
+
     public $amount = '';
+
     public $description = '';
+
     public $orderId = null;
+
     public $orderReference = null;
+
     public $orderStatus = null;
+
     public $paymentId = null;
+
     public $showQR = false;
+
     public $qrData = null;
 
-
-    
     // Para polling
     public $polling = false;
-    
+
     protected $rules = [
         'amount' => 'required|numeric|min:0.01',
         'description' => 'nullable|string|max:255',
@@ -47,19 +53,18 @@ class QRPayment extends Component
 
         try {
             $pos = MercadoPagoPOS::findOrFail($this->posId);
-            
+
             // Configurar credenciales
             config([
                 'services.mercadopago.access_token' => $pos->store->empresa->MP_ACCESS_TOKEN,
                 'services.mercadopago.user_id' => $pos->store->empresa->MP_USER_ID,
-                'services.mercadopago.sandbox' => false
+                'services.mercadopago.sandbox' => false,
             ]);
-            
-            $qrService = new MercadoPagoQRService();
-            
+
+            $qrService = new MercadoPagoQRService;
+
             // Generar referencia única
-            $this->orderReference = 'QR-' . time() . '-' . Str::random(6);
-            
+            $this->orderReference = 'QR-'.time().'-'.Str::random(6);
 
             $baseUrl = config('app.env') === 'local' ? 'https://prepositionally-vacciniaceous-irving.ngrok-free.dev' : config('app.url');
             // Datos de la orden
@@ -68,7 +73,7 @@ class QRPayment extends Component
                 'title' => $this->description ?: 'Pago en caja',
                 'description' => $this->description ?: 'Cobro mediante código QR',
                 'total_amount' => floatval($this->amount),
-                'notification_url' => env('APP_ENV') == 'local' ? $baseUrl .'/api/mercadopago/webhook/qr' : route('api.mercadopago.webhook.qr'),
+                'notification_url' => app()->environment() == 'local' ? $baseUrl.'/api/mercadopago/webhook/qr' : route('api.mercadopago.webhook.qr'),
                 'items' => [
                     [
                         'sku_number' => 'ITEM-001',
@@ -78,23 +83,24 @@ class QRPayment extends Component
                         'unit_price' => floatval($this->amount),
                         'quantity' => 1,
                         'unit_measure' => 'unit',
-                        'total_amount' => floatval($this->amount)
-                    ]
+                        'total_amount' => floatval($this->amount),
+                    ],
                 ],
                 // ...existing code...
-                'expiration_date' => now()->addMinutes(10)->format('Y-m-d\TH:i:s.vP')
+                'expiration_date' => now()->addMinutes(10)->format('Y-m-d\TH:i:s.vP'),
                 // Genera: 2025-11-08T21:42:17.000-03:00
 
             ];
-            
+
             // Crear orden en MercadoPago
             $response = $qrService->createQROrder($pos->external_id, $orderData);
-            
-            if (!$response['success']) {
-                session()->flash('error', 'Error al crear orden: ' . $response['error']);
+
+            if (! $response['success']) {
+                session()->flash('error', 'Error al crear orden: '.$response['error']);
+
                 return;
             }
-            
+
             // Guardar orden en BD
             $order = MercadoPagoQROrder::create([
                 'mercadopago_pos_id' => $pos->id,
@@ -103,29 +109,29 @@ class QRPayment extends Component
                 'total_amount' => $this->amount,
                 'status' => 'pending',
                 'items' => $orderData['items'],
-                'expires_at' => now()->addMinutes(10)
+                'expires_at' => now()->addMinutes(10),
             ]);
-            
+
             $this->orderId = $order->id;
             $this->orderStatus = 'pending';
             $this->showQR = true;
             $this->polling = true;
             $this->qrData = $response['qr_data'];
-            
+
             // Dispatch evento para mostrar QR en el frontend
             $this->dispatch('qr-created', [
                 'orderId' => $this->orderId,
                 'amount' => $this->amount,
-                'qrData' => $this->qrData
+                'qrData' => $this->qrData,
             ]);
-            
+
             session()->flash('success', 'Orden creada. Escanea el código QR para pagar.');
-            
+
         } catch (\Exception $e) {
             \Log::error('Error creando orden QR', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            session()->flash('error', 'Error: ' . $e->getMessage());
+            session()->flash('error', 'Error: '.$e->getMessage());
         }
     }
 
@@ -134,30 +140,31 @@ class QRPayment extends Component
      */
     public function checkPaymentStatus()
     {
-        if (!$this->orderId) {
+        if (! $this->orderId) {
             return;
         }
 
         $order = MercadoPagoQROrder::find($this->orderId);
-        
-        if (!$order) {
+
+        if (! $order) {
             $this->polling = false;
+
             return;
         }
 
         $this->orderStatus = $order->status;
-        
+
         if ($order->isPaid()) {
             $this->polling = false;
             $this->paymentId = $order->payment_id;
-            
+
             // Dispatch evento de pago exitoso
             $this->dispatch('payment-successful', [
                 'orderId' => $this->orderId,
                 'paymentId' => $this->paymentId,
-                'amount' => $order->total_amount
+                'amount' => $order->total_amount,
             ]);
-            
+
             session()->flash('success', '¡Pago recibido exitosamente!');
         } elseif ($order->status === 'expired' || $order->status === 'cancelled') {
             $this->polling = false;
@@ -173,26 +180,26 @@ class QRPayment extends Component
         try {
             if ($this->orderId) {
                 $order = MercadoPagoQROrder::find($this->orderId);
-                
+
                 if ($order && $order->isPending()) {
                     $pos = $order->pos;
-                    
+
                     // Configurar credenciales
                     config([
                         'services.mercadopago.access_token' => $pos->store->empresa->MP_ACCESS_TOKEN,
                         'services.mercadopago.user_id' => $pos->store->empresa->MP_USER_ID,
                     ]);
-                    
-                    $qrService = new MercadoPagoQRService();
+
+                    $qrService = new MercadoPagoQRService;
                     $qrService->deleteQROrder($pos->mp_pos_id);
-                    
+
                     $order->update(['status' => 'cancelled']);
                 }
             }
-            
+
             $this->reset(['orderId', 'orderReference', 'orderStatus', 'paymentId', 'showQR', 'polling', 'amount', 'description']);
             session()->flash('info', 'Orden cancelada');
-            
+
         } catch (\Exception $e) {
             \Log::error('Error cancelando orden', ['error' => $e->getMessage()]);
             session()->flash('error', 'Error al cancelar la orden');
@@ -202,7 +209,7 @@ class QRPayment extends Component
     public function render()
     {
         return view('livewire.qr-payment')
-        ->extends('principal.principal')
+            ->extends('principal.principal')
             ->section('body');
     }
 }

@@ -2,16 +2,14 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use App\Jobs\EnviarWhatsAppJob;
 use App\Models\Cliente;
 use App\Models\Empresa;
 use App\Services\MercadoPago\MercadoPagoLinkService;
-
-
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class NotificacionMensualWS extends Command
 {
@@ -46,10 +44,11 @@ class NotificacionMensualWS extends Command
 
         if (empty($empresas)) {
             $this->info('✅ No hay empresas con servicios impagos.');
+
             return;
         }
 
-        $this->info("📊 Se encontraron " . count($empresas) . "");
+        $this->info('📊 Se encontraron '.count($empresas).'');
 
         // $serviciosImpagos = [];
         // $i = 0;
@@ -95,12 +94,12 @@ class NotificacionMensualWS extends Command
         // foreach ($serviciosImpagos as $key => $datos) {
         //     $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         //     $this->info("📤 Procesando cliente: {$datos['nombreCliente']}");
-            
+
         //     // Enviar WhatsApp si tiene teléfono
         //     if (!empty($datos['telefonoCliente'])) {
         //         try {
         //             $mensajeWhatsApp = $this->generarMensajeWhatsApp($datos);
-                    
+
         //             // Despachar Job para envío asíncrono
         //             $datosJob = [
         //                 'phoneNumber' => $datos['telefonoCliente'],
@@ -131,38 +130,36 @@ class NotificacionMensualWS extends Command
         //     }
         // }
 
-
-        foreach($empresas as $empresa) {
-            $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        foreach ($empresas as $empresa) {
+            $this->info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             $this->info("🏢 Empresa: {$empresa->nombre}");
-            $this->info("👥 Cantidad de clientes: " . $empresa->clientes->count());
+            $this->info('👥 Cantidad de clientes: '.$empresa->clientes->count());
 
-            
-            foreach($empresa->clientes as $cliente) {
+            foreach ($empresa->clientes as $cliente) {
 
-                if( env('APP_ENV') == 'local'){
+                if (app()->environment() == 'local') {
 
                     $this->info("  👤 Cliente: {$cliente->nombre} - Tel: {$cliente->telefono}");
                 }
 
                 // $serviciosImpagos = $cliente->serviciosImpagos();
-                $serviciosImpagos = $cliente->serviciosImpagos()->whereHas('servicio', function($query) use ($empresa) {
+                $serviciosImpagos = $cliente->serviciosImpagos()->whereHas('servicio', function ($query) use ($empresa) {
                     $query->where('empresa_id', $empresa->id);
                 })->get();
 
-                if( env('APP_ENV') == 'local'){
-                    $this->info(".......");
+                if (app()->environment() == 'local') {
+                    $this->info('.......');
 
                     $this->info("  Servicios Impagos: {$serviciosImpagos->count()}");
 
-                    foreach($serviciosImpagos as $servicio) {
-                        $this->info("    - {$servicio->servicio->nombre} | Cantidad: {$servicio->cantidad} | Precio Unitario: {$servicio->precio} | Total: " . ($servicio->cantidad * $servicio->precio) . " | Fecha: " . $servicio->created_at->format('d/m/Y'));
+                    foreach ($serviciosImpagos as $servicio) {
+                        $this->info("    - {$servicio->servicio->nombre} | Cantidad: {$servicio->cantidad} | Precio Unitario: {$servicio->precio} | Total: ".($servicio->cantidad * $servicio->precio).' | Fecha: '.$servicio->created_at->format('d/m/Y'));
                     }
-                    $this->info(".......");
+                    $this->info('.......');
 
                 }
 
-                if($serviciosImpagos->count() > 0){
+                if ($serviciosImpagos->count() > 0) {
 
                     $datosCliente = [
                         'cliente_id' => $cliente->id,
@@ -171,11 +168,11 @@ class NotificacionMensualWS extends Command
                         'empresa_id' => $empresa->id,
                         'cantidad' => $serviciosImpagos->count(),
                         'servicios' => [],
-                        'total' => 0
+                        'total' => 0,
                     ];
 
-                    foreach($serviciosImpagos as $servicio) {
-                        $datosCliente['servicios'][] = (object)[
+                    foreach ($serviciosImpagos as $servicio) {
+                        $datosCliente['servicios'][] = (object) [
                             'nombreServicio' => $servicio->servicio->nombre,
                             'cantidad' => $servicio->cantidad,
                             'precio' => $servicio->precio,
@@ -194,10 +191,10 @@ class NotificacionMensualWS extends Command
                     );
 
                     // Enviar WhatsApp si tiene teléfono
-                    if (!empty($cliente->telefono)) {
+                    if (! empty($cliente->telefono)) {
                         try {
                             $mensajeWhatsApp = $this->generarMensajeWhatsApp($datosCliente);
-                            
+
                             // Despachar Job para envío asíncrono
                             $datosJob = [
                                 'phoneNumber' => $cliente->telefono,
@@ -205,26 +202,26 @@ class NotificacionMensualWS extends Command
                                 'type' => 'text',
                                 'additionalData' => [],
                                 'instanciaWS' => $empresa->instanciaWS,
-                                'tokenWS' => $empresa->tokenWS
+                                'tokenWS' => $empresa->tokenWS,
                             ];
 
-                            if( env('APP_ENV') == 'local'){
+                            if (app()->environment() == 'local') {
 
                                 Log::info('Programando envío de WhatsApp', $datosJob);
                             }
-                            
+
                             EnviarWhatsAppJob::dispatch($datosJob);
-                            
+
                             $this->info("  ✅ WhatsApp programado para: {$cliente->telefono}");
                         } catch (\Exception $e) {
-                            $this->error("  ❌ Error programando WhatsApp: " . $e->getMessage());
+                            $this->error('  ❌ Error programando WhatsApp: '.$e->getMessage());
                             Log::error('Error programando WhatsApp', [
                                 'cliente' => $cliente->nombre,
-                                'error' => $e->getMessage()
+                                'error' => $e->getMessage(),
                             ]);
                         }
                     } else {
-                        $this->warn("  ⚠️  Cliente sin teléfono registrado");
+                        $this->warn('  ⚠️  Cliente sin teléfono registrado');
                     }
 
                 }
@@ -232,57 +229,50 @@ class NotificacionMensualWS extends Command
         }
 
         // Mostrar resumen
-        $this->info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        $this->info("✅ Proceso completado exitosamente");
+        $this->info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        $this->info('✅ Proceso completado exitosamente');
     }
 
     /**
      * Generar mensaje de WhatsApp formateado
-     * 
-     * @param array $datos Datos del cliente y servicios
-     * @return string
+     *
+     * @param  array  $datos  Datos del cliente y servicios
      */
     private function generarMensajeWhatsApp(array $datos): string
     {
-        
+
         $mensaje = "Hola *{$datos['nombreCliente']}*,\n\n";
         $mensaje .= "Le informamos desde *{$datos['nombreEmpresa']}* que ya están disponibles tus servicios para su pago.\n\n";
         $mensaje .= "Cantidad: *{$datos['cantidad']}* servicio(s):\n\n";
-        
+
         foreach ($datos['servicios'] as $servicio) {
             $mensaje .= "📋 *{$servicio->nombreServicio}*\n";
             $mensaje .= "   • Cantidad: {$servicio->cantidad}\n";
             $mensaje .= "   • Precio unitario: \${$servicio->precio}\n";
-            $mensaje .= "   • Total: \$" . number_format($servicio->total, 2) . "\n";
-            $mensaje .= "   • Fecha: " . date('d/m/Y', strtotime($servicio->fecha)) . "\n\n";
+            $mensaje .= '   • Total: $'.number_format($servicio->total, 2)."\n";
+            $mensaje .= '   • Fecha: '.date('d/m/Y', strtotime($servicio->fecha))."\n\n";
         }
-        
+
         $mensaje .= "━━━━━━━━━━━━━━━━━━━━━\n";
-        $mensaje .= "*TOTAL: \$" . number_format($datos['total'], 2) . "*\n";
+        $mensaje .= '*TOTAL: $'.number_format($datos['total'], 2)."*\n";
         $mensaje .= "━━━━━━━━━━━━━━━━━━━━━\n\n";
 
-        if (!empty($datos['linkPago'])) {
+        if (! empty($datos['linkPago'])) {
             $mensaje .= "💳 *Realice el pago aquí:*\n{$datos['linkPago']}\n\n";
         } else {
-            $mensaje .= "Realice el pago del servicio en la plataforma: " . env('APP_URL') . ".\n\n";
+            $mensaje .= 'Realice el pago del servicio en la plataforma: '.config('app.url').".\n\n";
         }
-        
-        $mensaje .= "Para registrarse, visite: " . env('APP_URL') . "/registro\n\n";
-        
+
+        $mensaje .= 'Para registrarse, visite: '.config('app.url')."/registro\n\n";
+
         $mensaje .= "Cualquier consulta, no dudes en contactarnos.\n\n";
-        $mensaje .= "_Mensaje automático - " . $datos['nombreEmpresa'] . "_";
-        
+        $mensaje .= '_Mensaje automático - '.$datos['nombreEmpresa'].'_';
+
         return $mensaje;
     }
 
     /**
      * Guardar log del proceso
-     * 
-     * @param array $serviciosImpagos
-     * @param int $whatsappsEnviados
-     * @param int $sinTelefono
-     * @param int $errores
-     * @return void
      */
     private function guardarLog(array $serviciosImpagos, int $whatsappsEnviados, int $sinTelefono, int $errores): void
     {
@@ -292,9 +282,9 @@ class NotificacionMensualWS extends Command
                 'total_clientes' => count($serviciosImpagos),
                 'whatsapps_programados' => $whatsappsEnviados,
                 'sin_telefono' => $sinTelefono,
-                'errores' => $errores
+                'errores' => $errores,
             ],
-            'datos' => $serviciosImpagos
+            'datos' => $serviciosImpagos,
         ];
 
         $rutaArchivo = 'logs/NotificacionWsMensual.txt';
@@ -302,14 +292,14 @@ class NotificacionMensualWS extends Command
 
         try {
             if (Storage::exists($rutaArchivo)) {
-                Storage::append($rutaArchivo, "\n" . $texto);
+                Storage::append($rutaArchivo, "\n".$texto);
             } else {
                 Storage::disk('local')->put($rutaArchivo, $texto);
             }
-            
+
             $this->info("📝 Log guardado en: storage/app/{$rutaArchivo}");
         } catch (\Exception $e) {
-            $this->error("❌ Error guardando log: " . $e->getMessage());
+            $this->error('❌ Error guardando log: '.$e->getMessage());
         }
     }
 }

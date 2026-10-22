@@ -3,19 +3,22 @@
 namespace App\Http\Controllers\MercadoPago;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
+use App\Jobs\ProcesarPagoJob;
 use App\Models\Empresa;
+use App\Models\FormaPago;
 use App\Models\MercadoPagoPagoIntento;
 use App\Models\MercadoPagoPagoProcesado;
-use App\Models\ServicioPagar;
 use App\Models\Pagos;
-use App\Jobs\ProcesarPagoJob;
+use App\Models\ServicioPagar;
+use App\Models\User;
 use App\Services\MercadoPago\MercadoPagoApiService;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class MercadoPagoWebhookController extends Controller
 {
@@ -41,7 +44,8 @@ class MercadoPagoWebhookController extends Controller
 
     private function resolverUsuarioSistemaId(): int
     {
-        $idUsuarioPago = \App\Models\User::where('email', self::USUARIO_PAGO_ONLINE_EMAIL)->value('id');
+        $idUsuarioPago = User::where('email', self::USUARIO_PAGO_ONLINE_EMAIL)->value('id');
+
         return $idUsuarioPago ? (int) $idUsuarioPago : 0;
     }
 
@@ -54,7 +58,7 @@ class MercadoPagoWebhookController extends Controller
             // Log de la notificación recibida
             Log::info('Webhook MercadoPago recibido', [
                 'headers' => $request->headers->all(),
-                'body' => $request->all()
+                'body' => $request->all(),
             ]);
 
             $this->logConfiguracionEntorno('webhook_entrante');
@@ -73,8 +77,9 @@ class MercadoPagoWebhookController extends Controller
                 $paymentId = $data['id'] ?? $request->input('id');
                 $userId = (string) ($request->input('user_id') ?? $request->input('userId') ?? '');
 
-                if (!$paymentId) {
+                if (! $paymentId) {
                     Log::warning('Webhook sin payment ID');
+
                     return response()->json(['error' => 'Payment ID missing'], 400);
                 }
 
@@ -91,8 +96,9 @@ class MercadoPagoWebhookController extends Controller
                 $merchantOrderId = $data['id'] ?? $request->input('id');
                 $userId = (string) ($request->input('user_id') ?? $request->input('userId') ?? '');
 
-                if (!$merchantOrderId) {
+                if (! $merchantOrderId) {
                     Log::warning('Webhook sin merchant order ID');
+
                     return response()->json(['error' => 'Merchant order ID missing'], 400);
                 }
 
@@ -106,13 +112,15 @@ class MercadoPagoWebhookController extends Controller
             }
 
             Log::info('Webhook ignorado - tipo no soportado', ['type' => $tipo]);
+
             return response()->json(['status' => 'ok'], 200);
 
         } catch (\Exception $e) {
             Log::error('Error procesando webhook MercadoPago', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json(['error' => 'Internal error'], 500);
         }
     }
@@ -151,10 +159,10 @@ class MercadoPagoWebhookController extends Controller
      */
     private function procesarPagoPorId(string $paymentId, array $contexto = []): string
     {
-        $lockKey = 'mp_webhook_payment_lock_' . $paymentId;
+        $lockKey = 'mp_webhook_payment_lock_'.$paymentId;
         $lockTtl = 120;
 
-        if (!Cache::add($lockKey, 1, $lockTtl)) {
+        if (! Cache::add($lockKey, 1, $lockTtl)) {
             Log::info('Webhook pago omitido por lock activo (posible duplicado concurrente)', [
                 'event' => 'mp_webhook_payment_lock_skip',
                 'payment_id' => $paymentId,
@@ -169,7 +177,7 @@ class MercadoPagoWebhookController extends Controller
 
             // Resolver los servicios por referencia externa cuando viene del retorno
             // del navegador o de la reconciliación.
-            if (!empty($contexto['external_reference'])) {
+            if (! empty($contexto['external_reference'])) {
                 $serviciosPagar = $this->resolverServiciosPorReferencia((string) $contexto['external_reference']);
             }
 
@@ -180,10 +188,10 @@ class MercadoPagoWebhookController extends Controller
                     'event' => 'mp_webhook_token_resolution_error',
                     'payment_id' => $paymentId,
                     'contexto' => $contexto,
-                    'token_por_empresa_id' => !empty($contexto['empresa_id']),
-                    'token_por_referencia' => !$serviciosPagar->isEmpty(),
-                    'token_por_user_id' => !empty($contexto['user_id']),
-                    'token_global_configurado' => !empty(config('services.mercadopago.access_token')),
+                    'token_por_empresa_id' => ! empty($contexto['empresa_id']),
+                    'token_por_referencia' => ! $serviciosPagar->isEmpty(),
+                    'token_por_user_id' => ! empty($contexto['user_id']),
+                    'token_global_configurado' => ! empty(config('services.mercadopago.access_token')),
                 ]);
                 $this->logConfiguracionEntorno('token_resolution_error_payment', ['payment_id' => $paymentId]);
 
@@ -195,7 +203,7 @@ class MercadoPagoWebhookController extends Controller
             // webhooks sin user_id resoluble).
             $payment = $this->obtenerPagoReintentando($paymentId, $accessToken);
 
-            if (!$payment) {
+            if (! $payment) {
                 Log::error('Error obteniendo payment en webhook/retorno', [
                     'event' => 'mp_webhook_payment_fetch_error',
                     'payment_id' => $paymentId,
@@ -208,7 +216,7 @@ class MercadoPagoWebhookController extends Controller
             Log::info('Pago obtenido via webhook', [
                 'payment_id' => $paymentId,
                 'status' => $payment->status ?? null,
-                'external_reference' => $payment->external_reference ?? null
+                'external_reference' => $payment->external_reference ?? null,
             ]);
 
             // Buscar los servicios asociados por referencia externa
@@ -219,7 +227,7 @@ class MercadoPagoWebhookController extends Controller
             if ($serviciosPagar->isEmpty()) {
                 Log::warning('Webhook sin servicios asociados', [
                     'payment_id' => $paymentId,
-                    'external_reference' => $payment->external_reference ?? null
+                    'external_reference' => $payment->external_reference ?? null,
                 ]);
 
                 return self::RESULTADO_IGNORADO;
@@ -230,7 +238,7 @@ class MercadoPagoWebhookController extends Controller
             $empresa = $serviciosPagar->first()->servicio->empresa ?? null;
             $empresaToken = $empresa->MP_ACCESS_TOKEN ?? null;
 
-            if (!empty($empresaToken) && $empresaToken !== $accessToken) {
+            if (! empty($empresaToken) && $empresaToken !== $accessToken) {
                 $paymentReconsultado = $this->obtenerPagoConToken($paymentId, (string) $empresaToken);
 
                 if ($paymentReconsultado) {
@@ -263,7 +271,7 @@ class MercadoPagoWebhookController extends Controller
                         ]
                     );
 
-                    if (!$pagoProcesado->wasRecentlyCreated) {
+                    if (! $pagoProcesado->wasRecentlyCreated) {
                         Log::info('Pago ya aplicado previamente; se omite', [
                             'event' => 'mp_payment_already_processed',
                             'payment_id' => $paymentId,
@@ -304,25 +312,25 @@ class MercadoPagoWebhookController extends Controller
      */
     private function resolverAccessToken(array $contexto, $serviciosPagar): ?string
     {
-        if (!empty($contexto['empresa_id'])) {
+        if (! empty($contexto['empresa_id'])) {
             $empresa = Empresa::find((int) $contexto['empresa_id']);
 
-            if ($empresa && !empty($empresa->MP_ACCESS_TOKEN)) {
+            if ($empresa && ! empty($empresa->MP_ACCESS_TOKEN)) {
                 return (string) $empresa->MP_ACCESS_TOKEN;
             }
         }
 
-        if (!$serviciosPagar->isEmpty()) {
+        if (! $serviciosPagar->isEmpty()) {
             $tokenReferencia = $this->resolverTokenDesdeServicios($serviciosPagar);
 
-            if (!empty($tokenReferencia)) {
+            if (! empty($tokenReferencia)) {
                 return (string) $tokenReferencia;
             }
         }
 
         $tokenPorUserId = $this->resolverTokenEmpresaPorUserId($contexto['user_id'] ?? null);
 
-        if (!empty($tokenPorUserId)) {
+        if (! empty($tokenPorUserId)) {
             return (string) $tokenPorUserId;
         }
 
@@ -379,11 +387,11 @@ class MercadoPagoWebhookController extends Controller
     {
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $accessToken,
+                'Authorization' => 'Bearer '.$accessToken,
                 'Content-Type' => 'application/json',
-            ])->get(self::BASE_URL_MP . '/v1/payments/' . $paymentId);
+            ])->get(self::BASE_URL_MP.'/v1/payments/'.$paymentId);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::info('Fallo al obtener payment con token', [
                     'payment_id' => $paymentId,
                     'status_code' => $response->status(),
@@ -435,9 +443,9 @@ class MercadoPagoWebhookController extends Controller
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $accessToken,
+                'Authorization' => 'Bearer '.$accessToken,
                 'Content-Type' => 'application/json',
-            ])->get(self::BASE_URL_MP . '/merchant_orders/' . $merchantOrderId);
+            ])->get(self::BASE_URL_MP.'/merchant_orders/'.$merchantOrderId);
 
             $statusCode = $response->status();
 
@@ -459,11 +467,11 @@ class MercadoPagoWebhookController extends Controller
 
         // 403 (PolicyAgent) o 404 (orden ajena): el webhook de tipo "payment" cubre
         // este caso, no tiene sentido reintentar esta orden.
-        if (!$orden && in_array($statusCode, [403, 404], true)) {
+        if (! $orden && in_array($statusCode, [403, 404], true)) {
             return self::RESULTADO_IGNORADO;
         }
 
-        if (!$orden) {
+        if (! $orden) {
             return self::RESULTADO_RETRY;
         }
 
@@ -473,7 +481,7 @@ class MercadoPagoWebhookController extends Controller
             'merchant_order_id' => $merchantOrderId,
             'status' => $orden->status ?? null,
             'payments_count' => count($orden->payments ?? []),
-            'approved_count' => count($pagosAprobados)
+            'approved_count' => count($pagosAprobados),
         ]);
 
         $resultadoGlobal = self::RESULTADO_PROCESADO;
@@ -502,7 +510,7 @@ class MercadoPagoWebhookController extends Controller
             ->where('MP_USER_ID', $userId)
             ->first();
 
-        if (!$empresa || empty($empresa->MP_ACCESS_TOKEN)) {
+        if (! $empresa || empty($empresa->MP_ACCESS_TOKEN)) {
             return null;
         }
 
@@ -517,7 +525,7 @@ class MercadoPagoWebhookController extends Controller
 
         $empresa = $serviciosPagar->first()->servicio->empresa ?? null;
 
-        if (!$empresa || empty($empresa->MP_ACCESS_TOKEN)) {
+        if (! $empresa || empty($empresa->MP_ACCESS_TOKEN)) {
             return null;
         }
 
@@ -528,7 +536,7 @@ class MercadoPagoWebhookController extends Controller
     {
         Log::info('MercadoPago entorno configuración', $extra + [
             'contexto' => $contexto,
-            'mercadopago_test' => env('MERCADOPAGO_TEST', true),
+            'mercadopago_test' => config('services.mercadopago.test_mode', false),
             'app_url' => config('app.url'),
             'base_url_efectiva' => MercadoPagoApiService::getBaseUrl(),
             'config_cache' => app()->configurationIsCached(),
@@ -565,7 +573,7 @@ class MercadoPagoWebhookController extends Controller
      *  - "servicio_pagar_123"        → un servicio individual
      *  - "cliente_impagos_3_2"       → todos los servicios impagos del cliente 3 de la empresa 2
      *
-     * @return \Illuminate\Support\Collection<int, ServicioPagar>
+     * @return Collection<int, ServicioPagar>
      */
     private function resolverServiciosPorReferencia(string $externalReference)
     {
@@ -580,7 +588,7 @@ class MercadoPagoWebhookController extends Controller
                 ->where('token', $matches[1])
                 ->first();
 
-            if (!$intento) {
+            if (! $intento) {
                 return collect();
             }
 
@@ -654,7 +662,7 @@ class MercadoPagoWebhookController extends Controller
             'servicio_pagar_id' => $servicioPagar->id,
             'payment_id' => $paymentId,
             'status' => $paymentStatus,
-            'current_estado' => $servicioPagar->estado
+            'current_estado' => $servicioPagar->estado,
         ]);
 
         switch ($paymentStatus) {
@@ -664,9 +672,9 @@ class MercadoPagoWebhookController extends Controller
                         ->where('id', $servicioPagar->id)
                         ->where('estado', '!=', 'pago')
                         ->update([
-                        'estado' => 'pago',
-                        'mp_payment_id' => $paymentId
-                    ]);
+                            'estado' => 'pago',
+                            'mp_payment_id' => $paymentId,
+                        ]);
 
                     if ($updated === 0) {
                         Log::info('Pago aprobado omitido por actualización concurrente', [
@@ -680,7 +688,7 @@ class MercadoPagoWebhookController extends Controller
                     $servicioPagar->mp_payment_id = (string) $paymentId;
 
                     // Buscar el id de la forma de pago MercadoPago
-                    $formaPago = \App\Models\FormaPago::where('nombre', 'MercadoPago')->first();
+                    $formaPago = FormaPago::where('nombre', 'MercadoPago')->first();
                     $formaPagoId = $formaPago ? $formaPago->id : 1; // fallback a 1 si no existe
 
                     $montoBruto = (float) ($payment->transaction_amount ?? 0);
@@ -698,7 +706,7 @@ class MercadoPagoWebhookController extends Controller
                     $pago = Pagos::firstOrCreate(
                         [
                             'id_servicio_pagar' => $servicioPagar->id,
-                            'forma_pago' => $formaPagoId
+                            'forma_pago' => $formaPagoId,
                         ],
                         [
                             'id_usuario' => $this->resolverUsuarioSistemaId(),
@@ -711,7 +719,7 @@ class MercadoPagoWebhookController extends Controller
                     if ($pago->wasRecentlyCreated) {
                         Log::info('Pago registrado exitosamente via webhook', [
                             'servicio_pagar_id' => $servicioPagar->id,
-                            'payment_id' => $paymentId
+                            'payment_id' => $paymentId,
                         ]);
                     }
 
@@ -724,29 +732,29 @@ class MercadoPagoWebhookController extends Controller
             case 'cancelled':
                 $servicioPagar->update([
                     'estado' => 'impago',
-                    'mp_payment_id' => null
+                    'mp_payment_id' => null,
                 ]);
                 Log::info('Pago rechazado/cancelado', [
                     'servicio_pagar_id' => $servicioPagar->id,
-                    'payment_id' => $paymentId
+                    'payment_id' => $paymentId,
                 ]);
                 break;
 
             case 'pending':
             case 'in_process':
                 $servicioPagar->update([
-                    'mp_payment_id' => $paymentId
+                    'mp_payment_id' => $paymentId,
                 ]);
                 Log::info('Pago pendiente', [
                     'servicio_pagar_id' => $servicioPagar->id,
-                    'payment_id' => $paymentId
+                    'payment_id' => $paymentId,
                 ]);
                 break;
 
             default:
                 Log::info('Estado de pago no manejado', [
                     'status' => $paymentStatus,
-                    'payment_id' => $paymentId
+                    'payment_id' => $paymentId,
                 ]);
         }
     }
@@ -758,8 +766,8 @@ class MercadoPagoWebhookController extends Controller
     private function notificarPagoRealizado(ServicioPagar $servicioPagar, string $paymentId, float $montoBruto): void
     {
         try {
-            $notificationKey = 'mp_payment_notification_' . $servicioPagar->id . '_' . $paymentId;
-            if (!Cache::add($notificationKey, 1, 60 * 60 * 24 * 7)) {
+            $notificationKey = 'mp_payment_notification_'.$servicioPagar->id.'_'.$paymentId;
+            if (! Cache::add($notificationKey, 1, 60 * 60 * 24 * 7)) {
                 Log::info('Notificación de pago omitida por idempotencia', [
                     'servicio_pagar_id' => $servicioPagar->id,
                     'payment_id' => $paymentId,
@@ -772,7 +780,7 @@ class MercadoPagoWebhookController extends Controller
             $cliente = $servicioPagar->cliente;
             $servicio = $servicioPagar->servicio;
 
-            if (!$cliente || !$servicio) {
+            if (! $cliente || ! $servicio) {
                 return;
             }
 
@@ -784,8 +792,8 @@ class MercadoPagoWebhookController extends Controller
             $mensaje .= "• Servicio: {$servicio->nombre}\n";
             $mensaje .= "• Forma de pago: MercadoPago - \${$montoBruto}\n";
             $mensaje .= "• ID de pago MP: {$paymentId}\n";
-            $mensaje .= "• Fecha: " . now()->format('d/m/Y H:i') . "\n\n";
-            $mensaje .= "¡Gracias por su preferencia!";
+            $mensaje .= '• Fecha: '.now()->format('d/m/Y H:i')."\n\n";
+            $mensaje .= '¡Gracias por su preferencia!';
 
             $datosPDF = [
                 'nombreCliente' => $cliente->nombre,
@@ -798,7 +806,7 @@ class MercadoPagoWebhookController extends Controller
                 'importe' => $montoBruto,
                 'forma_pago2' => null,
                 'importe2' => 0,
-                'comentario' => 'Pago webhook MercadoPago ID: ' . $paymentId,
+                'comentario' => 'Pago webhook MercadoPago ID: '.$paymentId,
                 'fechaPago' => now()->format('d/m/Y H:i'),
                 'logoEmpresa' => $empresa->logo ?? null,
             ];

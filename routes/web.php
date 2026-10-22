@@ -1,42 +1,46 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth;
- 
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\EmpresaController;
-use App\Http\Controllers\ClienteController;
-use App\Http\Controllers\ServicioController;
-use App\Http\Controllers\ClienteServicioController;
-use App\Http\Controllers\ServicioPagarController;
-use App\Http\Controllers\PagosController;
-use App\Http\Controllers\EnviarCorreoController;
-use App\Http\Controllers\PanelController;
-use App\Http\Controllers\GrillaController;
-use App\Http\Controllers\ReciboSueldoController;
-use App\Http\Controllers\FormatoRegistroReciboController;
-use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\AfipController;
+use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\ClienteServicioController;
+use App\Http\Controllers\EmpresaController;
+use App\Http\Controllers\EnviarCorreoController;
+use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\FormatoRegistroReciboController;
+use App\Http\Controllers\GrillaController;
 use App\Http\Controllers\LogController;
-
-// Password Reset Controller
+use App\Http\Controllers\MercadoPago\EnlacePagoController;
+use App\Http\Controllers\MercadoPago\MercadoPagoController;
+use App\Http\Controllers\MercadoPago\MercadoPagoWebhookController;
+use App\Http\Controllers\PagosController;
+use App\Http\Controllers\PanelController;
 use App\Http\Controllers\PasswordResetController;
-
+use App\Http\Controllers\ReciboSueldoController;
+use App\Http\Controllers\ServicioController;
+// Password Reset Controller
+use App\Http\Controllers\ServicioPagarController;
 // JOBS
-use App\Jobs\TutorialJob;
-
-//logs
+use App\Http\Controllers\UserController;
+// logs
 // use Illuminate\Support\Facades\Log;
 
-
 // Rutas para MercadoPago
-use App\Http\Controllers\MercadoPago\MercadoPagoController;
+use App\Jobs\TutorialJob;
 // use App\Http\Controllers\MercadoPago\PaymentFormController; // Controlador pendiente de crear
-use App\Http\Controllers\MercadoPago\MercadoPagoWebhookController;
-use App\Http\Controllers\MercadoPago\EnlacePagoController;
-
-
-
+use App\Livewire\AfipCertificados;
+use App\Livewire\AuditoriaPagosMercadoPago;
+use App\Livewire\CierreCaja;
+use App\Livewire\DetalleCliente;
+use App\Livewire\GestionSegmentos;
+use App\Livewire\GrillaDos;
+use App\Livewire\HistorialCierreCaja;
+use App\Livewire\ImportarCliente;
+use App\Livewire\MercadoPagoQrManager;
+use App\Livewire\QRPayment;
+use App\Livewire\VerCliente\VerCliente;
+use App\Livewire\WhatsAppManager;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -51,7 +55,7 @@ use App\Http\Controllers\MercadoPago\EnlacePagoController;
 
 Route::middleware('auth')->group(function () {
 
-    Route::middleware(['RolSuper'])->group(function () { //ACCESSO SOLO SUPER
+    Route::middleware(['RolSuper'])->group(function () { // ACCESSO SOLO SUPER
 
         Route::get('/usuarios', [UserController::class, 'todosUsuarios'])->name('usuarios');
         Route::get('/BuscarUsuario', [UserController::class, 'BuscarUsuario'])->name('BuscarUsuario');
@@ -66,7 +70,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/logs', [LogController::class, 'clear'])->name('logs.clear');
 
         // Auditoría de pagos MercadoPago (Livewire, solo Super)
-        Route::get('/mercadopago/auditoria', \App\Livewire\AuditoriaPagosMercadoPago::class)->name('mercadopago.auditoria');
+        Route::get('/mercadopago/auditoria', AuditoriaPagosMercadoPago::class)->name('mercadopago.auditoria');
 
         Route::get('/reparto-ventas', function () {
             return response(file_get_contents(base_path('reparto_ventas.html')))
@@ -75,176 +79,166 @@ Route::middleware('auth')->group(function () {
 
     });
 
-    Route::middleware(['RolAdmin'])->group(function () {//AK CREAR UN MIDDELWARE PARA ADDMIN
+    Route::middleware(['RolAdmin'])->group(function () {// AK CREAR UN MIDDELWARE PARA ADDMIN
 
-            //RUTAS DE LA GRILLA controlador viejo sin livewire 
-            //Route::get('/Grilla', [GrillaController::class, 'index'])->name('Grilla');
-            //Route::get('/GrillaBuscarCliente', [GrillaController::class, 'GrillaBuscarCliente'])->name('GrillaBuscarCliente');
+        // RUTAS DE LA GRILLA controlador viejo sin livewire
+        // Route::get('/Grilla', [GrillaController::class, 'index'])->name('Grilla');
+        // Route::get('/GrillaBuscarCliente', [GrillaController::class, 'GrillaBuscarCliente'])->name('GrillaBuscarCliente');
 
-            // Ruta para el componente Livewire GrillaDos
-            Route::get('/Grilla', \App\Livewire\GrillaDos::class)->name('Grilla');
+        // Ruta para el componente Livewire GrillaDos
+        Route::get('/Grilla', GrillaDos::class)->name('Grilla');
 
-            //Ver cliente Livewire
-            Route::get('/VerCliente', \App\Livewire\VerCliente\VerCliente::class)->name('VerCliente');
+        // Ver cliente Livewire
+        Route::get('/VerCliente', VerCliente::class)->name('VerCliente');
 
-            //Detalle de cliente con servicios vinculados
-            Route::get('/DetalleCliente/{clienteId}', \App\Livewire\DetalleCliente::class)->name('DetalleCliente');
+        // Detalle de cliente con servicios vinculados
+        Route::get('/DetalleCliente/{clienteId}', DetalleCliente::class)->name('DetalleCliente');
 
-            // Importar clientes desde CSV (Livewire)
-            Route::get('/ImportarClientesCSV', \App\Livewire\ImportarCliente::class)->name('ImportarClientesCSV');
+        // Importar clientes desde CSV (Livewire)
+        Route::get('/ImportarClientesCSV', ImportarCliente::class)->name('ImportarClientesCSV');
 
-            // Gestión de QR MercadoPago (Livewire)
-            Route::get('/mercadopago/qr-manager', \App\Livewire\MercadoPagoQrManager::class)->name('mercadopago.qr-manager');
+        // Gestión de QR MercadoPago (Livewire)
+        Route::get('/mercadopago/qr-manager', MercadoPagoQrManager::class)->name('mercadopago.qr-manager');
 
-            // Administración de WhatsApp (Livewire)
-            Route::get('/whatsapp/admin', \App\Livewire\WhatsAppManager::class)->name('whatsapp.admin');
+        // Administración de WhatsApp (Livewire)
+        Route::get('/whatsapp/admin', WhatsAppManager::class)->name('whatsapp.admin');
 
+        // Pago mediante QR MercadoPago (Livewire) ejemplo
+        Route::get('/mercadopago/qrEjemplo', QRPayment::class)->name('mercadopago.qrEjemplo');
 
-            // Pago mediante QR MercadoPago (Livewire) ejemplo
-            Route::get('/mercadopago/qrEjemplo', \App\Livewire\QRPayment::class)->name('mercadopago.qrEjemplo');
+        Route::resource('Cliente', ClienteController::class);
 
+        Route::get('/BuscarCliente', [ClienteController::class, 'BuscarCliente'])->name('BuscarCliente');
+        Route::get('/ImportarClientes', function () {
+            return redirect()->route('ImportarClientesCSV');
+        })->name('ImportarClientes');
+        Route::get('/ExportarClientes', [ClienteController::class, 'ExportarClientes'])->name('ExportarClientes');
 
+        Route::resource('Servicios', ServicioController::class);
+        Route::get('BuscarServicio', [ServicioController::class, 'BuscarServicio'])->name('BuscarServicio');
+        Route::post('Servicios/{Servicio}/toggle-estado', [ServicioController::class, 'toggleEstado'])->name('Servicios.toggleEstado');
 
-            Route::resource('Cliente',ClienteController::class);
+        // AK ESTOY TRABAJANDO
+        Route::get('ClientesServicios', [ClienteServicioController::class, 'index'])->name('ClientesServicios');
+        Route::get('ServiciosAgregarCliente/{Servicio}', [ClienteServicioController::class, 'agregarCliente'])->name('ServiciosAgregarCliente');
+        Route::get('agregarClienteAServicio', [ClienteServicioController::class, 'agregarClienteAServicio'])->name('agregarClienteAServicio');
+        Route::get('quitarClienteAServicio', [ClienteServicioController::class, 'quitarClienteAServicio'])->name('quitarClienteAServicio');
 
-            Route::get('/BuscarCliente', [ClienteController::class, 'BuscarCliente'])->name('BuscarCliente');
-            Route::get('/ImportarClientes', function () {
-                    return redirect()->route('ImportarClientesCSV');
-                })->name('ImportarClientes');
-            Route::get('/ExportarClientes', [ClienteController::class, 'ExportarClientes'])->name('ExportarClientes');
-    
-            Route::resource('Servicios', ServicioController::class);
-            Route::get('BuscarServicio',  [ServicioController::class, 'BuscarServicio'])->name('BuscarServicio');
-            Route::post('Servicios/{Servicio}/toggle-estado', [ServicioController::class, 'toggleEstado'])->name('Servicios.toggleEstado');
+        // RUTAS PAGAR SERVICIOS
+        Route::get('ServiciosImpagos', [ServicioPagarController::class, 'ServiciosImpagos'])->name('ServiciosImpagos');
+        Route::get('ServiciosPagos', [ServicioPagarController::class, 'ServiciosPagos'])->name('ServiciosPagos');
+        Route::get('ServicioPagarBuscarCliente/{estado?}', [ServicioPagarController::class, 'ServicioPagarBuscarCliente'])->name('ServicioPagarBuscarCliente');
+        Route::get('PagarServicio/{idServicioPagar}/{importe}', [ServicioPagarController::class, 'PagarServicio'])->name('PagarServicio');
+        Route::post('ConfirmarPago', [ServicioPagarController::class, 'ConfirmarPago'])->name('ConfirmarPago');
 
+        // Rutas para QR de MercadoPago
+        Route::get('GenerarQRMercadoPago/{servicioPagar}/{importe}/{posMpId}', [ServicioPagarController::class, 'mostrarQR'])->name('GenerarQRMercadoPago');
+        Route::post('api/qr/create', [ServicioPagarController::class, 'createOrder'])->name('api.qr.create');
+        Route::post('api/qr/check-status', [ServicioPagarController::class, 'checkPaymentStatus'])->name('api.qr.check-status');
+        Route::post('api/qr/cancel', [ServicioPagarController::class, 'cancelOrder'])->name('api.qr.cancel');
 
-            //AK ESTOY TRABAJANDO 
-            Route::get('ClientesServicios',  [ClienteServicioController::class, 'index'])->name('ClientesServicios');
-            Route::get('ServiciosAgregarCliente/{Servicio}', [ClienteServicioController::class, 'agregarCliente'])->name('ServiciosAgregarCliente'); 
-            Route::get('agregarClienteAServicio', [ClienteServicioController::class, 'agregarClienteAServicio'])->name('agregarClienteAServicio'); 
-            Route::get('quitarClienteAServicio', [ClienteServicioController::class, 'quitarClienteAServicio'])->name('quitarClienteAServicio'); 
+        Route::get('NuevoCobro', [ServicioPagarController::class, 'NuevoCobro'])->name('NuevoCobro');
+        Route::post('AgregarNuevoCobro', [ServicioPagarController::class, 'AgregarNuevoCobro'])->name('AgregarNuevoCobro');
+        Route::delete('EliminarServicioImpago/{idServicioPagar}', [ServicioPagarController::class, 'EliminarServicioImpago'])->name('EliminarServicioImpago');
+        Route::post('ExtenderVencimiento/{idServicioPagar}', [ServicioPagarController::class, 'ExtenderVencimiento'])->name('ExtenderVencimiento');
 
-            //RUTAS PAGAR SERVICIOS
-            Route::get('ServiciosImpagos', [ServicioPagarController::class, 'ServiciosImpagos'])->name('ServiciosImpagos'); 
-            Route::get('ServiciosPagos', [ServicioPagarController::class, 'ServiciosPagos'])->name('ServiciosPagos'); 
-            Route::get('ServicioPagarBuscarCliente/{estado?}', [ServicioPagarController::class, 'ServicioPagarBuscarCliente'])->name('ServicioPagarBuscarCliente');
-            Route::get('PagarServicio/{idServicioPagar}/{importe}', [ServicioPagarController::class, 'PagarServicio'])->name('PagarServicio');  
-            Route::post('ConfirmarPago', [ServicioPagarController::class, 'ConfirmarPago'])->name('ConfirmarPago');
-            
-            //Rutas para QR de MercadoPago
-            Route::get('GenerarQRMercadoPago/{servicioPagar}/{importe}/{posMpId}', [ServicioPagarController::class, 'mostrarQR'])->name('GenerarQRMercadoPago');
-            Route::post('api/qr/create', [ServicioPagarController::class, 'createOrder'])->name('api.qr.create');
-            Route::post('api/qr/check-status', [ServicioPagarController::class, 'checkPaymentStatus'])->name('api.qr.check-status');
-            Route::post('api/qr/cancel', [ServicioPagarController::class, 'cancelOrder'])->name('api.qr.cancel');
-            
-            Route::get('NuevoCobro', [ServicioPagarController::class, 'NuevoCobro'])->name('NuevoCobro'); 
-            Route::post('AgregarNuevoCobro', [ServicioPagarController::class, 'AgregarNuevoCobro'])->name('AgregarNuevoCobro');
-            Route::delete('EliminarServicioImpago/{idServicioPagar}', [ServicioPagarController::class, 'EliminarServicioImpago'])->name('EliminarServicioImpago');
-            Route::post('ExtenderVencimiento/{idServicioPagar}', [ServicioPagarController::class, 'ExtenderVencimiento'])->name('ExtenderVencimiento');
+        // dos rutas corregir servicios  impagos
 
-            // dos rutas corregir servicios  impagos 
-            
-                // Contar servicios impagos
-                Route::get('/servicios/impagos/contar', [ServicioPagarController::class, 'ContarServiciosImpagos'])
-                    ->name('ContarServiciosImpagos');
+        // Contar servicios impagos
+        Route::get('/servicios/impagos/contar', [ServicioPagarController::class, 'ContarServiciosImpagos'])
+            ->name('ContarServiciosImpagos');
 
-                // Eliminar todos los servicios impagos (requiere POST con confirmación)
-                Route::post('/servicios/impagos/eliminar-todos', [ServicioPagarController::class, 'EliminarTodosServiciosImpagos'])
-                    ->name('EliminarTodosServiciosImpagos');
+        // Eliminar todos los servicios impagos (requiere POST con confirmación)
+        Route::post('/servicios/impagos/eliminar-todos', [ServicioPagarController::class, 'EliminarTodosServiciosImpagos'])
+            ->name('EliminarTodosServiciosImpagos');
 
+        // CORREOS
+        Route::get('NotificacionNuevoServicio/{idServicioPagar}', [EnviarCorreoController::class, 'NotificacionNuevoServicio'])->name('NotificacionNuevoServicio');
+        Route::get('NotificacionTodosServiciosImpagos', [EnviarCorreoController::class, 'NotificacionTodosServiciosImpagos'])->name('NotificacionTodosServiciosImpagos');
 
+        // WHATSAPP
+        Route::get('NotificacionWhatsAppTodosServiciosImpagos', [EnviarCorreoController::class, 'NotificacionWhatsAppTodosServiciosImpagos'])->name('NotificacionWhatsAppServiciosImpagos');
 
-            //CORREOS 
-            Route::get('NotificacionNuevoServicio/{idServicioPagar}', [EnviarCorreoController::class, 'NotificacionNuevoServicio'])->name('NotificacionNuevoServicio');
-            Route::get('NotificacionTodosServiciosImpagos', [EnviarCorreoController::class, 'NotificacionTodosServiciosImpagos'])->name('NotificacionTodosServiciosImpagos');
-            
-            //WHATSAPP
-            Route::get('NotificacionWhatsAppTodosServiciosImpagos', [EnviarCorreoController::class, 'NotificacionWhatsAppTodosServiciosImpagos'])->name('NotificacionWhatsAppServiciosImpagos');
+        // RUTAS PARA LOS PAGOS
+        Route::get('Pagos', [PagosController::class, 'index'])->name('Pagos');
+        Route::get('PagosVer/{idServicioPagar}', [PagosController::class, 'PagosVer'])->name('PagosVer');
+        Route::delete('Pagos/{pago}', [PagosController::class, 'destroy'])->name('pagos.destroy');
+        Route::get('PagoPDF/{idServicioPagar}', [PagosController::class, 'pagoPDF'])->name('PagoPDF');
+        Route::get('FacturaAfipPDF/{pagoId}', [PagosController::class, 'facturaAfipPDF'])->name('FacturaAfipPDF');
 
-            //RUTAS PARA LOS PAGOS 
-            Route::get('Pagos', [PagosController::class, 'index'])->name('Pagos');  
-            Route::get('PagosVer/{idServicioPagar}', [PagosController::class, 'PagosVer'])->name('PagosVer');  
-            Route::delete('Pagos/{pago}', [PagosController::class, 'destroy'])->name('pagos.destroy');
-            Route::get('PagoPDF/{idServicioPagar}', [PagosController::class, 'pagoPDF'])->name('PagoPDF');
-            Route::get('FacturaAfipPDF/{pagoId}', [PagosController::class, 'facturaAfipPDF'])->name('FacturaAfipPDF');
+        // RUTAS PARA AFIP
+        Route::get('/afip', [AfipController::class, 'index'])->name('afip.index');
+        Route::post('/afip/subir-certificados', [AfipController::class, 'subirCertificados'])->name('afip.subir-certificados');
+        Route::post('/afip/generar-certificados', [AfipController::class, 'generarCertificados'])->name('afip.generar-certificados');
+        Route::get('/afip/certificados', AfipCertificados::class)->name('afip.certificados');
+        Route::get('/afip/puntos-venta/{empresaId}', [AfipController::class, 'obtenerPuntosVentaEmpresa'])
+            ->name('afip.puntos-venta.empresa');
 
-            //RUTAS PARA AFIP
-            Route::get('/afip', [AfipController::class, 'index'])->name('afip.index');
-            Route::post('/afip/subir-certificados', [AfipController::class, 'subirCertificados'])->name('afip.subir-certificados');
-            Route::post('/afip/generar-certificados', [AfipController::class, 'generarCertificados'])->name('afip.generar-certificados');
-            Route::get('/afip/certificados', \App\Livewire\AfipCertificados::class)->name('afip.certificados');
-            Route::get('/afip/puntos-venta/{empresaId}', [AfipController::class, 'obtenerPuntosVentaEmpresa'])
-                ->name('afip.puntos-venta.empresa');
+        // RUTAS PARA LOS ADMIN DE RECIBOS
+        Route::post('/subirArchivoRecibos', [ReciboSueldoController::class, 'subirArchivoRecibos'])->name('subirArchivoRecibos');
 
-            //RUTAS PARA LOS ADMIN DE RECIBOS 
-            Route::post('/subirArchivoRecibos',[ReciboSueldoController::class, 'subirArchivoRecibos'])->name('subirArchivoRecibos'); 
-            
-            Route::get('/subirRecibos',function(){
-                return view('reciboSueldo.subirRecibos')->render();
-            })->name('subirRecibos'); 
+        Route::get('/subirRecibos', function () {
+            return view('reciboSueldo.subirRecibos')->render();
+        })->name('subirRecibos');
 
-            //ruta para los formatos de registro de recibos 
-            Route::get('formatoRegistro/Create',function(){
-                return view('reciboSueldo.crearRegistro')->render();
-            })->name('formatoRegistroCreate'); 
+        // ruta para los formatos de registro de recibos
+        Route::get('formatoRegistro/Create', function () {
+            return view('reciboSueldo.crearRegistro')->render();
+        })->name('formatoRegistroCreate');
 
-            Route::get('formatoRegistro/Update/{id}', [FormatoRegistroReciboController::class, 'update'])->name('formatoRegistroUpdate');
-            Route::post('formatoRegistro/UpdateId/{id}', [FormatoRegistroReciboController::class, 'updateId'])->name('formatoRegistroUpdateId');
-        
-            Route::post('formatoRegistro/Serch', [FormatoRegistroReciboController::class, 'serch'])->name('formatoRegistroSerch');
-            Route::post('formatoRegistro/Store', [FormatoRegistroReciboController::class, 'store'])->name('formatoRegistroStore');
-            Route::get('formatoRegistro', [FormatoRegistroReciboController::class, 'index'])->name('formatoRegistro');
+        Route::get('formatoRegistro/Update/{id}', [FormatoRegistroReciboController::class, 'update'])->name('formatoRegistroUpdate');
+        Route::post('formatoRegistro/UpdateId/{id}', [FormatoRegistroReciboController::class, 'updateId'])->name('formatoRegistroUpdateId');
 
-            //RUTAS PARA GASTOS
-            Route::resource('expenses', ExpenseController::class);
+        Route::post('formatoRegistro/Serch', [FormatoRegistroReciboController::class, 'serch'])->name('formatoRegistroSerch');
+        Route::post('formatoRegistro/Store', [FormatoRegistroReciboController::class, 'store'])->name('formatoRegistroStore');
+        Route::get('formatoRegistro', [FormatoRegistroReciboController::class, 'index'])->name('formatoRegistro');
 
-            //RUTA PARA CIERRE DE CAJA
-            Route::get('/cierre-caja', \App\Livewire\CierreCaja::class)->name('cierre-caja');
-            Route::get('/cierre-caja/historial', \App\Livewire\HistorialCierreCaja::class)->name('cierre-caja.historial');
+        // RUTAS PARA GASTOS
+        Route::resource('expenses', ExpenseController::class);
 
-            //RUTA PARA SEGMENTOS
-            Route::get('/segmentos', \App\Livewire\GestionSegmentos::class)->name('segmentos');
+        // RUTA PARA CIERRE DE CAJA
+        Route::get('/cierre-caja', CierreCaja::class)->name('cierre-caja');
+        Route::get('/cierre-caja/historial', HistorialCierreCaja::class)->name('cierre-caja.historial');
+
+        // RUTA PARA SEGMENTOS
+        Route::get('/segmentos', GestionSegmentos::class)->name('segmentos');
 
     });
 
     // Route::get('/usuarios', [UserController::class, 'todosUsuarios'])->name('usuarios');
-    Route::post('/reciboSueldo',[ReciboSueldoController::class, 'todos'])->name('reciboSueldo'); 
-    Route::get('/reciboSueldo',[ReciboSueldoController::class, 'todos'])->name('reciboSueldo'); 
-    Route::get('/imprimirRecibo/{idRecibo}',[ReciboSueldoController::class, 'imprimirRecibo'])->name('imprimirRecibo'); 
+    Route::match(['get', 'post'], '/reciboSueldo', [ReciboSueldoController::class, 'todos'])->name('reciboSueldo');
+    Route::get('/imprimirRecibo/{idRecibo}', [ReciboSueldoController::class, 'imprimirRecibo'])->name('imprimirRecibo');
 
-    Route::get('/panelServicios', [PanelController::class, 'index'])->name('panelServicios'); 
-    //ruta que es creada por el error de la ruta PANEL VIEJA
-    Route::get('/panel', [PanelController::class, 'index'])->name('panel'); 
+    Route::get('/panelServicios', [PanelController::class, 'index'])->name('panelServicios');
+    // ruta que es creada por el error de la ruta PANEL VIEJA
+    Route::get('/panel', [PanelController::class, 'index'])->name('panel');
 
     // Ruta para generar pago de servicio
     Route::get('/pago/generar/{servicioPagar}', [PagosController::class, 'generarPago'])->name('pago.generar');
-    
+
     // Rutas de callback de MercadoPago
     Route::get('/pago/success/{servicioPagar}', [PagosController::class, 'pagoSuccess'])->name('pago.success');
     Route::get('/pago/failure/{servicioPagar}', [PagosController::class, 'pagoFailure'])->name('pago.failure');
     Route::get('/pago/pending/{servicioPagar}', [PagosController::class, 'pagoPending'])->name('pago.pending');
 
     // Route::view('/miPerfil', 'usuarios.miPerfil')->name('panel');
-    Route::get('/miPerfil', [UserController::class, 'miPerfil'])->name('miPerfil'); 
+    Route::get('/miPerfil', [UserController::class, 'miPerfil'])->name('miPerfil');
     Route::post('/miPerfil/password', [UserController::class, 'updatePassword'])->name('miPerfil.password');
-
 
     // Rutas de MercadoPago
     Route::prefix('mercadopago')->group(function () {
         // Ruta para crear preferencia de pago (API)
         Route::post('/create-preference', [MercadoPagoController::class, 'createPreference'])->name('mercadopago.create-preference');
-        
+
         // Formulario de demostración para pagos (Controlador pendiente de crear)
         // Route::get('/payment-form', [PaymentFormController::class, 'show'])->name('mercadopago.payment-form');
         // Route::post('/payment-form', [PaymentFormController::class, 'processPayment'])->name('mercadopago.process-payment');
-        
+
         // Ruta para obtener información de pago usando el nuevo servicio API
         Route::get('/payment-info/{paymentId}', [PagosController::class, 'obtenerInfoPago'])->name('mercadopago.payment-info');
-        
 
     });
 
-   
 });
 
 // URLs de retorno después del pago (sin middleware auth: el cliente paga desde el link sin sesión)
@@ -284,15 +278,15 @@ Route::middleware('guest')->group(function () {
     // Mostrar formulario para solicitar enlace de restablecimiento
     Route::get('/forgot-password', [PasswordResetController::class, 'showForgotForm'])
         ->name('password.request');
-    
+
     // Enviar enlace de restablecimiento al correo
     Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])
         ->name('password.email');
-    
+
     // Mostrar formulario de restablecimiento con token
     Route::get('/reset-password/{token}', [PasswordResetController::class, 'showResetForm'])
         ->name('password.reset');
-    
+
     // Procesar el restablecimiento de contraseña
     Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])
         ->name('password.update');
@@ -311,36 +305,25 @@ Route::get('/login', function () {
 
         // The user is logged in...
         return redirect('panelServicios');
-    }else{
+    } else {
         return view('login');
     }
-    
+
 })->name('login');
 
 Route::get('/loginUsuario', function () {
     return redirect()->route('login');
-})->name('loginUsuario');
-
-
+})->name('loginUsuario.redirect');
 
 Route::view('/registro', 'registro')->name('registro');
 Route::get('/logout', [UserController::class, 'logout'])->name('logout');
 
-
-Route::post('/registrarUauario',[UserController::class,'registrarUsuario'])->name('registrarUsuario');
-Route::post('/loginUsuario',[UserController::class,'loginUsuario'])->name('loginUsuario');
-
-
-
-
-
+Route::post('/registrarUauario', [UserController::class, 'registrarUsuario'])->name('registrarUsuario');
+Route::post('/loginUsuario', [UserController::class, 'loginUsuario'])->name('loginUsuario');
 
 Route::get('/', function () {
     return view('welcome');
 })->name('inicio');
-
-
-
 
 // RUTAS DE PRUEBA
 
@@ -354,16 +337,11 @@ Route::get('/pruebaJob/log', function () {
 
 })->name('pruebaJobVerLog');
 
-
 Route::get('/pruebaJob/{mensaje}', function ($mensaje) {
-    
+
     TutorialJob::dispatch($mensaje);
 
 })->name('pruebaJob');
-
-
-
-
 
 // llservicios/routes/web.php
 // llservicios/storage/logs/laravel.log

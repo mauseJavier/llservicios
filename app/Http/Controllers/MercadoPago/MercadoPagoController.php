@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\MercadoPago;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Services\MercadoPago\MercadoPagoService;
 use App\Services\MercadoPago\MercadoPagoApiService;
+use App\Services\MercadoPago\MercadoPagoService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
@@ -44,23 +44,23 @@ class MercadoPagoController extends Controller
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 400);
             }
 
             // Preparar los datos para MercadoPago
             $items = MercadoPagoService::createItems($request->input('items'));
-            
+
             $preferenceData = [
                 'items' => $items,
-                'external_reference' => $request->input('external_reference', 'ORDER-' . time()),
+                'external_reference' => $request->input('external_reference', 'ORDER-'.time()),
                 'back_urls' => [
-                    'success' => $request->input('success_url', config('app.url') . '/mercadopago/success'),
-                    'failure' => $request->input('failure_url', config('app.url') . '/mercadopago/failure'),
-                    'pending' => $request->input('pending_url', config('app.url') . '/mercadopago/pending'),
+                    'success' => $request->input('success_url', config('app.url').'/mercadopago/success'),
+                    'failure' => $request->input('failure_url', config('app.url').'/mercadopago/failure'),
+                    'pending' => $request->input('pending_url', config('app.url').'/mercadopago/pending'),
                 ],
                 'auto_return' => 'approved',
-                'notification_url' => config('app.url') . '/mercadopago/webhook',
+                'notification_url' => config('app.url').'/mercadopago/webhook',
             ];
 
             // Agregar información del pagador si está disponible
@@ -78,9 +78,10 @@ class MercadoPagoController extends Controller
                     return response()->json($result);
                 } else {
                     // Redirigir al checkout de MercadoPago
-                    $checkoutUrl = config('services.mercadopago.sandbox') 
-                        ? $result['sandbox_init_point'] 
+                    $checkoutUrl = config('services.mercadopago.sandbox')
+                        ? $result['sandbox_init_point']
                         : $result['init_point'];
+
                     return redirect($checkoutUrl);
                 }
             } else {
@@ -88,11 +89,11 @@ class MercadoPagoController extends Controller
             }
 
         } catch (\Exception $e) {
-            Log::error('Error creating MercadoPago preference: ' . $e->getMessage());
-            
+            Log::error('Error creating MercadoPago preference: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'error' => 'Error interno del servidor'
+                'error' => 'Error interno del servidor',
             ], 500);
         }
     }
@@ -110,7 +111,7 @@ class MercadoPagoController extends Controller
 
             if ($topic === 'payment') {
                 $payment = $this->mercadoPagoService->getPayment($id);
-                
+
                 if ($payment['success']) {
                     // Aquí puedes agregar tu lógica para procesar el pago
                     // Por ejemplo, actualizar el estado del pedido en la base de datos
@@ -121,7 +122,8 @@ class MercadoPagoController extends Controller
             return response()->json(['status' => 'ok'], 200);
 
         } catch (\Exception $e) {
-            Log::error('Error processing MercadoPago webhook: ' . $e->getMessage());
+            Log::error('Error processing MercadoPago webhook: '.$e->getMessage());
+
             return response()->json(['error' => 'Error processing webhook'], 500);
         }
     }
@@ -176,6 +178,7 @@ class MercadoPagoController extends Controller
                 'route_type' => $routeType,
                 'external_reference' => $externalReference,
             ]);
+
             return;
         }
 
@@ -184,7 +187,7 @@ class MercadoPagoController extends Controller
             'route_type' => $routeType,
             'payment_id' => (string) $paymentId,
             'external_reference' => $externalReference,
-            'mercadopago_test' => env('MERCADOPAGO_TEST', true),
+            'mercadopago_test' => config('services.mercadopago.test_mode', false),
             'app_url' => config('app.url'),
             'base_url_efectiva' => MercadoPagoApiService::getBaseUrl(),
             'config_cache' => app()->configurationIsCached(),

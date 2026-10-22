@@ -38,6 +38,10 @@ return [
         'client_secret' => env('MERCADOPAGO_CLIENT_SECRET'),
         'sandbox' => env('MERCADOPAGO_SANDBOX', true),
         'user_id' => env('MERCADOPAGO_USER_ID', '105046639'),
+        // Cuando está activo se usa public_url (ngrok en desarrollo) para las
+        // back_urls y el webhook, en lugar de app.url.
+        'test_mode' => env('MERCADOPAGO_TEST', true),
+        'public_url' => env('MERCADOPAGO_PUBLIC_URL', 'https://prepositionally-vacciniaceous-irving.ngrok-free.dev'),
     ],
 
     'whatsapp' => [

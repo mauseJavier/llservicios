@@ -15,10 +15,15 @@ class EnviarWhatsAppJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $phoneNumber;
+
     protected $message;
+
     protected $type;
+
     protected $additionalData;
+
     protected $instanciaWS;
+
     protected $tokenWS;
 
     /**
@@ -34,10 +39,10 @@ class EnviarWhatsAppJob implements ShouldQueue
     /**
      * Create a new job instance.
      *
-     * @param string $phoneNumber Número de teléfono
-     * @param string $message Mensaje o URL (depende del tipo)
-     * @param string $type Tipo: 'text', 'document', 'image'
-     * @param array $additionalData Datos adicionales (caption, filename, etc)
+     * @param  string  $phoneNumber  Número de teléfono
+     * @param  string  $message  Mensaje o URL (depende del tipo)
+     * @param  string  $type  Tipo: 'text', 'document', 'image'
+     * @param  array  $additionalData  Datos adicionales (caption, filename, etc)
      */
     public function __construct(array $datos)
     {
@@ -45,8 +50,8 @@ class EnviarWhatsAppJob implements ShouldQueue
         $this->message = $datos['message'] ?? null;
         $this->type = $datos['type'] ?? 'text';
         $this->additionalData = $datos['additionalData'] ?? [];
-        $this->instanciaWS = $datos['instanciaWS'] ?? env('WHATSAPP_INSTANCE_ID', null);
-        $this->tokenWS = $datos['tokenWS'] ?? env('WHATSAPP_API_KEY', null);
+        $this->instanciaWS = $datos['instanciaWS'] ?? config('services.whatsapp.instance_id');
+        $this->tokenWS = $datos['tokenWS'] ?? config('services.whatsapp.api_key');
     }
 
     /**
@@ -61,7 +66,7 @@ class EnviarWhatsAppJob implements ShouldQueue
             'instanciaWS' => $this->instanciaWS ?? null,
             'tokenWS' => $this->tokenWS ?? null,
         ]);
-    
+
         // Log::info('WhatsApp Job - Iniciando envío', [
         //     'phone' => $this->phoneNumber,
         //     'type' => $this->type,
@@ -69,7 +74,7 @@ class EnviarWhatsAppJob implements ShouldQueue
         // ]);
 
         try {
-            $result = match($this->type) {
+            $result = match ($this->type) {
                 'text' => $whatsappService->sendTextMessage(
                     $this->phoneNumber,
                     $this->message,
@@ -81,7 +86,7 @@ class EnviarWhatsAppJob implements ShouldQueue
                     $this->message,
                     $this->additionalData['footer'] ?? '',
                     $this->additionalData['buttons'] ?? [
-                        ['type' => 'reply', 'displayText' => 'Información recibida', 'id' => 'info_recibida']
+                        ['type' => 'reply', 'displayText' => 'Información recibida', 'id' => 'info_recibida'],
                     ]
                 ),
                 'document' => $whatsappService->sendDocument(
@@ -101,14 +106,13 @@ class EnviarWhatsAppJob implements ShouldQueue
                 'custom' => $whatsappService->sendCustomMessage(
                     array_merge($this->additionalData, [
                         'key' => [
-                            'remoteJid' => $this->phoneNumber . '@s.whatsapp.net',
+                            'remoteJid' => $this->phoneNumber.'@s.whatsapp.net',
                             'fromMe' => true,
-                        ]
+                        ],
                     ])
                 ),
                 default => throw new \Exception("Tipo de mensaje no soportado: {$this->type}")
             };
-
 
             // Log::info('WhatsApp Job - Mensaje enviado exitosamente', [
             //     'phone' => $this->phoneNumber,
@@ -120,7 +124,7 @@ class EnviarWhatsAppJob implements ShouldQueue
                 'phone' => $this->phoneNumber,
                 'type' => $this->type,
                 'error' => $e->getMessage(),
-                'attempt' => $this->attempts()
+                'attempt' => $this->attempts(),
             ]);
 
             // Si aún quedan intentos, lanzar la excepción para que se reintente
@@ -132,7 +136,7 @@ class EnviarWhatsAppJob implements ShouldQueue
             Log::error('WhatsApp Job - Fallo definitivo después de todos los intentos', [
                 'phone' => $this->phoneNumber,
                 'type' => $this->type,
-                'total_attempts' => $this->attempts()
+                'total_attempts' => $this->attempts(),
             ]);
         }
     }
@@ -140,7 +144,6 @@ class EnviarWhatsAppJob implements ShouldQueue
     /**
      * Handle a job failure.
      *
-     * @param  \Throwable  $exception
      * @return void
      */
     public function failed(\Throwable $exception)
@@ -148,7 +151,7 @@ class EnviarWhatsAppJob implements ShouldQueue
         Log::error('WhatsApp Job - Job fallido completamente', [
             'phone' => $this->phoneNumber,
             'type' => $this->type,
-            'error' => $exception->getMessage()
+            'error' => $exception->getMessage(),
         ]);
 
         // Aquí podrías notificar al administrador o tomar alguna acción

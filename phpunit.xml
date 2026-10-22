@@ -27,5 +27,13 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="APP_URL" value="http://localhost"/>
+        <env name="MERCADOPAGO_TEST" value="false"/>
+        <env name="MERCADOPAGO_SANDBOX" value="false"/>
+        <env name="MERCADOPAGO_ACCESS_TOKEN" value="TEST-access-token"/>
+        <env name="MERCADOPAGO_PUBLIC_KEY" value="TEST-public-key"/>
+        <env name="WHATSAPP_API_URL" value="https://api-test.whatsapp.com"/>
+        <env name="WHATSAPP_API_KEY" value="test_api_key"/>
+        <env name="WHATSAPP_INSTANCE_ID" value="test-instance-id"/>
     </php>
 </phpunit>
