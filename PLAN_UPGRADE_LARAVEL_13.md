@@ -189,3 +189,43 @@ Fallos pendientes por categoría:
 - Checkpoint manual en dev: grilla de servicios, AFIP/ARCA, MercadoPago, QR,
   WhatsApp y PDF.
 - Revisar si conviene un `config:cache`/`route:cache` en el entrypoint.
+
+---
+
+## Cierre Etapa 1 y Etapa 2 (2026-10-22)
+
+### Etapa 1 cerrada
+
+- Suite estabilizada: **146 tests, 405 aserciones, 0 errores, 0 fallos, 0 deprecaciones**.
+- Se corrigieron los 17 fallos/errores y las 17 deprecaciones listadas arriba.
+- `config:cache` y `route:cache` funcionan (se migraron 23 `env()` a `config()` y
+  se resolvieron dos nombres de ruta duplicados).
+- Migraciones MySQL `up`/`down` validadas; se eliminó el uso de
+  `getDoctrineSchemaManager()`.
+- Gate reproducible: `scripts/test.sh`; smoke HTTP: `scripts/smoke.sh`; CI en
+  `.github/workflows/tests.yml`.
+- Smoke dev: 4 contenedores healthy, grilla/MercadoPago/WhatsApp/AFIP verificados.
+
+### Etapa 2 aplicada
+
+| Paquete | Antes | Después |
+| --- | --- | --- |
+| laravel/framework | 11.57.0 | **12.70.1** |
+| laravel/tinker | 2.11.1 | 2.11.1 |
+| phpunit/phpunit | 11.5.57 | 11.5.57 |
+| barryvdh/laravel-dompdf | 2.2.0 | **3.1.2** |
+| dompdf/dompdf | 2.0.8 | **3.1.6** |
+| livewire/livewire | 3.8.10 | 3.8.11 |
+| nesbot/carbon | 2.x | **3.15.0** |
+
+- `spatie/laravel-ignition` y `laravel/sail` eliminados (no se usan con el Docker propio).
+- Cambios de L12 revisados: precedencia de rutas (ya corregida), Carbon 3
+  (sin `diffIn*` en la app), disco `local` (definido explícitamente), validación
+  `image` (no usada), UUIDv7 (no usado) y `mergeIfMissing` (no usado).
+- Gate completo OK tras el upgrade: suite, Pint, rutas, caches y migraciones MySQL.
+- Contenedores dev reconstruidos con Laravel 12.70.1; smoke HTTP e integraciones OK.
+
+### Próximo paso
+
+- Etapa 3: Laravel 12 → 13 (`php ^8.3`, framework `^13`, Tinker `^3`, PHPUnit
+  `^12.5`), revisión de CSRF/serialización de sesión/cookies y `upsert()`.

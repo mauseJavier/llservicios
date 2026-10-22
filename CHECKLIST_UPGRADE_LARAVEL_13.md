@@ -5,7 +5,7 @@
 | Campo | Valor |
 | --- | --- |
 | Rama | `feature/upgrade-laravel` |
-| Base actual | Laravel 11.57.0 / PHP 8.4 |
+| Base actual | Laravel 12.70.1 / PHP 8.4 |
 | Objetivo | Laravel 13.x |
 | Responsable | Pendiente de asignar |
 | Fecha objetivo general | Pendiente de agendar |
@@ -15,12 +15,12 @@
 
 | Etapa | Estado | Próximo hito |
 | --- | --- | --- |
-| 1 — Laravel 10 → 11 | Código aplicado; suite automatizada en verde; smoke manual de integraciones reales pendiente | Cerrar smoke manual y commit de etapa |
-| 2 — Laravel 11 → 12 | Pendiente | Revisar guía, actualizar dependencias y probar |
+| 1 — Laravel 10 → 11 | Cerrada; suite y smoke dev verificados | — |
+| 2 — Laravel 11 → 12 | Aplicada; suite, migraciones MySQL y smoke dev OK | Commit de cierre |
 | 3 — Laravel 12 → 13 | Pendiente | Revisar guía oficial y actualizar dependencias/código |
 
 **Estado de suite actual:** 146 tests, 405 aserciones, 0 errores, 0 fallos, 0 deprecaciones.
-Verificado el 2026-10-22 con `scripts/test.sh`.
+Verificado el 2026-10-22 con Laravel **12.70.1** y `scripts/test.sh`.
 
 **Gate automatizado disponible:**
 
@@ -132,14 +132,25 @@ TEST_MYSQL=1 scripts/test.sh   # además migrate:fresh + rollback en MySQL
 
 ## Etapa 2 — Laravel 11 → 12
 
-- [ ] Leer upgrade guide 12.x y verificar requisitos de PHP/dependencias.
-- [ ] Revisar soporte de dependencias directas y actualizar `composer.json` / `composer.lock`.
-- [ ] Actualizar `barryvdh/laravel-dompdf` a `^3.0` (v2 solo soporta hasta Laravel 11).
-- [ ] Revisar `spatie/laravel-ignition` y `laravel/sail` (el skeleton 12 ya no los incluye).
-- [ ] Revisar deprecaciones y cambios de framework aplicables a la aplicación.
-- [ ] Ejecutar composer install/update, Artisan, Pint y suite de tests.
-- [ ] Reconstruir contenedores y repetir pruebas funcionales e integraciones críticas.
+- [x] Leer upgrade guide 12.x y verificar requisitos de PHP/dependencias. **Evidencia:** impacto alto solo en dependencias; Carbon 3 obligatorio.
+- [x] Revisar soporte de dependencias directas y actualizar `composer.json` / `composer.lock`. **Evidencia:** framework 12.70.1, Tinker 2.11.1, PHPUnit 11.5.57, DomPDF 3.1.2, Livewire 3.8.11, Carbon 3.15.
+- [x] Actualizar `barryvdh/laravel-dompdf` a `^3.0` (v2 solo soporta hasta Laravel 11). **Evidencia:** DomPDF 3.1.6 + laravel-dompdf 3.1.2; `DocumentGenerationTest` pasa.
+- [x] Revisar `spatie/laravel-ignition` y `laravel/sail` (el skeleton 12 no incluye ignition). **Decisión:** se quitaron ambos por no usarse con el Docker propio.
+- [x] Revisar deprecaciones y cambios de framework aplicables a la aplicación. **Evidencia:** sin `diffIn*`, UUID, validación `image`, `mergeIfMissing`; disco `local` definido explícitamente. La precedencia de rutas cambiada por L12 ya estaba corregida con los nombres duplicados.
+- [x] Ejecutar composer install/update, Artisan, Pint y suite de tests. **Evidencia:** 146 tests verdes, Pint OK, `route:list` con 158 rutas.
+- [x] Reconstruir contenedores y repetir pruebas funcionales e integraciones críticas. **Evidencia:** 4 contenedores healthy con Laravel 12.70.1; smoke 200/401 OK; grilla MySQL, MercadoPago, WhatsApp y AFIP homologación OK.
 - [ ] Documentar resultado y crear commit de cierre de etapa.
+
+### Resultado de la Etapa 2 (2026-10-22)
+
+- `composer update --with-all-dependencies --no-blocking` sin conflictos.
+- `laravel/framework` 11.57.0 → **12.70.1**; Carbon 3.15; DomPDF 3.1.6/3.1.2; Livewire 3.8.11.
+- `spatie/laravel-ignition` y `laravel/sail` eliminados por no usarse.
+- Suite completa: 146 tests, 405 aserciones, 0 fallos, 0 deprecaciones.
+- Migraciones MySQL `up`/`down`: OK.
+- Contenedores dev reconstruidos: 4/4 healthy con Laravel 12.70.1.
+- Smoke HTTP: `/login`, `/`, `/up` → 200; API sin token → 401.
+- Integraciones: grilla MySQL (5 clientes, 12 períodos), MercadoPago válido, WhatsApp `open` y AFIP homologación OK.
 
 ## Etapa 3 — Laravel 12 → 13
 
@@ -167,3 +178,6 @@ TEST_MYSQL=1 scripts/test.sh   # además migrate:fresh + rollback en MySQL
 | 2026-10-22 | 1 | MercadoPago: credenciales y webhook alcanzables; token de producción, no se generaron pagos. | OpenCode |
 | 2026-10-22 | 1 | AFIP homologación OK para empresa 1; empresa 2 con certificado no confiable. | OpenCode |
 | 2026-10-22 | 1 | WhatsApp: instancia `LLFACTURA` open por empresa; clave global con 401. | OpenCode |
+| 2026-10-22 | 2 | Dependencias actualizadas a Laravel 12.70.1 / DomPDF 3 / Carbon 3. | OpenCode |
+| 2026-10-22 | 2 | Suite y migraciones MySQL OK; contenedores reconstruidos y smoke dev OK. | OpenCode |
+| 2026-10-22 | 2 | Integraciones post-upgrade: grilla, MercadoPago, WhatsApp y AFIP homologación OK. | OpenCode |
