@@ -10,6 +10,7 @@
 #   scripts/test.sh                 # suite + Pint + caches
 #   SKIP_BUILD=1 scripts/test.sh    # reutiliza la imagen local
 #   PINT_ALL=1 scripts/test.sh      # Pint sobre todo el código
+#   PINT_BASE=origin/devmause scripts/test.sh  # Pint sobre los cambios de la rama
 #   TEST_MYSQL=1 scripts/test.sh    # además prueba migraciones up/down en MySQL
 #
 # Variables para MySQL (si TEST_MYSQL=1):
@@ -91,10 +92,16 @@ if [[ "${PINT_ALL:-0}" == "1" ]]; then
     echo "==> Pint (todo el repositorio)"
     run php vendor/bin/pint --test
 else
-    echo "==> Pint (archivos modificados en el working tree)"
+    echo "==> Pint (archivos modificados)"
     mapfile -t PINT_FILES < <(
-        { git -C "$ROOT" diff --name-only --diff-filter=ACM HEAD -- '*.php';
-          git -C "$ROOT" ls-files --others --exclude-standard -- '*.php'; } | sort -u
+        if [[ -n "${PINT_BASE:-}" ]]; then
+            # Comparar la rama contra una base explícita (p. ej. origin/devmause).
+            git -C "$ROOT" diff --name-only --diff-filter=ACM "$PINT_BASE"...HEAD -- '*.php'
+        else
+            # Por defecto, solo los cambios locales sin commitear.
+            git -C "$ROOT" diff --name-only --diff-filter=ACM HEAD -- '*.php'
+            git -C "$ROOT" ls-files --others --exclude-standard -- '*.php'
+        fi | sort -u
     )
     if [[ ${#PINT_FILES[@]} -gt 0 ]]; then
         run php vendor/bin/pint --test "${PINT_FILES[@]}"
