@@ -5,7 +5,7 @@
 | Campo | Valor |
 | --- | --- |
 | Rama | `feature/upgrade-laravel` |
-| Base actual | Laravel 12.70.1 / PHP 8.4 |
+| Base actual | Laravel 13.38.0 / PHP 8.4 |
 | Objetivo | Laravel 13.x |
 | Responsable | Pendiente de asignar |
 | Fecha objetivo general | Pendiente de agendar |
@@ -16,11 +16,11 @@
 | Etapa | Estado | Próximo hito |
 | --- | --- | --- |
 | 1 — Laravel 10 → 11 | Cerrada; suite y smoke dev verificados | — |
-| 2 — Laravel 11 → 12 | Aplicada; suite, migraciones MySQL y smoke dev OK | Commit de cierre |
-| 3 — Laravel 12 → 13 | Pendiente | Revisar guía oficial y actualizar dependencias/código |
+| 2 — Laravel 11 → 12 | Cerrada; suite, migraciones y smoke OK | — |
+| 3 — Laravel 12 → 13 | Aplicada; suite, migraciones y smoke OK | Commit de cierre y ventana de sesiones |
 
 **Estado de suite actual:** 146 tests, 405 aserciones, 0 errores, 0 fallos, 0 deprecaciones.
-Verificado el 2026-10-22 con Laravel **12.70.1** y `scripts/test.sh`.
+Verificado el 2026-10-22 con Laravel **13.38.0**, PHPUnit 12.5.40 y `scripts/test.sh`.
 
 **Gate automatizado disponible:**
 
@@ -129,6 +129,9 @@ TEST_MYSQL=1 scripts/test.sh   # además migrate:fresh + rollback en MySQL
 - La clave global de WhatsApp (`WHATSAPP_API_KEY`) responde 401; el envío funciona con la configuración por empresa.
 - El certificado AFIP de la empresa 2 (`20350796631`) no es aceptado por WSAA homologación.
 - El webhook principal de MercadoPago responde 500 ante un pago inexistente para forzar reintento; revisar si conviene distinguir 404/200.
+- La sesión queda con `serialization=php` para no invalidar sesiones activas. Migrar a `json` requiere una ventana de mantenimiento.
+- Si en el futuro se cachean objetos PHP, hay que declararlos en `cache.serializable_classes`; hoy solo se cachean escalares/arrays.
+- La emisión real de un comprobante AFIP en homologación y el pago real de MercadoPago siguen pendientes de una prueba asistida con datos/credenciales de test.
 
 ## Etapa 2 — Laravel 11 → 12
 
@@ -154,15 +157,28 @@ TEST_MYSQL=1 scripts/test.sh   # además migrate:fresh + rollback en MySQL
 
 ## Etapa 3 — Laravel 12 → 13
 
-- [ ] Leer upgrade guide 13.x y anotar cambios de alto/medio impacto aplicables.
-- [ ] Confirmar PHP 8.3+ en imagen, CI y entornos de ejecución. **Nota:** Laravel 13 requiere `php ^8.3`; actualizar `composer.json` (hoy `^8.2`).
-- [ ] Revisar soporte de `laravel/framework` (^13), Tinker (^3), PHPUnit (^12.5) y Collision (^8).
-- [ ] Confirmar Livewire 3.8.11+ (soporta Laravel 13) o evaluar Livewire 4.
-- [ ] Actualizar dependencias y resolver incompatibilidades o deprecaciones.
-- [ ] Revisar CSRF, serialización de cache/sesión, nombres de cookies y uso de `upsert()`.
-- [ ] Ejecutar suite, Pint, Artisan cache commands y reconstruir contenedores.
-- [ ] Repetir pruebas funcionales de autenticación, pagos, ARCA, WhatsApp, PDF y QR.
+- [x] Leer upgrade guide 13.x y anotar cambios de alto/medio impacto aplicables. **Evidencia:** CSRF renombrado, cache `serializable_classes`, upsert, cookies/sesión.
+- [x] Confirmar PHP 8.3+ en imagen, CI y entornos de ejecución. **Evidencia:** `composer.json` con `php ^8.3`; Docker y CI en PHP 8.4.
+- [x] Revisar soporte de `laravel/framework` (^13), Tinker (^3), PHPUnit (^12.5) y Collision (^8). **Evidencia:** framework 13.38.0, Tinker 3.0.2, PHPUnit 12.5.40, Collision 8.9.5.
+- [x] Confirmar Livewire 3.8.11+ (soporta Laravel 13) o evaluar Livewire 4. **Decisión:** se mantiene Livewire 3.8.11.
+- [x] Actualizar dependencias y resolver incompatibilidades o deprecaciones. **Evidencia:** Sanctum 4.3.3, DomPDF 3.1.2, `mause/laravel-arca` dev-main; Symfony 8.1.9 por CVE-2026-108082.
+- [x] Revisar CSRF, serialización de cache/sesión, nombres de cookies y uso de `upsert()`. **Evidencia:** CSRF migrado a `PreventRequestForgery`; sesión con `serialization=php` explícito; prefijo/cookie ya definidos en config; sin `upsert()`.
+- [x] Ejecutar suite, Pint, Artisan cache commands y reconstruir contenedores. **Evidencia:** 146 tests, Pint OK, caches OK, 4 contenedores healthy con Laravel 13.38.0.
+- [x] Repetir pruebas funcionales de autenticación, pagos, ARCA, WhatsApp, PDF y QR. **Evidencia:** smoke 200/401, CSRF 419, webhooks excluidos, grilla MySQL, MP válido, WhatsApp `open`, AFIP homologación OK, PDF/QR tests.
 - [ ] Registrar resultado final y crear commit de cierre de etapa.
+
+### Resultado de la Etapa 3 (2026-10-22)
+
+- `laravel/framework` 12.70.1 → **13.38.0**; Tinker 3.0.2; PHPUnit 12.5.40.
+- CSRF: `validateCsrfTokens()` → `preventRequestForgery()`; test actualizado a `PreventRequestForgery`.
+- Sesión: `serialization=php` explícito para no invalidar sesiones activas.
+- Cache: `serializable_classes` queda en el default seguro (`false`); la app solo cachea escalares/arrays.
+- Sin usos de `upsert()`, UUIDv7, `array_first()`, paginación Bootstrap ni eventos de cola afectados.
+- Suite: 146 tests, 405 aserciones, 0 fallos, 0 deprecaciones con PHPUnit 12.
+- Migraciones MySQL `up`/`down`: OK.
+- Contenedores dev: 4/4 healthy con Laravel 13.38.0.
+- Smoke: endpoints 200/401, CSRF activo (419), webhooks excluidos, grilla/MP/WhatsApp/AFIP OK.
+- `composer audit`: sin vulnerabilidades conocidas.
 
 ## Registro de cambios / decisiones
 
@@ -181,3 +197,6 @@ TEST_MYSQL=1 scripts/test.sh   # además migrate:fresh + rollback en MySQL
 | 2026-10-22 | 2 | Dependencias actualizadas a Laravel 12.70.1 / DomPDF 3 / Carbon 3. | OpenCode |
 | 2026-10-22 | 2 | Suite y migraciones MySQL OK; contenedores reconstruidos y smoke dev OK. | OpenCode |
 | 2026-10-22 | 2 | Integraciones post-upgrade: grilla, MercadoPago, WhatsApp y AFIP homologación OK. | OpenCode |
+| 2026-10-22 | 3 | Dependencias a Laravel 13.38.0, Tinker 3, PHPUnit 12.5 y Symfony 8.1.9. | OpenCode |
+| 2026-10-22 | 3 | CSRF migrado a `PreventRequestForgery`; sesión con `serialization=php`. | OpenCode |
+| 2026-10-22 | 3 | Suite, migraciones MySQL y smoke dev OK; 4 contenedores healthy. | OpenCode |

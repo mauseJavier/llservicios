@@ -229,3 +229,38 @@ Fallos pendientes por categoría:
 
 - Etapa 3: Laravel 12 → 13 (`php ^8.3`, framework `^13`, Tinker `^3`, PHPUnit
   `^12.5`), revisión de CSRF/serialización de sesión/cookies y `upsert()`.
+
+---
+
+## Etapa 3 aplicada (2026-10-22)
+
+| Paquete | Antes | Después |
+| --- | --- | --- |
+| php (constraint) | ^8.2 | **^8.3** |
+| laravel/framework | 12.70.1 | **13.38.0** |
+| laravel/tinker | 2.11.1 | **3.0.2** |
+| phpunit/phpunit | 11.5.57 | **12.5.40** |
+| symfony/http-foundation | 8.0.15 | **8.1.9** (fix CVE-2026-108082) |
+| livewire/livewire | 3.8.11 | 3.8.11 |
+| barryvdh/laravel-dompdf | 3.1.2 | 3.1.2 |
+
+Cambios de código/configuración:
+
+- `bootstrap/app.php`: `validateCsrfTokens()` → `preventRequestForgery()`.
+- `tests/Feature/CsrfExclusionTest.php`: usa `PreventRequestForgery`.
+- `config/session.php`: `serialization` explícito en `php` para conservar sesiones.
+- `composer.json`: `config.platform.php` a `8.4.27` (Symfony 8.1 exige ≥ 8.4.1).
+
+Verificación:
+
+- Suite: 146 tests, 405 aserciones, 0 fallos, 0 deprecaciones (PHPUnit 12.5.40).
+- Migraciones MySQL `up`/`down`: OK.
+- `composer audit`: sin vulnerabilidades.
+- Contenedores dev: 4/4 healthy con Laravel 13.38.0.
+- Smoke: 200/401, CSRF activo (419), webhooks excluidos.
+- Integraciones: grilla MySQL, MercadoPago válido, WhatsApp `open`, AFIP homologación OK.
+
+Pendiente:
+
+- Prueba asistida de pago real de MercadoPago y emisión AFIP en homologación.
+- Evaluar `session.serialization=json` en una ventana de mantenimiento.
