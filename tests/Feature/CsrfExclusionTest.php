@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use ReflectionClass;
 use Tests\TestCase;
 
@@ -14,7 +14,7 @@ class CsrfExclusionTest extends TestCase
      */
     private function rutasExcluidas(): array
     {
-        $reflection = new ReflectionClass(VerifyCsrfToken::class);
+        $reflection = new ReflectionClass(PreventRequestForgery::class);
         $property = $reflection->getProperty('neverVerify');
         $property->setAccessible(true);
 

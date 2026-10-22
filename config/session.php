@@ -22,6 +22,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Session Serialization
+    |--------------------------------------------------------------------------
+    |
+    | Laravel 13 usa "json" por defecto en el skeleton nuevo. Se mantiene "php"
+    | explícitamente para no invalidar las sesiones activas durante la
+    | actualización. Si la app no guarda objetos en sesión, se puede pasar a
+    | "json" en una ventana de mantenimiento.
+    |
+    */
+
+    'serialization' => env('SESSION_SERIALIZATION', 'php'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Session Lifetime
     |--------------------------------------------------------------------------
     |
