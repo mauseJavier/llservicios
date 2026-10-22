@@ -83,10 +83,10 @@ TEST_MYSQL=1 scripts/test.sh   # además migrate:fresh + rollback en MySQL
 
 - [ ] Grilla de servicios: listar, filtrar y actualizar vencimientos. **Nota:** `GrillaDos` usa `DATE_FORMAT` (MySQL) y no es portable a SQLite; queda como prueba manual/MySQL.
 - [x] Livewire: navegar grillas/componentes y comprobar validación/errores. **Evidencia:** `LivewireComponentsTest` cubre `EmpresaToken` y permisos. Resto de componentes: smoke manual.
-- [ ] MercadoPago: crear preferencia, completar pago de prueba y validar retorno/webhook. **Nota:** preferencia/webhook están cubiertos con `Http::fake()`; el pago real en sandbox sigue siendo manual.
+- [ ] MercadoPago: crear preferencia, completar pago de prueba y validar retorno/webhook. **Nota:** credenciales y webhook validados; el pago real requiere confirmación porque el token actual es de producción (`APP_USR`, `sandbox=false`).
 - [ ] MercadoPago QR: generar QR, recibir pago de prueba y comprobar conciliación. **Nota:** pendiente de sandbox real.
-- [ ] AFIP/ARCA: validar autenticación SOAP y emisión en homologación (sin usar producción). **Nota:** pendiente con certificado real.
-- [x] WhatsApp: enviar notificación de prueba y comprobar manejo de errores. **Evidencia:** `WhatsAppServiceTest` (17 tests, `Http::fake()`). El envío real queda como smoke manual.
+- [ ] AFIP/ARCA: validar autenticación SOAP y emisión en homologación (sin usar producción). **Evidencia:** autenticación WSAA + WSFE OK para empresa 1. La emisión de un comprobante de prueba queda pendiente.
+- [x] WhatsApp: enviar notificación de prueba y comprobar manejo de errores. **Evidencia:** `WhatsAppServiceTest` (17 tests, `Http::fake()`) y conexión real `open` de la instancia `LLFACTURA`. El envío real queda pendiente de un número de destino.
 - [x] PDF y QR: generar comprobante, recibo y cierre de caja; verificar descarga/impresión. **Evidencia:** `DocumentGenerationTest` genera PDF con DomPDF y PNG con Endroid. La impresión/descarga en navegador queda manual.
 - [x] Comprobar migraciones `up`/`down` con MySQL de prueba, además de SQLite. **Evidencia:** `TEST_MYSQL=1 scripts/test.sh` y job de CI.
 
@@ -97,6 +97,17 @@ TEST_MYSQL=1 scripts/test.sh   # además migrate:fresh + rollback en MySQL
 - [x] Ejecutar Pint en los archivos modificados; registrar por separado los incumplimientos preexistentes del resto del repositorio. **Evidencia:** Pint pasa en los 34 archivos modificados. El repositorio completo todavía tiene deuda de formato preexistente.
 - [x] Ejecutar `php artisan config:cache` y `php artisan route:cache`; validar arranque posterior del contenedor. **Evidencia:** ambos comandos pasan y `route:list` funciona con la cache activa.
 - [ ] Registrar resultado final de la etapa y crear el commit de cierre.
+
+### Resultado del smoke manual (2026-10-22)
+
+- Contenedores: 4/4 `healthy`; Laravel 11.57.0 en PHP 8.4.27.
+- `scripts/smoke.sh`: `/login`, `/`, `/up` → 200; `POST /api/registros-cerradura` sin token → 401.
+- Túnel ngrok: estaba offline (`ERR_NGROK_3200`); se levantó y el dominio configurado volvió a responder 200. Las `back_urls` y el webhook de MercadoPago ya son alcanzables.
+- MercadoPago: credenciales válidas (`validateCredentials()`), 16 métodos de pago obtenidos. El token es de producción (`APP_USR`, `sandbox=false`), por lo que no se generaron preferencias ni pagos reales.
+- Webhook MercadoPago: `POST /mercadopago/webhook` responde 500 con pago inexistente (fuerza reintento); `POST /api/mercadopago/webhook/qr` responde 200 `ignored`.
+- AFIP/ARCA homologación: empresa 1 (`20358337164`) obtiene TA de WSAA y conectividad WSFE OK. Empresa 2 (`20350796631`) falla con `Certificado no emitido por AC de confianza`.
+- WhatsApp: la clave global responde 401. Con la configuración por empresa, la instancia `LLFACTURA` (empresas 1 y 2) está `open`; `ClubLaslajas` y `Carlota` están `close`; `powerconfigurar` responde 404.
+- Grilla: la consulta real de `GrillaDos` contra MySQL devuelve 5 clientes y 12 períodos para la empresa 3. La validación visual en navegador queda pendiente.
 
 ### Incidencias corregidas durante la estabilización
 
@@ -114,6 +125,10 @@ TEST_MYSQL=1 scripts/test.sh   # además migrate:fresh + rollback en MySQL
 - Quedan usos de SQL específico de MySQL en consultas de reportes/grilla que conviene revisar antes de la Etapa 2.
 - El repositorio completo no pasa `pint --test` por deuda preexistente; el gate solo exige los archivos modificados.
 - La suite corre con SQLite; el job de CI con MariaDB cubre migraciones, no toda la suite funcional.
+- El túnel ngrok de desarrollo (`prepositionally-vacciniaceous-irving.ngrok-free.dev`) debe levantarse con `ngrok http 1234`; sin él, las `back_urls` y el webhook de MercadoPago no funcionan.
+- La clave global de WhatsApp (`WHATSAPP_API_KEY`) responde 401; el envío funciona con la configuración por empresa.
+- El certificado AFIP de la empresa 2 (`20350796631`) no es aceptado por WSAA homologación.
+- El webhook principal de MercadoPago responde 500 ante un pago inexistente para forzar reintento; revisar si conviene distinguir 404/200.
 
 ## Etapa 2 — Laravel 11 → 12
 
@@ -148,3 +163,7 @@ TEST_MYSQL=1 scripts/test.sh   # además migrate:fresh + rollback en MySQL
 | 2026-10-22 | 1 | `route:cache` y `config:cache` habilitados; 23 `env()` migrados a `config()`. | OpenCode |
 | 2026-10-22 | 1 | Migraciones MySQL `up`/`down` validadas; corregida dependencia de Doctrine eliminada en L11. | OpenCode |
 | 2026-10-22 | 1 | Harness `scripts/test.sh`, `scripts/smoke.sh`, imagen de test y CI agregados. | OpenCode |
+| 2026-10-22 | 1 | Smoke en dev: 4 contenedores healthy; endpoints 200/401 OK; grilla MySQL OK. | OpenCode |
+| 2026-10-22 | 1 | MercadoPago: credenciales y webhook alcanzables; token de producción, no se generaron pagos. | OpenCode |
+| 2026-10-22 | 1 | AFIP homologación OK para empresa 1; empresa 2 con certificado no confiable. | OpenCode |
+| 2026-10-22 | 1 | WhatsApp: instancia `LLFACTURA` open por empresa; clave global con 401. | OpenCode |
