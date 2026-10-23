@@ -31,6 +31,26 @@ class MercadoPagoQRService
         ]);
     }
 
+    /**
+     * Establecer el access token (por ejemplo, el de la empresa dueña de la caja).
+     */
+    public function setAccessToken(?string $accessToken): void
+    {
+        if (!empty($accessToken)) {
+            $this->accessToken = $accessToken;
+        }
+    }
+
+    /**
+     * Establecer el user ID de Mercado Pago de la empresa.
+     */
+    public function setUserId(?string $userId): void
+    {
+        if (!empty($userId)) {
+            $this->userId = $userId;
+        }
+    }
+
     // ============================================================
     // GESTIÓN DE SUCURSALES (STORES)
     // ============================================================
@@ -485,7 +505,7 @@ class MercadoPagoQRService
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->accessToken,
                 'Content-Type' => 'application/json'
-            ])->delete($this->baseUrl . '/instore/qr/seller/collectors/' . $this->userId . '/pos/' . $posId . '/qrs');
+            ])->delete($this->baseUrl . '/instore/orders/qr/seller/collectors/' . $this->userId . '/pos/' . $posId . '/qrs');
 
             if ($response->successful()) {
                 return [
@@ -518,7 +538,7 @@ class MercadoPagoQRService
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->accessToken,
                 'Content-Type' => 'application/json'
-            ])->get($this->baseUrl . '/instore/qr/seller/collectors/' . $this->userId . '/pos/' . $posId . '/qrs');
+            ])->get($this->baseUrl . '/instore/qr/seller/collectors/' . $this->userId . '/pos/' . $posId . '/orders');
 
             if ($response->successful()) {
                 return [

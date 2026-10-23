@@ -3,13 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Empresa;
 use App\Models\MercadoPagoQROrder;
 use App\Services\MercadoPago\MercadoPagoQRService;
+use App\Services\MercadoPago\MercadoPagoWebhookSignatureService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class MercadoPagoWebhookController extends Controller
 {
+    public function __construct(private MercadoPagoWebhookSignatureService $webhookSignature)
+    {
+    }
+
     /**
      * Recibir notificaciones de pagos QR
      */
@@ -21,15 +27,24 @@ class MercadoPagoWebhookController extends Controller
                 'body' => $request->all()
             ]);
 
+            $this->verificarFirmaBestEffort($request);
+
             $data = $request->all();
 
-            // Validar que sea una notificación de pago
-            if (!isset($data['action']) || $data['action'] !== 'payment.created') {
+            // Aceptar tanto el formato "action: payment.created" como los
+            // tópicos legacy (type/topic: payment) e IPN (topic + id).
+            $tipo = $data['type'] ?? $data['topic'] ?? null;
+            $accion = $data['action'] ?? null;
+
+            $esPago = $tipo === 'payment'
+                || (is_string($accion) && str_starts_with($accion, 'payment.'));
+
+            if (!$esPago) {
                 return response()->json(['status' => 'ignored'], 200);
             }
 
             // Obtener el ID del pago
-            $paymentId = $data['data']['id'] ?? null;
+            $paymentId = $data['data']['id'] ?? $data['id'] ?? null;
 
             // Anotar en el log el payment ID recibido
             Log::info('Procesando webhook para payment ID', [
@@ -41,9 +56,14 @@ class MercadoPagoWebhookController extends Controller
                 return response()->json(['status' => 'ignored'], 200);
             }
 
-            // Obtener información completa del pago
+            // Obtener información completa del pago con el token de la empresa
+            // dueña de la notificación (o probando con cada empresa configurada).
             $qrService = new MercadoPagoQRService();
-            $paymentInfo = $qrService->getPayment($paymentId);
+            $paymentInfo = $this->obtenerPago(
+                $qrService,
+                (string) $paymentId,
+                $this->webhookSignature->resolverEmpresa($request)
+            );
 
             if (!$paymentInfo['success']) {
                 Log::error('Error obteniendo información del pago', [
@@ -53,6 +73,7 @@ class MercadoPagoWebhookController extends Controller
             }
 
             $payment = $paymentInfo['data'];
+            $empresaPago = $paymentInfo['empresa'] ?? null;
 
             // Buscar la orden por external_reference
             $externalReference = $payment['external_reference'] ?? null;
@@ -76,6 +97,33 @@ class MercadoPagoWebhookController extends Controller
 
             // Actualizar estado de la orden según el estado del pago
             if ($payment['status'] === 'approved') {
+                $empresaOrden = $order->pos->store->empresa_id ?? null;
+
+                if ($empresaOrden && $empresaPago && (int) $empresaOrden !== (int) $empresaPago->id) {
+                    Log::error('Pago QR de una empresa distinta a la dueña de la orden', [
+                        'payment_id' => $paymentId,
+                        'external_reference' => $externalReference,
+                        'empresa_orden' => $empresaOrden,
+                        'empresa_pago' => $empresaPago->id,
+                    ]);
+
+                    return response()->json(['status' => 'ignored'], 200);
+                }
+
+                $montoPagado = (float) ($payment['transaction_amount'] ?? 0);
+                $montoEsperado = (float) $order->total_amount;
+
+                if (abs($montoPagado - $montoEsperado) > 0.01) {
+                    Log::error('Pago QR con monto distinto al esperado', [
+                        'payment_id' => $paymentId,
+                        'order_id' => $order->id,
+                        'monto_pagado' => $montoPagado,
+                        'monto_esperado' => $montoEsperado,
+                    ]);
+
+                    return response()->json(['status' => 'ignored'], 200);
+                }
+
                 $order->markAsPaid($paymentId, $payment);
                 
                 Log::info('Orden marcada como pagada', [
@@ -110,6 +158,75 @@ class MercadoPagoWebhookController extends Controller
 
             return response()->json(['status' => 'error'], 500);
         }
+    }
+
+    /**
+     * Validar la firma solo si el header viene presente. Las notificaciones de
+     * QR legacy no están firmadas por Mercado Pago, por lo que un fallo no debe
+     * bloquear el procesamiento (sí queda registrado para auditoría).
+     */
+    private function verificarFirmaBestEffort(Request $request): void
+    {
+        $verificacion = $this->webhookSignature->verificar($request);
+
+        if ($verificacion['estado'] === MercadoPagoWebhookSignatureService::ESTADO_VALIDA) {
+            return;
+        }
+
+        Log::info('Webhook QR sin firma válida (no bloqueante)', [
+            'estado' => $verificacion['estado'],
+            'motivo' => $verificacion['motivo'],
+            'empresa_id' => $verificacion['empresa']->id ?? null,
+            'request_id' => $request->header('x-request-id'),
+            'data_id' => $this->webhookSignature->dataId($request),
+        ]);
+    }
+
+    /**
+     * Obtener el pago usando primero el token de la empresa notificada y, si
+     * falla, el de cada empresa con credenciales configuradas (multi-tenant).
+     *
+     * @return array{success: bool, data: mixed, empresa: ?Empresa, error?: string}
+     */
+    private function obtenerPago(MercadoPagoQRService $qrService, string $paymentId, ?Empresa $empresa): array
+    {
+        if ($empresa && !empty($empresa->MP_ACCESS_TOKEN)) {
+            $qrService->setAccessToken((string) $empresa->MP_ACCESS_TOKEN);
+            $qrService->setUserId($empresa->MP_USER_ID ? (string) $empresa->MP_USER_ID : null);
+
+            $resultado = $qrService->getPayment($paymentId);
+
+            if ($resultado['success']) {
+                return $resultado + ['empresa' => $empresa];
+            }
+        }
+
+        $candidatas = Empresa::query()
+            ->whereNotNull('MP_ACCESS_TOKEN')
+            ->where('MP_ACCESS_TOKEN', '!=', '')
+            ->get(['id', 'MP_ACCESS_TOKEN', 'MP_USER_ID']);
+
+        foreach ($candidatas as $candidata) {
+            if ($empresa && $candidata->id === $empresa->id) {
+                continue;
+            }
+
+            $qrService->setAccessToken((string) $candidata->MP_ACCESS_TOKEN);
+            $qrService->setUserId($candidata->MP_USER_ID ? (string) $candidata->MP_USER_ID : null);
+
+            $resultado = $qrService->getPayment($paymentId);
+
+            if ($resultado['success']) {
+                return $resultado + ['empresa' => $candidata];
+            }
+        }
+
+        return [
+            'success' => false,
+            'data' => null,
+            'empresa' => null,
+            'error' => 'No se pudo obtener el pago con ningún token configurado',
+        ];
     }
 
     /**

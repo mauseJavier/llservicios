@@ -12,6 +12,7 @@ use App\Models\Pagos;
 use App\Models\ServicioPagar;
 use App\Models\User;
 use App\Services\MercadoPago\MercadoPagoApiService;
+use App\Services\MercadoPago\MercadoPagoWebhookSignatureService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -42,6 +43,8 @@ class MercadoPagoWebhookController extends Controller
 
     private const BASE_URL_MP = 'https://api.mercadopago.com';
 
+    public function __construct(private MercadoPagoWebhookSignatureService $webhookSignature) {}
+
     private function resolverUsuarioSistemaId(): int
     {
         $idUsuarioPago = User::where('email', self::USUARIO_PAGO_ONLINE_EMAIL)->value('id');
@@ -62,6 +65,12 @@ class MercadoPagoWebhookController extends Controller
             ]);
 
             $this->logConfiguracionEntorno('webhook_entrante');
+
+            $respuestaFirma = $this->verificarFirma($request);
+
+            if ($respuestaFirma !== null) {
+                return $respuestaFirma;
+            }
 
             // Obtener datos del webhook
             // MercadoPago envía dos formatos: "WebHook v1.0" (campo type + data.id)
@@ -137,6 +146,44 @@ class MercadoPagoWebhookController extends Controller
         }
 
         return response()->json(['status' => 'ok'], 200);
+    }
+
+    /**
+     * Validar la firma de la notificación con el secreto de la empresa asociada.
+     * Devuelve una respuesta 401 si el modo enforce está activo y la firma no es
+     * válida; en caso contrario devuelve null para continuar con el procesamiento.
+     */
+    private function verificarFirma(Request $request): ?JsonResponse
+    {
+        $verificacion = $this->webhookSignature->verificar($request);
+        $empresa = $verificacion['empresa'];
+
+        $contexto = [
+            'estado' => $verificacion['estado'],
+            'motivo' => $verificacion['motivo'],
+            'empresa_id' => $empresa->id ?? null,
+            'request_id' => $request->header('x-request-id'),
+            'data_id' => $this->webhookSignature->dataId($request),
+            'enforce' => $this->webhookSignature->estaHabilitada(),
+        ];
+
+        if ($verificacion['estado'] === MercadoPagoWebhookSignatureService::ESTADO_VALIDA) {
+            return null;
+        }
+
+        if ($this->webhookSignature->estaHabilitada()) {
+            Log::warning('Webhook MercadoPago rechazado por firma no válida', $contexto);
+
+            return response()->json(['error' => 'Invalid signature'], 401);
+        }
+
+        $nivel = $verificacion['estado'] === MercadoPagoWebhookSignatureService::ESTADO_SIN_SECRET
+            ? 'critical'
+            : 'warning';
+
+        Log::{$nivel}('Webhook MercadoPago procesado sin firma válida (modo no enforce)', $contexto);
+
+        return null;
     }
 
     /**
@@ -730,10 +777,12 @@ class MercadoPagoWebhookController extends Controller
 
             case 'rejected':
             case 'cancelled':
-                $servicioPagar->update([
-                    'estado' => 'impago',
-                    'mp_payment_id' => null,
-                ]);
+                if ($servicioPagar->estado !== 'pago') {
+                    $servicioPagar->update([
+                        'estado' => 'impago',
+                        'mp_payment_id' => null,
+                    ]);
+                }
                 Log::info('Pago rechazado/cancelado', [
                     'servicio_pagar_id' => $servicioPagar->id,
                     'payment_id' => $paymentId,

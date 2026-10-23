@@ -45,6 +45,7 @@ class UpdateMercadoPagoCredentials extends Command
         $this->line("Access Token: " . ($empresa->MP_ACCESS_TOKEN ? substr($empresa->MP_ACCESS_TOKEN, 0, 30) . '...' : 'No configurado'));
         $this->line("Public Key: " . ($empresa->MP_PUBLIC_KEY ? substr($empresa->MP_PUBLIC_KEY, 0, 30) . '...' : 'No configurado'));
         $this->line("User ID: " . ($empresa->MP_USER_ID ?: 'No configurado'));
+        $this->line("Webhook Secret: " . ($empresa->MP_WEBHOOK_SECRET ? 'Configurado' : 'No configurado'));
         $this->newLine();
 
         // Solicitar nuevas credenciales
@@ -69,6 +70,8 @@ class UpdateMercadoPagoCredentials extends Command
             return 1;
         }
 
+        $webhookSecret = $this->ask('Ingrese el Webhook Secret (Enter para conservar el actual)');
+
         // Confirmar actualización
         if (!$this->confirm('¿Desea actualizar estas credenciales?')) {
             $this->info('Operación cancelada.');
@@ -76,11 +79,17 @@ class UpdateMercadoPagoCredentials extends Command
         }
 
         // Actualizar en la base de datos
-        $empresa->update([
+        $datos = [
             'MP_ACCESS_TOKEN' => $accessToken,
             'MP_PUBLIC_KEY' => $publicKey,
             'MP_USER_ID' => $userId,
-        ]);
+        ];
+
+        if (!empty($webhookSecret)) {
+            $datos['MP_WEBHOOK_SECRET'] = $webhookSecret;
+        }
+
+        $empresa->update($datos);
 
         $this->newLine();
         $this->info('✅ Credenciales actualizadas exitosamente!');
@@ -91,6 +100,7 @@ class UpdateMercadoPagoCredentials extends Command
         $this->line("Access Token: " . substr($accessToken, 0, 30) . '... (longitud: ' . strlen($accessToken) . ')');
         $this->line("Public Key: " . substr($publicKey, 0, 30) . '...');
         $this->line("User ID: " . $userId);
+        $this->line("Webhook Secret: " . (!empty($webhookSecret) ? 'Actualizado' : 'Sin cambios'));
         
         return 0;
     }

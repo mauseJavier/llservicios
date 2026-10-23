@@ -42,6 +42,10 @@ return [
         // back_urls y el webhook, en lugar de app.url.
         'test_mode' => env('MERCADOPAGO_TEST', true),
         'public_url' => env('MERCADOPAGO_PUBLIC_URL', 'https://prepositionally-vacciniaceous-irving.ngrok-free.dev'),
+        // El secreto de firma de webhooks se configura por empresa (MP_WEBHOOK_SECRET),
+        // porque cada una opera con su propia cuenta de Mercado Pago.
+        'webhook_signature_enforce' => env('MERCADOPAGO_WEBHOOK_SIGNATURE_ENFORCE', false),
+        'webhook_tolerance' => env('MERCADOPAGO_WEBHOOK_TOLERANCE', 600),
     ],
 
     'whatsapp' => [

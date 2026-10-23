@@ -90,7 +90,7 @@ class MercadoPagoWebhookControllerTest extends TestCase
         Config::set('services.mercadopago.access_token', 'TEST-123456789-global-token');
         Config::set('services.mercadopago.sandbox', true);
 
-        $this->controller = new MercadoPagoWebhookController();
+        $this->controller = app(MercadoPagoWebhookController::class);
     }
 
     public function test_resuelve_referencia_individual()

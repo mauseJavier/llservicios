@@ -67,13 +67,16 @@ class QRPayment extends Component
             $this->orderReference = 'QR-'.time().'-'.Str::random(6);
 
             $baseUrl = config('app.env') === 'local' ? 'https://prepositionally-vacciniaceous-irving.ngrok-free.dev' : config('app.url');
+            $notificationUrl = app()->environment() == 'local' ? $baseUrl.'/api/mercadopago/webhook/qr' : route('api.mercadopago.webhook.qr');
+            $notificationUrl .= (str_contains($notificationUrl, '?') ? '&' : '?').'empresa_id='.$pos->store->empresa->id;
+
             // Datos de la orden
             $orderData = [
                 'external_reference' => $this->orderReference,
                 'title' => $this->description ?: 'Pago en caja',
                 'description' => $this->description ?: 'Cobro mediante código QR',
                 'total_amount' => floatval($this->amount),
-                'notification_url' => app()->environment() == 'local' ? $baseUrl.'/api/mercadopago/webhook/qr' : route('api.mercadopago.webhook.qr'),
+                'notification_url' => $notificationUrl,
                 'items' => [
                     [
                         'sku_number' => 'ITEM-001',
@@ -184,6 +187,10 @@ class QRPayment extends Component
                 if ($order && $order->isPending()) {
                     $pos = $order->pos;
 
+                    if (! $pos) {
+                        throw new \Exception('La orden no tiene una caja asociada');
+                    }
+
                     // Configurar credenciales
                     config([
                         'services.mercadopago.access_token' => $pos->store->empresa->MP_ACCESS_TOKEN,
@@ -191,7 +198,11 @@ class QRPayment extends Component
                     ]);
 
                     $qrService = new MercadoPagoQRService;
-                    $qrService->deleteQROrder($pos->mp_pos_id);
+                    $resultado = $qrService->deleteQROrder($pos->external_id);
+
+                    if (empty($resultado['success'])) {
+                        throw new \Exception($resultado['error'] ?? 'No se pudo cancelar la orden en Mercado Pago');
+                    }
 
                     $order->update(['status' => 'cancelled']);
                 }

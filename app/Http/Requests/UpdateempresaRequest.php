@@ -31,6 +31,7 @@ class UpdateempresaRequest extends FormRequest
             'MP_ACCESS_TOKEN' => 'nullable|string|max:255',
             'MP_PUBLIC_KEY' => 'nullable|string|max:255',
             'MP_USER_ID' => 'nullable|string|max:255',
+            'MP_WEBHOOK_SECRET' => 'nullable|string|max:255',
             'client_secret' => 'nullable|string|max:255',
             'client_id' => 'nullable|string|max:255',
             'instanciaWS' => 'nullable|string|max:255',

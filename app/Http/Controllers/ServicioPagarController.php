@@ -564,6 +564,8 @@ class ServicioPagarController extends Controller
             $orderReference = 'QR-'.time().'-'.Str::random(6);
 
             $baseUrl = config('app.env') === 'local' ? 'https://prepositionally-vacciniaceous-irving.ngrok-free.dev' : config('app.url');
+            $notificationUrl = app()->environment() == 'local' ? $baseUrl.'/api/mercadopago/webhook/qr' : route('api.mercadopago.webhook.qr');
+            $notificationUrl .= (str_contains($notificationUrl, '?') ? '&' : '?').'empresa_id='.$pos->store->empresa->id;
 
             // Datos de la orden
             $orderData = [
@@ -571,7 +573,7 @@ class ServicioPagarController extends Controller
                 'title' => $servicioPagar->servicio->nombre ?: 'Pago en caja',
                 'description' => $servicioPagar->servicio->descripcion ?: 'Cobro mediante código QR',
                 'total_amount' => floatval($servicioPagar->precio) * floatval($servicioPagar->cantidad),
-                'notification_url' => app()->environment() == 'local' ? $baseUrl.'/api/mercadopago/webhook/qr' : route('api.mercadopago.webhook.qr'),
+                'notification_url' => $notificationUrl,
                 'items' => [
                     [
                         'sku_number' => 'ITEM-001-'.$orderReference,
@@ -689,6 +691,13 @@ class ServicioPagarController extends Controller
             if ($order->isPending()) {
                 $pos = $order->pos;
 
+                if (! $pos) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'La orden no tiene una caja asociada',
+                    ], 400);
+                }
+
                 // Configurar credenciales
                 config([
                     'services.mercadopago.access_token' => $pos->store->empresa->MP_ACCESS_TOKEN,
@@ -696,7 +705,14 @@ class ServicioPagarController extends Controller
                 ]);
 
                 $qrService = new MercadoPagoQRService;
-                $qrService->deleteQROrder($pos->external_id);
+                $resultado = $qrService->deleteQROrder($pos->external_id);
+
+                if (empty($resultado['success'])) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'No se pudo cancelar la orden en Mercado Pago: '.($resultado['error'] ?? 'error desconocido'),
+                    ], 400);
+                }
 
                 $order->update(['status' => 'cancelled']);
 

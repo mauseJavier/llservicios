@@ -115,6 +115,14 @@
           </label>
         </div>
 
+        <div class="grid">
+          <label for="MP_WEBHOOK_SECRET">
+            Webhook Secret MercadoPago
+            <input type="text" id="MP_WEBHOOK_SECRET" name="MP_WEBHOOK_SECRET" placeholder="Secreto de firma de webhooks" value="{{old('MP_WEBHOOK_SECRET')}}">
+            <small>Se obtiene en Tus integraciones &gt; Webhooks. Se usa para validar la firma de las notificaciones de esta empresa.</small>
+          </label>
+        </div>
+
         <!-- Logo de la empresa -->
         <label for="logo">URL del Logo de la Empresa</label>
         <input type="url" id="logo" name="logo" placeholder="https://ejemplo.com/logo.jpg" value="{{old('logo')}}">

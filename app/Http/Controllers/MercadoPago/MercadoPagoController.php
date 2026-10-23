@@ -55,20 +55,18 @@ class MercadoPagoController extends Controller
                 'items' => $items,
                 'external_reference' => $request->input('external_reference', 'ORDER-'.time()),
                 'back_urls' => [
-                    'success' => $request->input('success_url', config('app.url').'/mercadopago/success'),
-                    'failure' => $request->input('failure_url', config('app.url').'/mercadopago/failure'),
-                    'pending' => $request->input('pending_url', config('app.url').'/mercadopago/pending'),
+                    'success' => $request->input('success_url', MercadoPagoApiService::getBaseUrl().'/mercadopago/success'),
+                    'failure' => $request->input('failure_url', MercadoPagoApiService::getBaseUrl().'/mercadopago/failure'),
+                    'pending' => $request->input('pending_url', MercadoPagoApiService::getBaseUrl().'/mercadopago/pending'),
                 ],
                 'auto_return' => 'approved',
-                'notification_url' => config('app.url').'/mercadopago/webhook',
+                'notification_url' => MercadoPagoApiService::getBaseUrl().'/mercadopago/webhook',
             ];
 
             // Agregar información del pagador si está disponible
             if ($request->has('payer')) {
                 $preferenceData['payer'] = MercadoPagoService::createPayer($request->input('payer'));
             }
-
-            dd($preferenceData);
 
             // Crear la preferencia
             $result = $this->mercadoPagoService->createPreference($preferenceData);
@@ -95,36 +93,6 @@ class MercadoPagoController extends Controller
                 'success' => false,
                 'error' => 'Error interno del servidor',
             ], 500);
-        }
-    }
-
-    /**
-     * Manejar notificaciones webhook de MercadoPago
-     */
-    public function webhook(Request $request)
-    {
-        try {
-            Log::info('MercadoPago Webhook received', $request->all());
-
-            $topic = $request->input('topic');
-            $id = $request->input('id');
-
-            if ($topic === 'payment') {
-                $payment = $this->mercadoPagoService->getPayment($id);
-
-                if ($payment['success']) {
-                    // Aquí puedes agregar tu lógica para procesar el pago
-                    // Por ejemplo, actualizar el estado del pedido en la base de datos
-                    $this->processPayment($payment['data']);
-                }
-            }
-
-            return response()->json(['status' => 'ok'], 200);
-
-        } catch (\Exception $e) {
-            Log::error('Error processing MercadoPago webhook: '.$e->getMessage());
-
-            return response()->json(['error' => 'Error processing webhook'], 500);
         }
     }
 
@@ -212,25 +180,5 @@ class MercadoPagoController extends Controller
                 'error' => $e->getMessage(),
             ]);
         }
-    }
-
-    /**
-     * Procesar el pago recibido (personalizar según tus necesidades)
-     */
-    private function processPayment($paymentData)
-    {
-        // Aquí puedes agregar tu lógica personalizada
-        // Por ejemplo:
-        // - Actualizar el estado del pedido
-        // - Enviar emails de confirmación
-        // - Actualizar inventario
-        // - etc.
-
-        Log::info('Processing payment', [
-            'payment_id' => $paymentData->id,
-            'status' => $paymentData->status,
-            'external_reference' => $paymentData->external_reference,
-            'transaction_amount' => $paymentData->transaction_amount,
-        ]);
     }
 }

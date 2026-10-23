@@ -19,6 +19,7 @@ class Empresa extends Model
 
     protected $hidden = [
         'api_token',
+        'MP_WEBHOOK_SECRET',
     ];
 
     protected $casts = [

@@ -132,7 +132,8 @@ class MercadoPagoService
     public function getPayment($paymentId)
     {
         try {
-            $payment = \MercadoPago\Payment::find_by_id($paymentId);
+            $client = new \MercadoPago\Client\Payment\PaymentClient();
+            $payment = $client->get($paymentId);
             
             return [
                 'success' => true,
