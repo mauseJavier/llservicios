@@ -220,8 +220,10 @@ class MercadoPagoApiService
     /**
      * Obtener información de un pago
      */
-    public function getPayment(string $paymentId): array
+    public function getPayment(string $paymentId, ?string $accessToken = null): array
     {
+        $this->setAccessToken($accessToken);
+
         try {
             Log::info('MercadoPagoAPI - Obteniendo información de pago', [
                 'payment_id' => $paymentId,
@@ -264,12 +266,175 @@ class MercadoPagoApiService
     }
 
     /**
+     * Buscar pagos con parámetros arbitrarios (búsqueda paginada de MercadoPago).
+     *
+     * @return array{success: bool, results: array, paging: array, error: ?string, status_code: ?int}
+     */
+    public function searchPayments(array $params, ?string $accessToken = null): array
+    {
+        $this->setAccessToken($accessToken);
+
+        if (empty($this->accessToken)) {
+            return [
+                'success' => false,
+                'results' => [],
+                'paging' => [],
+                'error' => 'Sin access token para buscar pagos',
+                'status_code' => null,
+            ];
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer '.$this->accessToken,
+                'Content-Type' => 'application/json',
+            ])->get($this->baseUrl.'/v1/payments/search', $params);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'results' => $response->json('results') ?? [],
+                    'paging' => $response->json('paging') ?? [],
+                    'error' => null,
+                    'status_code' => $response->status(),
+                ];
+            }
+
+            Log::warning('MercadoPagoAPI - Error buscando pagos', [
+                'params' => $params,
+                'status_code' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return [
+                'success' => false,
+                'results' => [],
+                'paging' => [],
+                'error' => 'Error buscando pagos: '.$response->body(),
+                'status_code' => $response->status(),
+            ];
+        } catch (Exception $e) {
+            Log::error('MercadoPagoAPI - Excepción buscando pagos', [
+                'params' => $params,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'results' => [],
+                'paging' => [],
+                'error' => $e->getMessage(),
+                'status_code' => null,
+            ];
+        }
+    }
+
+    /**
+     * Reembolsar un pago (total o parcial).
+     *
+     * Sin monto se solicita el reembolso total. Con monto se solicita un
+     * reembolso parcial.
+     *
+     * @return array{success: bool, refund_id: ?string, status: ?string, amount: ?float, error: ?string, status_code: ?int, data: mixed}
+     */
+    public function refundPayment(string $paymentId, ?float $amount = null, ?string $accessToken = null): array
+    {
+        $this->setAccessToken($accessToken);
+
+        if (empty($this->accessToken)) {
+            return [
+                'success' => false,
+                'refund_id' => null,
+                'status' => null,
+                'amount' => $amount,
+                'error' => 'Sin access token para reembolsar',
+                'status_code' => null,
+                'data' => null,
+            ];
+        }
+
+        try {
+            $payload = [];
+
+            if ($amount !== null) {
+                $payload['amount'] = round($amount, 2);
+            }
+
+            Log::info('MercadoPagoAPI - Iniciando reembolso', [
+                'payment_id' => $paymentId,
+                'amount' => $amount,
+            ]);
+
+            $request = Http::withHeaders([
+                'Authorization' => 'Bearer '.$this->accessToken,
+                'Content-Type' => 'application/json',
+            ]);
+
+            $response = empty($payload)
+                ? $request->post($this->baseUrl.'/v1/payments/'.$paymentId.'/refunds')
+                : $request->post($this->baseUrl.'/v1/payments/'.$paymentId.'/refunds', $payload);
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                Log::info('MercadoPagoAPI - Reembolso creado', [
+                    'payment_id' => $paymentId,
+                    'refund_id' => $data['id'] ?? null,
+                    'status' => $data['status'] ?? null,
+                    'amount' => $data['amount'] ?? $amount,
+                ]);
+
+                return [
+                    'success' => true,
+                    'refund_id' => isset($data['id']) ? (string) $data['id'] : null,
+                    'status' => $data['status'] ?? null,
+                    'amount' => isset($data['amount']) ? (float) $data['amount'] : $amount,
+                    'error' => null,
+                    'status_code' => $response->status(),
+                    'data' => $data,
+                ];
+            }
+
+            Log::warning('MercadoPagoAPI - Error creando reembolso', [
+                'payment_id' => $paymentId,
+                'status_code' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return [
+                'success' => false,
+                'refund_id' => null,
+                'status' => null,
+                'amount' => $amount,
+                'error' => 'Error creando reembolso: '.$response->body(),
+                'status_code' => $response->status(),
+                'data' => $response->json(),
+            ];
+        } catch (Exception $e) {
+            Log::error('MercadoPagoAPI - Excepción creando reembolso', [
+                'payment_id' => $paymentId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'refund_id' => null,
+                'status' => null,
+                'amount' => $amount,
+                'error' => $e->getMessage(),
+                'status_code' => null,
+                'data' => null,
+            ];
+        }
+    }
+
+    /**
      * Buscar pagos aprobados de MercadoPago por referencia externa.
      * Se usa en la reconciliación para recuperar pagos cuyo webhook no llegó o falló.
      *
      * @return string[] IDs de pagos aprobados
      */
-    public function searchApprovedPayments(string $externalReference, ?string $accessToken = null): array
+    public function searchApprovedPayments(string $externalReference, ?string $accessToken = null, int $limit = 5): array
     {
         $this->setAccessToken($accessToken);
 
@@ -288,7 +453,7 @@ class MercadoPagoApiService
             ])->get($this->baseUrl.'/v1/payments/search', [
                 'external_reference' => $externalReference,
                 'status' => 'approved',
-                'limit' => 5,
+                'limit' => max(1, $limit),
                 'sort' => 'date_approved',
                 'criteria' => 'desc',
             ]);

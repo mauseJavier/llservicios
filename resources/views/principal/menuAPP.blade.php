@@ -54,6 +54,7 @@
                   <li><a href="{{route('cierre-caja.historial')}}">Historial de Caja</a></li>
 
                   <li><a href="{{route('mercadopago.qr-manager')}}">Gestión QR MP</a></li>
+                  <li><a href="{{route('mercadopago.reembolsos')}}">Reembolsos MP</a></li>
               
                 @endif
         

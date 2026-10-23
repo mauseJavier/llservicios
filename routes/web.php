@@ -37,6 +37,7 @@ use App\Livewire\HistorialCierreCaja;
 use App\Livewire\ImportarCliente;
 use App\Livewire\MercadoPagoQrManager;
 use App\Livewire\QRPayment;
+use App\Livewire\ReembolsosMercadoPago;
 use App\Livewire\VerCliente\VerCliente;
 use App\Livewire\WhatsAppManager;
 use Illuminate\Support\Facades\Auth;
@@ -54,6 +55,10 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::middleware('auth')->group(function () {
+
+    // Reembolsos de pagos duplicados MercadoPago.
+    // El componente valida el rol y limita cada usuario a su propia empresa.
+    Route::get('/mercadopago/reembolsos', ReembolsosMercadoPago::class)->name('mercadopago.reembolsos');
 
     Route::middleware(['RolSuper'])->group(function () { // ACCESSO SOLO SUPER
 
