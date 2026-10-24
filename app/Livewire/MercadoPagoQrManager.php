@@ -2,14 +2,16 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
-use Livewire\WithPagination;
-use App\Models\MercadoPagoStore;
-use App\Models\MercadoPagoPOS;
 use App\Models\Empresa;
+use App\Models\MercadoPagoPOS;
+use App\Models\MercadoPagoStore;
 use App\Services\MercadoPago\MercadoPagoQRService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Livewire\Component;
+use Livewire\WithPagination;
 
 class MercadoPagoQrManager extends Component
 {
@@ -17,35 +19,56 @@ class MercadoPagoQrManager extends Component
 
     // Propiedades para el modal de tienda
     public $showStoreModal = false;
+
     public $storeId = null;
+
     public $storeName = '';
+
     public $storeStreet = '';
+
     public $storeNumber = '';
+
     public $storeCity = '';
+
     public $storeState = '';
+
     public $storeZipCode = '';
+
     public $storeLatitude = '';
+
     public $storeLongitude = '';
 
     // Propiedades para el modal de caja
     public $showPosModal = false;
+
     public $selectedStoreId = null;
+
     public $posId = null;
+
     public $posName = '';
+
     public $posFixedAmount = true;
+
     public $posCategory = '';
 
     // Propiedades de estado
     public $loading = false;
+
     public $successMessage = '';
+
     public $errorMessage = '';
+
+    public $errorDetails = [];
+
+    public $validCities = [];
+
+    public $citySuggestionsVisible = false;
+
     public $empresa = null;
+
     public $mpConfigured = false;
 
     public $usuarioIDCaja = null;
-
-
-
 
     protected $rules = [
         'storeName' => 'required|string|min:3|max:100',
@@ -78,25 +101,27 @@ class MercadoPagoQrManager extends Component
     public function loadEmpresaConfig()
     {
         $user = Auth::user();
-        
-        if (!$user || !$user->empresa_id) {
+
+        if (! $user || ! $user->empresa_id) {
             $this->errorMessage = 'Usuario sin empresa asignada';
+
             return;
         }
 
         $this->empresa = Empresa::find($user->empresa_id);
-        
-        if (!$this->empresa) {
+
+        if (! $this->empresa) {
             $this->errorMessage = 'Empresa no encontrada';
+
             return;
         }
 
         // Verificar si tiene credenciales de MercadoPago configuradas
-        $this->mpConfigured = !empty($this->empresa->MP_ACCESS_TOKEN) && 
-                             !empty($this->empresa->MP_PUBLIC_KEY) &&
-                             !empty($this->empresa->MP_USER_ID);
+        $this->mpConfigured = ! empty($this->empresa->MP_ACCESS_TOKEN) &&
+                             ! empty($this->empresa->MP_PUBLIC_KEY) &&
+                             ! empty($this->empresa->MP_USER_ID);
 
-        if (!$this->mpConfigured) {
+        if (! $this->mpConfigured) {
             if (empty($this->empresa->MP_USER_ID)) {
                 $this->errorMessage = 'Falta configurar el USER_ID de MercadoPago. Por favor, configure el campo MP_USER_ID en la empresa.';
             } else {
@@ -110,18 +135,19 @@ class MercadoPagoQrManager extends Component
      */
     public function openStoreModal($storeId = null)
     {
-        if (!$this->mpConfigured) {
+        if (! $this->mpConfigured) {
             $this->errorMessage = 'Configure las credenciales de MercadoPago primero';
+
             return;
         }
 
         $this->resetStoreForm();
-        
+
         if ($storeId) {
             $store = MercadoPagoStore::where('id', $storeId)
                 ->where('empresa_id', $this->empresa->id)
                 ->first();
-                
+
             if ($store) {
                 $this->storeId = $store->id;
                 $this->storeName = $store->name;
@@ -134,8 +160,20 @@ class MercadoPagoQrManager extends Component
                 $this->storeLongitude = $store->address_longitude;
             }
         }
-        
+
+        // Ciudades sugeridas para la provincia seleccionada
+        $this->validCities = $this->citiesForState($this->storeState);
+
         $this->showStoreModal = true;
+    }
+
+    /**
+     * Actualizar las ciudades sugeridas al cambiar la provincia
+     */
+    public function updatedStoreState($value): void
+    {
+        $this->validCities = $this->citiesForState($value);
+        $this->citySuggestionsVisible = false;
     }
 
     /**
@@ -144,22 +182,22 @@ class MercadoPagoQrManager extends Component
     public function saveStore()
     {
         $this->validate();
-        
+
         $this->loading = true;
         $this->clearMessages();
 
         try {
             // Validar el formato del Access Token
             $accessToken = $this->empresa->MP_ACCESS_TOKEN;
-            
+
             // El Access Token correcto debe tener este formato:
             // APP_USR-XXXXXXXX-XXXXXX-XXXXXXXXXXXXXXXXXXXXXXXX-XXXXXXXXX
             // Y debe tener al menos 60 caracteres
             if (strlen($accessToken) < 60) {
                 throw new \Exception(
-                    'El Access Token configurado parece ser incorrecto. ' .
-                    'Debe ser el token completo de producción/prueba, no solo el identificador. ' .
-                    'Token actual: ' . substr($accessToken, 0, 20) . '... (longitud: ' . strlen($accessToken) . ' caracteres). ' .
+                    'El Access Token configurado parece ser incorrecto. '.
+                    'Debe ser el token completo de producción/prueba, no solo el identificador. '.
+                    'Token actual: '.substr($accessToken, 0, 20).'... (longitud: '.strlen($accessToken).' caracteres). '.
                     'Se esperan al menos 60 caracteres.'
                 );
             }
@@ -168,30 +206,30 @@ class MercadoPagoQrManager extends Component
             config([
                 'services.mercadopago.access_token' => $accessToken,
                 'services.mercadopago.user_id' => $this->empresa->MP_USER_ID,
-                'services.mercadopago.sandbox' => false
+                'services.mercadopago.sandbox' => false,
             ]);
 
             // Verificar que se configuró correctamente
             \Log::info('MercadoPago Config', [
                 'access_token_length' => strlen($accessToken),
-                'access_token_prefix' => substr($accessToken, 0, 20) . '...',
+                'access_token_prefix' => substr($accessToken, 0, 20).'...',
                 'user_id' => config('services.mercadopago.user_id'),
-                'sandbox' => config('services.mercadopago.sandbox')
+                'sandbox' => config('services.mercadopago.sandbox'),
             ]);
-            
-            $qrService = new MercadoPagoQRService();
-            
+
+            $qrService = new MercadoPagoQRService;
+
             // Preparar los datos de la ubicación
             $locationData = [
                 'street_number' => $this->storeNumber ?: '',
                 'street_name' => $this->storeStreet,
                 'city_name' => $this->storeCity,
                 'state_name' => $this->storeState,
-                'reference' => ''
+                'reference' => '',
             ];
 
             // Solo agregar latitud/longitud si ambos están presentes
-            if (!empty($this->storeLatitude) && !empty($this->storeLongitude)) {
+            if (! empty($this->storeLatitude) && ! empty($this->storeLongitude)) {
                 $locationData['latitude'] = floatval($this->storeLatitude);
                 $locationData['longitude'] = floatval($this->storeLongitude);
             } else {
@@ -202,17 +240,23 @@ class MercadoPagoQrManager extends Component
 
             $storeData = [
                 'name' => $this->storeName,
-                'location' => $locationData
+                'location' => $locationData,
             ];
 
             if ($this->storeId) {
                 // Actualizar tienda existente
                 $store = MercadoPagoStore::findOrFail($this->storeId);
-                
+
                 if ($store->mp_store_id) {
                     $response = $qrService->updateStore($store->mp_store_id, $storeData);
+
+                    if (empty($response['success'])) {
+                        $this->applyMercadoPagoError($response);
+
+                        return;
+                    }
                 }
-                
+
                 $store->update([
                     'name' => $this->storeName,
                     'address_street_name' => $this->storeStreet,
@@ -223,54 +267,56 @@ class MercadoPagoQrManager extends Component
                     'address_latitude' => $this->storeLatitude,
                     'address_longitude' => $this->storeLongitude,
                 ]);
-                
+
                 $this->successMessage = 'Tienda actualizada exitosamente';
             } else {
                 // Crear nueva tienda
                 // El external_id debe ser alfanumérico (sin guiones bajos ni caracteres especiales)
-                $externalId = 'store' . $this->empresa->id . Str::random(8);
+                $externalId = 'store'.$this->empresa->id.Str::random(8);
                 $storeData['external_id'] = $externalId;
-                
+
                 \Log::info('MercadoPagoQR - Intentando crear tienda', [
-                    'store_data' => $storeData
+                    'store_data' => $storeData,
                 ]);
-                
+
                 $response = $qrService->createStore($storeData);
-                
+
                 \Log::info('MercadoPagoQR - Respuesta del servicio', [
-                    'response' => $response
+                    'response' => $response,
                 ]);
-                
-                if (isset($response['id'])) {
-                    MercadoPagoStore::create([
-                        'empresa_id' => $this->empresa->id,
-                        'external_id' => $externalId,
-                        'mp_store_id' => $response['id'],
-                        'name' => $this->storeName,
-                        'location' => $storeData['location'],
-                        'address_street_name' => $this->storeStreet,
-                        'address_street_number' => $this->storeNumber,
-                        'address_city' => $this->storeCity,
-                        'address_state' => $this->storeState,
-                        'address_zip_code' => $this->storeZipCode,
-                        'address_latitude' => $this->storeLatitude ?: $locationData['latitude'],
-                        'address_longitude' => $this->storeLongitude ?: $locationData['longitude'],
-                    ]);
-                    
-                    $this->successMessage = 'Tienda creada exitosamente';
-                } else {
-                    throw new \Exception('Error al crear la tienda en MercadoPago: ' . json_encode($response));
+
+                if (empty($response['success']) || empty($response['id'])) {
+                    $this->applyMercadoPagoError($response);
+
+                    return;
                 }
+
+                MercadoPagoStore::create([
+                    'empresa_id' => $this->empresa->id,
+                    'external_id' => $externalId,
+                    'mp_store_id' => $response['id'],
+                    'name' => $this->storeName,
+                    'location' => $storeData['location'],
+                    'address_street_name' => $this->storeStreet,
+                    'address_street_number' => $this->storeNumber,
+                    'address_city' => $this->storeCity,
+                    'address_state' => $this->storeState,
+                    'address_zip_code' => $this->storeZipCode,
+                    'address_latitude' => $this->storeLatitude ?: $locationData['latitude'],
+                    'address_longitude' => $this->storeLongitude ?: $locationData['longitude'],
+                ]);
+
+                $this->successMessage = 'Tienda creada exitosamente';
             }
-            
+
             $this->showStoreModal = false;
             $this->resetStoreForm();
-            
-        } catch (\Exception $e) {
-            $this->errorMessage = 'Error: ' . $e->getMessage();
-            \Log::error('Error al guardar tienda', [
+
+        } catch (\Throwable $e) {
+            $this->errorMessage = 'Error: '.$e->getMessage();
+            Log::error('Error al guardar tienda', [
                 'error' => $e->getMessage(),
-                'empresa_id' => $this->empresa->id
+                'empresa_id' => $this->empresa?->id,
             ]);
         } finally {
             $this->loading = false;
@@ -295,10 +341,10 @@ class MercadoPagoQrManager extends Component
                 config([
                     'services.mercadopago.access_token' => $this->empresa->MP_ACCESS_TOKEN,
                     'services.mercadopago.user_id' => $this->empresa->MP_USER_ID,
-                    'services.mercadopago.sandbox' => false
+                    'services.mercadopago.sandbox' => false,
                 ]);
-                
-                $qrService = new MercadoPagoQRService();
+
+                $qrService = new MercadoPagoQRService;
                 $qrService->deleteStore($store->mp_store_id);
             }
 
@@ -306,9 +352,9 @@ class MercadoPagoQrManager extends Component
             $store->delete();
 
             $this->successMessage = 'Tienda eliminada exitosamente';
-            
+
         } catch (\Exception $e) {
-            $this->errorMessage = 'Error al eliminar tienda: ' . $e->getMessage();
+            $this->errorMessage = 'Error al eliminar tienda: '.$e->getMessage();
         } finally {
             $this->loading = false;
         }
@@ -321,12 +367,12 @@ class MercadoPagoQrManager extends Component
     {
         $this->resetPosForm();
         $this->selectedStoreId = $storeId;
-        
+
         if ($posId) {
             $pos = MercadoPagoPOS::where('id', $posId)
                 ->where('mercadopago_store_id', $storeId)
                 ->first();
-                
+
             if ($pos) {
                 $this->posId = $pos->id;
                 $this->posName = $pos->name;
@@ -334,7 +380,7 @@ class MercadoPagoQrManager extends Component
                 $this->posCategory = $pos->category;
             }
         }
-        
+
         $this->showPosModal = true;
     }
 
@@ -362,11 +408,11 @@ class MercadoPagoQrManager extends Component
             config([
                 'services.mercadopago.access_token' => $this->empresa->MP_ACCESS_TOKEN,
                 'services.mercadopago.user_id' => $this->empresa->MP_USER_ID,
-                'services.mercadopago.sandbox' => false
+                'services.mercadopago.sandbox' => false,
             ]);
-            
-            $qrService = new MercadoPagoQRService();
-            
+
+            $qrService = new MercadoPagoQRService;
+
             $posData = [
                 'name' => $this->posName,
                 'fixed_amount' => $this->posFixedAmount,
@@ -379,23 +425,23 @@ class MercadoPagoQrManager extends Component
             if ($this->posId) {
                 // Actualizar caja existente
                 $pos = MercadoPagoPOS::findOrFail($this->posId);
-                
+
                 $pos->update([
                     'name' => $this->posName,
                     'fixed_amount' => $this->posFixedAmount ? 'true' : 'false',
                     'category' => $this->posCategory,
                     'usuario_id' => $this->usuarioIDCaja,
                 ]);
-                
+
                 $this->successMessage = 'Caja actualizada exitosamente';
             } else {
                 // Crear nueva caja
                 // El external_id debe ser alfanumérico (sin guiones bajos ni caracteres especiales)
-                $externalId = 'posStore' . $store->id . Str::random(8);
+                $externalId = 'posStore'.$store->id.Str::random(8);
                 $posData['external_id'] = $externalId;
                 $posData['store_id'] = $store->mp_store_id;
                 $posData['external_store_id'] = $store->external_id;
-                
+
                 // Nota: El parámetro 'category' es opcional y debe ser un código numérico MCC
                 // Si no se envía, se usa una categoría genérica
                 // Solo se soportan categorías de Gastronomía y Estación de servicio
@@ -403,47 +449,49 @@ class MercadoPagoQrManager extends Component
                 if (isset($posData['category'])) {
                     unset($posData['category']);
                 }
-                
+
                 $response = $qrService->createPOS($posData);
-                
+
                 \Log::info('MercadoPagoQR - Respuesta al crear caja', [
-                    'response' => $response
+                    'response' => $response,
                 ]);
-                
+
                 // La respuesta viene en formato: ['success' => true, 'pos_id' => ..., 'data' => [...]]
-                if (isset($response['success']) && $response['success'] && isset($response['data']['id'])) {
-                    $responseData = $response['data'];
-                    
-                    MercadoPagoPOS::create([
-                        'mercadopago_store_id' => $store->id,
-                        'external_id' => $externalId,
-                        'mp_pos_id' => $responseData['id'],
-                        'name' => $this->posName,
-                        'fixed_amount' => $this->posFixedAmount ? 'true' : 'false',
-                        'category' => $this->posCategory,
-                        'qr_code' => $response['qr_code_image'] ?? null,
-                        'qr_url' => $response['qr_code_template'] ?? null,
-                        'uuid' => $response['uuid'] ?? null,
-                        'status' => $responseData['status'] ?? 'active',
-                        'qr_data' => $responseData['qr_code'] ?? null,
-                        'active' => true,
-                        'usuario_id' => $this->usuarioIDCaja,
-                    ]);
-                    
-                    $this->successMessage = 'Caja creada exitosamente con código QR';
-                } else {
-                    throw new \Exception('Error al crear la caja en MercadoPago: ' . json_encode($response));
+                if (empty($response['success']) || empty($response['data']['id'])) {
+                    $this->applyMercadoPagoError($response);
+
+                    return;
                 }
+
+                $responseData = $response['data'];
+
+                MercadoPagoPOS::create([
+                    'mercadopago_store_id' => $store->id,
+                    'external_id' => $externalId,
+                    'mp_pos_id' => $responseData['id'],
+                    'name' => $this->posName,
+                    'fixed_amount' => $this->posFixedAmount ? 'true' : 'false',
+                    'category' => $this->posCategory,
+                    'qr_code' => $response['qr_code_image'] ?? null,
+                    'qr_url' => $response['qr_code_template'] ?? null,
+                    'uuid' => $response['uuid'] ?? null,
+                    'status' => $responseData['status'] ?? 'active',
+                    'qr_data' => $responseData['qr_code'] ?? null,
+                    'active' => true,
+                    'usuario_id' => $this->usuarioIDCaja,
+                ]);
+
+                $this->successMessage = 'Caja creada exitosamente con código QR';
             }
-            
+
             $this->showPosModal = false;
             $this->resetPosForm();
-            
-        } catch (\Exception $e) {
-            $this->errorMessage = 'Error: ' . $e->getMessage();
-            \Log::error('Error al guardar caja', [
+
+        } catch (\Throwable $e) {
+            $this->errorMessage = 'Error: '.$e->getMessage();
+            Log::error('Error al guardar caja', [
                 'error' => $e->getMessage(),
-                'store_id' => $this->selectedStoreId
+                'store_id' => $this->selectedStoreId,
             ]);
         } finally {
             $this->loading = false;
@@ -471,19 +519,19 @@ class MercadoPagoQrManager extends Component
                 config([
                     'services.mercadopago.access_token' => $this->empresa->MP_ACCESS_TOKEN,
                     'services.mercadopago.user_id' => $this->empresa->MP_USER_ID,
-                    'services.mercadopago.sandbox' => false
+                    'services.mercadopago.sandbox' => false,
                 ]);
-                
-                $qrService = new MercadoPagoQRService();
+
+                $qrService = new MercadoPagoQRService;
                 $qrService->deletePOS($pos->mp_pos_id);
             }
 
             $pos->delete();
 
             $this->successMessage = 'Caja eliminada exitosamente';
-            
+
         } catch (\Exception $e) {
-            $this->errorMessage = 'Error al eliminar caja: ' . $e->getMessage();
+            $this->errorMessage = 'Error al eliminar caja: '.$e->getMessage();
         } finally {
             $this->loading = false;
         }
@@ -496,16 +544,17 @@ class MercadoPagoQrManager extends Component
     {
         try {
             $pos = MercadoPagoPOS::findOrFail($posId);
-            
-            if (!$pos->qr_url) {
+
+            if (! $pos->qr_url) {
                 $this->errorMessage = 'Esta caja no tiene un código QR disponible';
+
                 return;
             }
 
             return redirect($pos->qr_url);
-            
+
         } catch (\Exception $e) {
-            $this->errorMessage = 'Error al descargar QR: ' . $e->getMessage();
+            $this->errorMessage = 'Error al descargar QR: '.$e->getMessage();
         }
     }
 
@@ -545,6 +594,115 @@ class MercadoPagoQrManager extends Component
     {
         $this->successMessage = '';
         $this->errorMessage = '';
+        $this->errorDetails = [];
+        $this->citySuggestionsVisible = false;
+    }
+
+    /**
+     * Mostrar el error devuelto por MercadoPago y quedarse con el detalle
+     * (por ejemplo, la lista de ciudades válidas para la provincia).
+     */
+    private function applyMercadoPagoError(array $response): void
+    {
+        $message = trim((string) ($response['error'] ?? ''));
+
+        if ($message === '') {
+            $message = 'Error desconocido al comunicarse con MercadoPago';
+        }
+
+        $this->errorMessage = 'MercadoPago rechazó la operación: '.$message;
+
+        $causes = is_array($response['causes'] ?? null) ? $response['causes'] : [];
+        $validValues = $this->extractValidValues($causes);
+
+        if ($validValues !== []) {
+            // MercadoPago informó los valores aceptados: los usamos como
+            // sugerencias y los guardamos para no volver a fallar.
+            $this->validCities = $validValues;
+            $this->errorDetails = [];
+            $this->citySuggestionsVisible = true;
+
+            if ($this->storeState) {
+                Cache::forever($this->citiesCacheKey($this->storeState), $validValues);
+            }
+
+            return;
+        }
+
+        $details = [];
+
+        foreach ($causes as $cause) {
+            $detail = is_array($cause)
+                ? trim((string) ($cause['description'] ?? $cause['message'] ?? ''))
+                : trim((string) $cause);
+
+            if ($detail !== '') {
+                $details[] = $detail;
+            }
+        }
+
+        $this->errorDetails = $details;
+    }
+
+    /**
+     * Extraer la lista de valores válidos que MercadoPago incluye en el
+     * mensaje "Valid values are: ...".
+     */
+    private function extractValidValues(array $causes): array
+    {
+        foreach ($causes as $cause) {
+            $description = is_array($cause)
+                ? (string) ($cause['description'] ?? '')
+                : (string) $cause;
+
+            // Solo nos interesan las listas de ciudades/departamentos.
+            if (stripos($description, 'city_name') === false) {
+                continue;
+            }
+
+            if (preg_match('/Valid values are:\s*(.+)$/is', $description, $matches) !== 1) {
+                continue;
+            }
+
+            $values = array_map('trim', explode(',', $matches[1]));
+            $values = array_values(array_filter($values, fn ($value) => $value !== ''));
+
+            if ($values !== []) {
+                return $values;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Ciudades/departamentos sugeridos para una provincia: catálogo propio
+     * + valores aprendidos de las respuestas de MercadoPago.
+     */
+    private function citiesForState(?string $state): array
+    {
+        if (empty($state)) {
+            return [];
+        }
+
+        $catalog = (array) config('mercadopago_cities.cities.'.$state, []);
+        $cached = Cache::get($this->citiesCacheKey($state), []);
+        $cached = is_array($cached) ? $cached : [];
+
+        $cities = array_merge($catalog, $cached);
+        $cities = array_values(array_unique(array_filter(array_map(
+            fn ($city) => trim((string) $city),
+            $cities
+        ))));
+
+        sort($cities);
+
+        return $cities;
+    }
+
+    private function citiesCacheKey(string $state): string
+    {
+        return 'mercadopago.store.cities.'.Str::slug($state);
     }
 
     /**
@@ -563,22 +721,25 @@ class MercadoPagoQrManager extends Component
      */
     public function render()
     {
-        $stores = [];
-        
+        $stores = collect();
+        $usuarios = collect();
+
         if ($this->empresa) {
             $stores = MercadoPagoStore::where('empresa_id', $this->empresa->id)
-                ->with(['pos' => function($query) {
+                ->with(['pos' => function ($query) {
                     $query->orderBy('created_at', 'desc');
                 }])
                 ->orderBy('created_at', 'desc')
                 ->paginate(10);
+
+            $usuarios = $this->empresa->users()->get();
         }
 
         return view('livewire.mercado-pago-qr-manager', [
             'stores' => $stores,
-            'usuarios' => $this->empresa->users()->get(),
+            'usuarios' => $usuarios,
         ])
-        ->extends('principal.principal')
+            ->extends('principal.principal')
             ->section('body');
 
     }

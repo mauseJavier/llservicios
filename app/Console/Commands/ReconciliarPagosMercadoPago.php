@@ -2,12 +2,14 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
+use App\Http\Controllers\MercadoPago\MercadoPagoWebhookController;
 use App\Models\MercadoPagoPagoIntento;
 use App\Models\MercadoPagoPagoProcesado;
+use App\Models\MercadoPagoQROrder;
 use App\Models\ServicioPagar;
 use App\Services\MercadoPago\MercadoPagoApiService;
-use App\Http\Controllers\MercadoPago\MercadoPagoWebhookController;
+use App\Services\MercadoPago\MercadoPagoQRPaymentService;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
 class ReconciliarPagosMercadoPago extends Command
@@ -28,15 +30,16 @@ class ReconciliarPagosMercadoPago extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return int
      */
     public function handle(): int
     {
         $this->info('Iniciando reconciliación de pagos MercadoPago...');
 
-        $apiService = new MercadoPagoApiService();
+        $apiService = new MercadoPagoApiService;
         $webhookController = app(MercadoPagoWebhookController::class);
+
+        // Órdenes QR pendientes: si el webhook no llegó, se confirman acá.
+        $qrConfirmadas = $this->reconciliarOrdenesQr();
 
         // Servicios impagos que podrían tener un pago aprobado pendiente de procesar.
         $serviciosImpagos = ServicioPagar::with('servicio.empresa', 'cliente')
@@ -52,13 +55,13 @@ class ReconciliarPagosMercadoPago extends Command
         foreach ($serviciosImpagos as $servicioPagar) {
             $empresa = $servicioPagar->servicio->empresa ?? null;
 
-            if (!$empresa || empty($empresa->MP_ACCESS_TOKEN)) {
+            if (! $empresa || empty($empresa->MP_ACCESS_TOKEN)) {
                 continue;
             }
 
             $empresaId = (int) $empresa->id;
 
-            $busquedas[$empresaId]['servicio_pagar_' . $servicioPagar->id] = (string) $empresa->MP_ACCESS_TOKEN;
+            $busquedas[$empresaId]['servicio_pagar_'.$servicioPagar->id] = (string) $empresa->MP_ACCESS_TOKEN;
         }
 
         $intentosPendientes = MercadoPagoPagoIntento::with('empresa')
@@ -68,7 +71,7 @@ class ReconciliarPagosMercadoPago extends Command
         foreach ($intentosPendientes as $intento) {
             $empresa = $intento->empresa;
 
-            if (!$empresa || empty($empresa->MP_ACCESS_TOKEN)) {
+            if (! $empresa || empty($empresa->MP_ACCESS_TOKEN)) {
                 continue;
             }
 
@@ -78,7 +81,8 @@ class ReconciliarPagosMercadoPago extends Command
         }
 
         if (empty($busquedas)) {
-            $this->info('No hay servicios impagos con empresa y token configurados.');
+            $this->info("No hay servicios impagos con empresa y token configurados. Ordenes QR confirmadas: {$qrConfirmadas}.");
+
             return 0;
         }
 
@@ -101,6 +105,7 @@ class ReconciliarPagosMercadoPago extends Command
 
                     if (MercadoPagoPagoProcesado::where('payment_id', (string) $paymentId)->exists()) {
                         $this->line("Pago {$paymentId} ya procesado; se omite.");
+
                         continue;
                     }
 
@@ -125,8 +130,40 @@ class ReconciliarPagosMercadoPago extends Command
             }
         }
 
-        $this->info("Reconciliación finalizada: busquedas={$busquedasRealizadas}, pagos_procesados={$pagosProcesados}, errores={$errores}");
+        $this->info("Reconciliación finalizada: busquedas={$busquedasRealizadas}, pagos_procesados={$pagosProcesados}, ordenes_qr_confirmadas={$qrConfirmadas}, errores={$errores}");
 
         return 0;
+    }
+
+    /**
+     * Confirmar órdenes QR pendientes cuyo pago existe en MercadoPago pero
+     * cuyo webhook nunca llegó.
+     */
+    private function reconciliarOrdenesQr(): int
+    {
+        $service = app(MercadoPagoQRPaymentService::class);
+        $confirmadas = 0;
+
+        $ordenes = MercadoPagoQROrder::with('pos.store.empresa')
+            ->where('status', 'pending')
+            ->where('created_at', '>=', now()->subDay())
+            ->latest()
+            ->limit(50)
+            ->get();
+
+        foreach ($ordenes as $orden) {
+            if ($service->reconcile($orden)) {
+                $confirmadas++;
+
+                $this->line("Orden QR {$orden->id} confirmada (payment ".($orden->fresh()->payment_id ?? 'N/D').').');
+
+                Log::info('Reconciliación: orden QR confirmada', [
+                    'order_id' => $orden->id,
+                    'external_reference' => $orden->external_reference,
+                ]);
+            }
+        }
+
+        return $confirmadas;
     }
 }

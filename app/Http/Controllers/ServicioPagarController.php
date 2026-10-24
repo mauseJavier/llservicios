@@ -13,6 +13,8 @@ use App\Models\MercadoPagoQROrder;
 use App\Models\Pagos;
 use App\Models\Servicio;
 use App\Models\ServicioPagar;
+use App\Services\MercadoPago\MercadoPagoApiService;
+use App\Services\MercadoPago\MercadoPagoQRPaymentService;
 use App\Services\MercadoPago\MercadoPagoQRService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -20,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -456,8 +459,14 @@ class ServicioPagarController extends Controller
     public function PagarServicio($idServicioPagar, $importe)
     {
 
-        // de esta manera buscamos el id de la caja de mercado pago asignada al usuario
-        $this->posMpId = auth()->user()->mercadoPagoPOS()->first()->id ?? 1;
+        // Caja asignada al usuario; si no tiene, usamos una caja de su empresa
+        // (nunca una caja de otra empresa).
+        $usuario = auth()->user();
+
+        $this->posMpId = $usuario?->mercadoPagoPOS()->first()?->id
+            ?? MercadoPagoPOS::whereHas('store', function ($query) use ($usuario) {
+                $query->where('empresa_id', $usuario?->empresa_id);
+            })->value('id');
 
         // foreach (auth()->user()->mercadoPagoPOS as $pos) {
         //     @dump($pos->id);
@@ -468,6 +477,10 @@ class ServicioPagarController extends Controller
         // Utilizar el modelo ServicioPagar con sus relaciones
         $servicioPagar = ServicioPagar::with(['servicio', 'cliente'])
             ->findOrFail($idServicioPagar);
+
+        if ((int) $servicioPagar->servicio->empresa_id !== (int) ($usuario->empresa_id ?? 0)) {
+            abort(403, 'El servicio no pertenece a su empresa.');
+        }
 
         // Preparar datos para la vista con información del cliente y servicio
         $datosServicio = (object) [
@@ -523,13 +536,25 @@ class ServicioPagarController extends Controller
      */
     public function mostrarQR($servicioPagar, $importe, $posMpId)
     {
+        $usuario = Auth::user();
+
         $servicioPagar = ServicioPagar::with(['servicio', 'cliente'])
             ->findOrFail($servicioPagar);
+
+        if ((int) $servicioPagar->servicio->empresa_id !== (int) ($usuario->empresa_id ?? 0)) {
+            abort(403, 'El servicio no pertenece a su empresa.');
+        }
+
+        $pos = MercadoPagoPOS::with('store')->find($posMpId);
+
+        if (! $pos || (int) $pos->store?->empresa_id !== (int) ($usuario->empresa_id ?? 0)) {
+            abort(403, 'La caja seleccionada no pertenece a su empresa.');
+        }
 
         return view('servicios.QRPago', [
             'servicioPagar' => $servicioPagar,
             'importe' => $importe,
-            'posMpId' => $posMpId,
+            'posMpId' => $pos->id,
         ]);
     }
 
@@ -545,16 +570,68 @@ class ServicioPagarController extends Controller
         ]);
 
         try {
+            $usuario = Auth::user();
+
             // Utilizar el modelo ServicioPagar con sus relaciones
             $servicioPagar = ServicioPagar::with(['servicio', 'cliente'])
                 ->findOrFail($request->servicioPagar);
 
-            $pos = MercadoPagoPOS::findOrFail($request->posMpId);
+            $pos = MercadoPagoPOS::with('store.empresa')->findOrFail($request->posMpId);
+
+            $empresaId = (int) ($usuario->empresa_id ?? 0);
+            $empresaPos = $pos->store?->empresa;
+
+            if (! $servicioPagar->servicio || (int) $servicioPagar->servicio->empresa_id !== $empresaId) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'El servicio no pertenece a su empresa.',
+                ], 403);
+            }
+
+            if (! $empresaPos || (int) $empresaPos->id !== $empresaId) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'La caja seleccionada no pertenece a su empresa.',
+                ], 403);
+            }
+
+            $qrPayments = app(MercadoPagoQRPaymentService::class);
+
+            // Si ya se pagó (por webhook o por otro intento), no generar otro QR.
+            if ($servicioPagar->estado === 'pago') {
+                return response()->json([
+                    'success' => true,
+                    'already_paid' => true,
+                    'status' => 'paid',
+                    'payment_id' => $servicioPagar->mp_payment_id,
+                ]);
+            }
+
+            // Antes de crear una orden nueva, revisar si alguna orden pendiente
+            // de este servicio ya fue pagada y no llegó el webhook.
+            $ordenesPendientes = MercadoPagoQROrder::where('servicio_pagar_id', $servicioPagar->id)
+                ->where('status', 'pending')
+                ->latest()
+                ->limit(3)
+                ->get();
+
+            foreach ($ordenesPendientes as $ordenPendiente) {
+                if ($qrPayments->reconcile($ordenPendiente)) {
+                    $ordenPendiente->refresh();
+
+                    return response()->json([
+                        'success' => true,
+                        'already_paid' => true,
+                        'status' => 'paid',
+                        'payment_id' => $ordenPendiente->payment_id,
+                    ]);
+                }
+            }
 
             // Configurar credenciales
             config([
-                'services.mercadopago.access_token' => $pos->store->empresa->MP_ACCESS_TOKEN,
-                'services.mercadopago.user_id' => $pos->store->empresa->MP_USER_ID,
+                'services.mercadopago.access_token' => $empresaPos->MP_ACCESS_TOKEN,
+                'services.mercadopago.user_id' => $empresaPos->MP_USER_ID,
                 'services.mercadopago.sandbox' => false,
             ]);
 
@@ -563,9 +640,10 @@ class ServicioPagarController extends Controller
             // Generar referencia única
             $orderReference = 'QR-'.time().'-'.Str::random(6);
 
-            $baseUrl = config('app.env') === 'local' ? 'https://prepositionally-vacciniaceous-irving.ngrok-free.dev' : config('app.url');
-            $notificationUrl = app()->environment() == 'local' ? $baseUrl.'/api/mercadopago/webhook/qr' : route('api.mercadopago.webhook.qr');
-            $notificationUrl .= (str_contains($notificationUrl, '?') ? '&' : '?').'empresa_id='.$pos->store->empresa->id;
+            // En desarrollo usa la URL pública (ngrok) y en producción el
+            // dominio de APP_URL, según MERCADOPAGO_TEST.
+            $notificationUrl = MercadoPagoApiService::getBaseUrl().'/api/mercadopago/webhook/qr';
+            $notificationUrl .= (str_contains($notificationUrl, '?') ? '&' : '?').'empresa_id='.$empresaPos->id;
 
             // Datos de la orden
             $orderData = [
@@ -647,6 +725,14 @@ class ServicioPagarController extends Controller
                     'success' => false,
                     'error' => 'Orden no encontrada',
                 ], 404);
+            }
+
+            // Respaldo del webhook: si la orden sigue pendiente, consultar
+            // MercadoPago (como máximo cada 5 segundos por orden) y confirmar
+            // el pago si coincide orden, empresa y monto.
+            if ($order->isPending() && Cache::add('mp:qr:reconcile:'.$order->id, 1, 5)) {
+                app(MercadoPagoQRPaymentService::class)->reconcile($order);
+                $order->refresh();
             }
 
             return response()->json([

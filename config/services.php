@@ -39,9 +39,12 @@ return [
         'sandbox' => env('MERCADOPAGO_SANDBOX', true),
         'user_id' => env('MERCADOPAGO_USER_ID', '105046639'),
         // Cuando está activo se usa public_url (ngrok en desarrollo) para las
-        // back_urls y el webhook, en lugar de app.url.
-        'test_mode' => env('MERCADOPAGO_TEST', true),
-        'public_url' => env('MERCADOPAGO_PUBLIC_URL', 'https://prepositionally-vacciniaceous-irving.ngrok-free.dev'),
+        // back_urls y el webhook, en lugar de app.url. En producción dejar
+        // MERCADOPAGO_TEST=false para usar el dominio de APP_URL.
+        'test_mode' => env('MERCADOPAGO_TEST', false),
+        // URL pública por la que MercadoPago puede alcanzar la app.
+        // Desarrollo: URL de ngrok. Producción: dejar vacío y usar APP_URL.
+        'public_url' => env('MERCADOPAGO_PUBLIC_URL'),
         // El secreto de firma de webhooks se configura por empresa (MP_WEBHOOK_SECRET),
         // porque cada una opera con su propia cuenta de Mercado Pago.
         'webhook_signature_enforce' => env('MERCADOPAGO_WEBHOOK_SIGNATURE_ENFORCE', false),

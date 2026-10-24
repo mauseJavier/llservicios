@@ -41,8 +41,11 @@ class MercadoPagoApiService
      */
     public static function getBaseUrl(): string
     {
+        // En desarrollo (test_mode) se usa la URL pública de ngrok; en
+        // producción, el dominio configurado en APP_URL. public_url nunca
+        // cae a una URL hardcodeada para no romper producción.
         $baseUrl = config('services.mercadopago.test_mode', false)
-            ? config('services.mercadopago.public_url', config('app.url'))
+            ? (config('services.mercadopago.public_url') ?: config('app.url'))
             : config('app.url');
 
         return rtrim((string) $baseUrl, '/');

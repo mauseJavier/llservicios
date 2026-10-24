@@ -23,7 +23,7 @@
                 </ins>
             @endif
 
-            @if($errorMessage)
+            @if($errorMessage && !$showStoreModal && !$showPosModal)
                 <mark>
                     <i class="fas fa-exclamation-triangle"></i> {{ $errorMessage }}
                     <button wire:click="$set('errorMessage', '')" class="close" aria-label="Cerrar">&times;</button>
@@ -139,7 +139,7 @@
                                                     <p>
                                                         <small>
                                                             <i class="fas fa-tag"></i> 
-                                                            {{ $categories[$pos->category] ?? $pos->category }}
+                                                            {{ $pos->category }}
                                                         </small>
                                                     </p>
                                                 @endif
@@ -213,6 +213,43 @@
                     <h3>{{ $storeId ? 'Editar Tienda' : 'Nueva Tienda' }}</h3>
                     <button wire:click="closeModal" aria-label="Cerrar" class="close"></button>
                 </header>
+
+                {{-- Errores devueltos por MercadoPago (visibles dentro del modal) --}}
+                @if($errorMessage)
+                    <mark class="modal-error">
+                        <strong><i class="fas fa-exclamation-triangle"></i> No se pudo guardar la tienda</strong>
+                        <p>{{ $errorMessage }}</p>
+                    </mark>
+                @endif
+
+                @if(!empty($errorDetails))
+                    <ins class="modal-error-details">
+                        <small><strong>Detalle informado por MercadoPago:</strong></small>
+                        <ul>
+                            @foreach($errorDetails as $detail)
+                                <li><small>{{ $detail }}</small></li>
+                            @endforeach
+                        </ul>
+                    </ins>
+                @endif
+
+                @if($citySuggestionsVisible && !empty($validCities) && $errorMessage)
+                    <div class="city-suggestions">
+                        <small>
+                            <strong>Ciudades/departamentos aceptados por MercadoPago para {{ $storeState }}:</strong>
+                            Hacé clic en uno para usarlo.
+                        </small>
+                        <div class="city-chips">
+                            @foreach($validCities as $city)
+                                <button type="button"
+                                        class="city-chip"
+                                        wire:click="$set('storeCity', @js($city))">
+                                    {{ $city }}
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
                 
                 <form wire:submit.prevent="saveStore">
                     <div class="grid">
@@ -255,29 +292,43 @@
 
                     <div class="grid">
                         <label>
-                            Ciudad *
-                            <input type="text" 
-                                   name="storeCity"
-                                   wire:model="storeCity"
-                                   placeholder="Buenos Aires"
-                                   aria-invalid="@error('storeCity') true @enderror"
-                                   required>
-                            @error('storeCity') 
+                            Provincia *
+                            <select name="storeState"
+                                    wire:model.live="storeState"
+                                    aria-invalid="@error('storeState') true @enderror"
+                                    required>
+                                <option value="">Seleccione una provincia</option>
+                                @if($storeState && !in_array($storeState, config('mercadopago_cities.states', []), true))
+                                    <option value="{{ $storeState }}">{{ $storeState }} (valor actual)</option>
+                                @endif
+                                @foreach(config('mercadopago_cities.states', []) as $state)
+                                    <option value="{{ $state }}">{{ $state }}</option>
+                                @endforeach
+                            </select>
+                            @error('storeState')
                                 <small class="error">{{ $message }}</small>
                             @enderror
                         </label>
 
                         <label>
-                            Provincia *
-                            <input type="text" 
-                                   name="storeState"
-                                   wire:model="storeState"
-                                   placeholder="CABA"
-                                   aria-invalid="@error('storeState') true @enderror"
+                            Ciudad / Departamento *
+                            <input type="text"
+                                   name="storeCity"
+                                   wire:model="storeCity"
+                                   list="mp-store-cities"
+                                   placeholder="Ej: Confluencia"
+                                   autocomplete="off"
+                                   aria-invalid="@error('storeCity') true @enderror"
                                    required>
-                            @error('storeState') 
+                            <datalist id="mp-store-cities">
+                                @foreach($validCities as $city)
+                                    <option value="{{ $city }}"></option>
+                                @endforeach
+                            </datalist>
+                            @error('storeCity')
                                 <small class="error">{{ $message }}</small>
                             @enderror
+                            <small>MercadoPago solo acepta ciudades/departamentos de su padrón.</small>
                         </label>
                     </div>
 
@@ -346,6 +397,24 @@
                     <h3>{{ $posId ? 'Editar Caja' : 'Nueva Caja' }}</h3>
                     <button wire:click="closeModal" aria-label="Cerrar" class="close"></button>
                 </header>
+
+                @if($errorMessage)
+                    <mark class="modal-error">
+                        <strong><i class="fas fa-exclamation-triangle"></i> No se pudo guardar la caja</strong>
+                        <p>{{ $errorMessage }}</p>
+                    </mark>
+                @endif
+
+                @if(!empty($errorDetails))
+                    <ins class="modal-error-details">
+                        <small><strong>Detalle informado por MercadoPago:</strong></small>
+                        <ul>
+                            @foreach($errorDetails as $detail)
+                                <li><small>{{ $detail }}</small></li>
+                            @endforeach
+                        </ul>
+                    </ins>
+                @endif
 
                 <form wire:submit.prevent="savePos">
                     <label>
@@ -642,6 +711,46 @@
         color: var(--pico-del-color);
         display: block;
         margin-top: 0.25rem;
+    }
+
+    /* Errores dentro del modal */
+    .modal-error {
+        margin-bottom: 1rem;
+    }
+
+    .modal-error p {
+        margin: 0.25rem 0 0;
+        word-break: break-word;
+    }
+
+    .modal-error-details ul {
+        margin: 0.5rem 0 0;
+        padding-left: 1.25rem;
+        max-height: 10rem;
+        overflow-y: auto;
+    }
+
+    /* Sugerencias de ciudades aceptadas por MercadoPago */
+    .city-suggestions {
+        margin-bottom: 1rem;
+    }
+
+    .city-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-top: 0.5rem;
+        max-height: 10rem;
+        overflow-y: auto;
+    }
+
+    .city-chip {
+        margin: 0;
+        padding: 0.15rem 0.6rem;
+        font-size: 0.75rem;
+        line-height: 1.6;
+        border-radius: 1rem;
+        width: auto;
     }
 
     /* Responsive adjustments */

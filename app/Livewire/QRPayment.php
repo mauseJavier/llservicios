@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\MercadoPagoPOS;
 use App\Models\MercadoPagoQROrder;
+use App\Services\MercadoPago\MercadoPagoApiService;
 use App\Services\MercadoPago\MercadoPagoQRService;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -66,8 +67,7 @@ class QRPayment extends Component
             // Generar referencia única
             $this->orderReference = 'QR-'.time().'-'.Str::random(6);
 
-            $baseUrl = config('app.env') === 'local' ? 'https://prepositionally-vacciniaceous-irving.ngrok-free.dev' : config('app.url');
-            $notificationUrl = app()->environment() == 'local' ? $baseUrl.'/api/mercadopago/webhook/qr' : route('api.mercadopago.webhook.qr');
+            $notificationUrl = MercadoPagoApiService::getBaseUrl().'/api/mercadopago/webhook/qr';
             $notificationUrl .= (str_contains($notificationUrl, '?') ? '&' : '?').'empresa_id='.$pos->store->empresa->id;
 
             // Datos de la orden

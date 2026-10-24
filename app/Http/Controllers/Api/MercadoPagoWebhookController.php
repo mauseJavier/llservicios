@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Empresa;
 use App\Models\MercadoPagoQROrder;
+use App\Services\MercadoPago\MercadoPagoQRPaymentService;
 use App\Services\MercadoPago\MercadoPagoQRService;
 use App\Services\MercadoPago\MercadoPagoWebhookSignatureService;
 use Illuminate\Http\Request;
@@ -12,9 +13,10 @@ use Illuminate\Support\Facades\Log;
 
 class MercadoPagoWebhookController extends Controller
 {
-    public function __construct(private MercadoPagoWebhookSignatureService $webhookSignature)
-    {
-    }
+    public function __construct(
+        private MercadoPagoWebhookSignatureService $webhookSignature,
+        private MercadoPagoQRPaymentService $qrPayments
+    ) {}
 
     /**
      * Recibir notificaciones de pagos QR
@@ -24,7 +26,7 @@ class MercadoPagoWebhookController extends Controller
         try {
             Log::info('Webhook QR recibido', [
                 'headers' => $request->headers->all(),
-                'body' => $request->all()
+                'body' => $request->all(),
             ]);
 
             $this->verificarFirmaBestEffort($request);
@@ -39,7 +41,7 @@ class MercadoPagoWebhookController extends Controller
             $esPago = $tipo === 'payment'
                 || (is_string($accion) && str_starts_with($accion, 'payment.'));
 
-            if (!$esPago) {
+            if (! $esPago) {
                 return response()->json(['status' => 'ignored'], 200);
             }
 
@@ -48,27 +50,29 @@ class MercadoPagoWebhookController extends Controller
 
             // Anotar en el log el payment ID recibido
             Log::info('Procesando webhook para payment ID', [
-                'payment_id' => $paymentId
+                'payment_id' => $paymentId,
             ]);
-            
-            if (!$paymentId) {
+
+            if (! $paymentId) {
                 Log::warning('Webhook sin payment ID');
+
                 return response()->json(['status' => 'ignored'], 200);
             }
 
             // Obtener información completa del pago con el token de la empresa
             // dueña de la notificación (o probando con cada empresa configurada).
-            $qrService = new MercadoPagoQRService();
+            $qrService = new MercadoPagoQRService;
             $paymentInfo = $this->obtenerPago(
                 $qrService,
                 (string) $paymentId,
                 $this->webhookSignature->resolverEmpresa($request)
             );
 
-            if (!$paymentInfo['success']) {
+            if (! $paymentInfo['success']) {
                 Log::error('Error obteniendo información del pago', [
-                    'payment_id' => $paymentId
+                    'payment_id' => $paymentId,
                 ]);
+
                 return response()->json(['status' => 'error'], 500);
             }
 
@@ -77,21 +81,23 @@ class MercadoPagoWebhookController extends Controller
 
             // Buscar la orden por external_reference
             $externalReference = $payment['external_reference'] ?? null;
-            
-            if (!$externalReference) {
+
+            if (! $externalReference) {
                 Log::warning('Pago sin external_reference', [
-                    'payment_id' => $paymentId
+                    'payment_id' => $paymentId,
                 ]);
+
                 return response()->json(['status' => 'ignored'], 200);
             }
 
             $order = MercadoPagoQROrder::where('external_reference', $externalReference)->first();
 
-            if (!$order) {
+            if (! $order) {
                 Log::warning('Orden no encontrada', [
                     'external_reference' => $externalReference,
-                    'payment_id' => $paymentId
+                    'payment_id' => $paymentId,
                 ]);
+
                 return response()->json(['status' => 'ignored'], 200);
             }
 
@@ -110,41 +116,31 @@ class MercadoPagoWebhookController extends Controller
                     return response()->json(['status' => 'ignored'], 200);
                 }
 
-                $montoPagado = (float) ($payment['transaction_amount'] ?? 0);
-                $montoEsperado = (float) $order->total_amount;
-
-                if (abs($montoPagado - $montoEsperado) > 0.01) {
-                    Log::error('Pago QR con monto distinto al esperado', [
+                if (! $this->qrPayments->confirm($order, $payment)) {
+                    Log::error('No se pudo confirmar el pago QR', [
                         'payment_id' => $paymentId,
                         'order_id' => $order->id,
-                        'monto_pagado' => $montoPagado,
-                        'monto_esperado' => $montoEsperado,
                     ]);
 
                     return response()->json(['status' => 'ignored'], 200);
                 }
 
-                $order->markAsPaid($paymentId, $payment);
-                
                 Log::info('Orden marcada como pagada', [
                     'order_id' => $order->id,
-                    'payment_id' => $paymentId
+                    'payment_id' => $paymentId,
                 ]);
 
-                // Ejecutar lógica de confirmación de pago
-                $this->confirmarPagoQR($order, $payment);
-                
             } else {
                 $order->update([
                     'payment_id' => $paymentId,
                     'payment_status' => $payment['status'],
                     'notification_data' => $payment,
                 ]);
-                
+
                 Log::info('Estado de pago actualizado', [
                     'order_id' => $order->id,
                     'payment_id' => $paymentId,
-                    'status' => $payment['status']
+                    'status' => $payment['status'],
                 ]);
             }
 
@@ -153,7 +149,7 @@ class MercadoPagoWebhookController extends Controller
         } catch (\Exception $e) {
             Log::error('Error procesando webhook QR', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json(['status' => 'error'], 500);
@@ -190,7 +186,7 @@ class MercadoPagoWebhookController extends Controller
      */
     private function obtenerPago(MercadoPagoQRService $qrService, string $paymentId, ?Empresa $empresa): array
     {
-        if ($empresa && !empty($empresa->MP_ACCESS_TOKEN)) {
+        if ($empresa && ! empty($empresa->MP_ACCESS_TOKEN)) {
             $qrService->setAccessToken((string) $empresa->MP_ACCESS_TOKEN);
             $qrService->setUserId($empresa->MP_USER_ID ? (string) $empresa->MP_USER_ID : null);
 
@@ -227,144 +223,5 @@ class MercadoPagoWebhookController extends Controller
             'empresa' => null,
             'error' => 'No se pudo obtener el pago con ningún token configurado',
         ];
-    }
-
-    /**
-     * Confirmar pago del servicio cuando el pago QR es exitoso
-     */
-    private function confirmarPagoQR($order, $paymentData)
-    {
-        try {
-            // Verificar que la orden tenga un servicio_pagar_id
-            if (!$order->servicio_pagar_id) {
-                Log::warning('Orden sin servicio_pagar_id', ['order_id' => $order->id]);
-                return;
-            }
-
-            $servicioPagar = \App\Models\ServicioPagar::with(['servicio', 'cliente'])->find($order->servicio_pagar_id);
-
-            if (!$servicioPagar) {
-                Log::error('ServicioPagar no encontrado', ['servicio_pagar_id' => $order->servicio_pagar_id]);
-                return;
-            }
-
-            // Verificar si ya está pagado para evitar duplicados
-            if ($servicioPagar->estado === 'pago') {
-                Log::info('ServicioPagar ya está marcado como pago', ['servicio_pagar_id' => $servicioPagar->id]);
-                return;
-            }
-
-            $empresa = \App\Models\Empresa::find($servicioPagar->servicio->empresa_id);
-            $cliente = $servicioPagar->cliente;
-
-            // Buscar la forma de pago de MercadoPago
-            $formaPagoMP = \App\Models\FormaPago::where('nombre', 'LIKE', '%MercadoPago%')
-                ->orWhere('nombre', 'LIKE', '%Mercado Pago%')
-                ->first();
-
-            if (!$formaPagoMP) {
-                // Crear forma de pago si no existe
-                $formaPagoMP = \App\Models\FormaPago::create([
-                    'nombre' => 'MercadoPago QR',
-                    'descripcion' => 'Pago mediante código QR de MercadoPago'
-                ]);
-            }
-
-            // Actualizar el estado del servicio a pagado
-            $servicioPagar->update([
-                'estado' => 'pago',
-                'mp_payment_id' => $order->payment_id,
-                'updated_at' => now()
-            ]);
-
-            // Preparar datos del pago
-            $pago = [
-                'idServicioPagar' => $servicioPagar->id,
-                'idUsuario' => 1, // Usuario sistema para pagos automáticos
-                'importe' => $order->total_amount,
-                'forma_pago' => $formaPagoMP->id,
-                'forma_pago2' => null,
-                'importe2' => 0,
-                'comentario' => 'Pago automático vía QR MercadoPago. Payment ID: ' . $order->payment_id
-            ];
-
-            // Disparar evento de pago
-            \App\Events\PagoServicioEvent::dispatch($pago);
-
-            // Enviar notificación por WhatsApp al cliente
-            if ($cliente && $cliente->telefono && $empresa) {
-                $mensaje = "Hola {$cliente->nombre},\n\n";
-                $mensaje .= "Le informamos desde {$empresa->nombre} que hemos recibido su pago:\n\n";
-                $mensaje .= "✅ ¡Pago recibido exitosamente!\n\n";
-                $mensaje .= "Detalles del pago:\n";
-                $mensaje .= "• Servicio: {$servicioPagar->servicio->nombre}\n";
-                $mensaje .= "• Forma de pago: MercadoPago QR\n";
-                $mensaje .= "• Importe: \${$order->total_amount}\n";
-                $mensaje .= "• Fecha: " . now()->format('d/m/Y H:i') . "\n";
-                $mensaje .= "• ID de pago: {$order->payment_id}\n\n";
-                $mensaje .= "¡Gracias por su preferencia!";
-
-                $datosWA = [
-                    'phoneNumber' => $cliente->telefono,
-                    'message' => $mensaje,
-                    'type' => 'text',
-                    'additionalData' => [],
-                    'instanciaWS' => $empresa->instanciaWS ?? null,
-                    'tokenWS' => $empresa->tokenWS ?? null
-                ];
-
-                \App\Jobs\EnviarWhatsAppJob::dispatch($datosWA);
-
-                // Generar y enviar comprobante PDF
-                $datosPDF = [
-                    'nombreCliente' => $cliente->nombre,
-                    'dniCliente' => $cliente->dni,
-                    'nombreServicio' => $servicioPagar->servicio->nombre,
-                    'nombreEmpresa' => $empresa->nombre,
-                    'cantidad' => $servicioPagar->cantidad,
-                    'precioUnitario' => $servicioPagar->precio,
-                    'forma_pago' => 'MercadoPago QR',
-                    'importe' => $order->total_amount,
-                    'forma_pago2' => null,
-                    'importe2' => 0,
-                    'comentario' => 'Pago automático vía QR. ID: ' . $order->payment_id,
-                    'fechaPago' => now()->format('d/m/Y H:i'),
-                    'logoEmpresa' => $empresa->logo ?? null,
-                ];
-
-                // Usar el método del controlador para generar el PDF
-                $controlador = new \App\Http\Controllers\ServicioPagarController();
-                $pdfBase64 = $controlador->GenerarComprobantePagoPDFBase64($datosPDF);
-
-                $datosPDFWA = [
-                    'phoneNumber' => $cliente->telefono,
-                    'message' => 'Comprobante de Pago adjunto - ' . $empresa->nombre,
-                    'type' => 'document',
-                    'additionalData' => [
-                        'filename' => 'comprobante_pago_' . $servicioPagar->id . '.pdf',
-                        'caption' => 'Comprobante de Pago - MercadoPago QR - ' . $empresa->nombre,
-                        'base64' => $pdfBase64
-                    ],
-                    'instanciaWS' => $empresa->instanciaWS ?? null,
-                    'tokenWS' => $empresa->tokenWS ?? null
-                ];
-
-                \App\Jobs\EnviarWhatsAppJob::dispatch($datosPDFWA);
-            }
-
-            Log::info('Pago QR confirmado exitosamente', [
-                'servicio_pagar_id' => $servicioPagar->id,
-                'order_id' => $order->id,
-                'payment_id' => $order->payment_id,
-                'amount' => $order->total_amount
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error confirmando pago QR', [
-                'order_id' => $order->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-        }
     }
 }

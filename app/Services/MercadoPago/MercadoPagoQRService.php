@@ -2,9 +2,9 @@
 
 namespace App\Services\MercadoPago;
 
+use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Exception;
 
 /**
  * Servicio para gestión de códigos QR de Mercado Pago
@@ -13,8 +13,11 @@ use Exception;
 class MercadoPagoQRService
 {
     private $accessToken;
+
     private $userId;
+
     private $baseUrl;
+
     private $sandbox;
 
     public function __construct()
@@ -23,11 +26,11 @@ class MercadoPagoQRService
         $this->userId = config('services.mercadopago.user_id'); // Necesitarás agregar esto
         $this->baseUrl = 'https://api.mercadopago.com';
         $this->sandbox = config('services.mercadopago.sandbox', true);
-        
+
         Log::info('MercadoPagoQRService inicializado', [
-            'access_token_configured' => !empty($this->accessToken),
-            'user_id_configured' => !empty($this->userId),
-            'sandbox_mode' => $this->sandbox
+            'access_token_configured' => ! empty($this->accessToken),
+            'user_id_configured' => ! empty($this->userId),
+            'sandbox_mode' => $this->sandbox,
         ]);
     }
 
@@ -36,7 +39,7 @@ class MercadoPagoQRService
      */
     public function setAccessToken(?string $accessToken): void
     {
-        if (!empty($accessToken)) {
+        if (! empty($accessToken)) {
             $this->accessToken = $accessToken;
         }
     }
@@ -46,7 +49,7 @@ class MercadoPagoQRService
      */
     public function setUserId(?string $userId): void
     {
-        if (!empty($userId)) {
+        if (! empty($userId)) {
             $this->userId = $userId;
         }
     }
@@ -54,8 +57,6 @@ class MercadoPagoQRService
     // ============================================================
     // GESTIÓN DE SUCURSALES (STORES)
     // ============================================================
-
-
 
     /**
      * Crear una sucursal
@@ -76,62 +77,68 @@ class MercadoPagoQRService
                     'state_name' => $storeData['location']['state_name'],
                     'latitude' => floatval($storeData['location']['latitude']),
                     'longitude' => floatval($storeData['location']['longitude']),
-                    'reference' => $storeData['location']['reference'] ?? ''
-                ]
+                    'reference' => $storeData['location']['reference'] ?? '',
+                ],
             ];
 
             // Agregar business_hours solo si está presente y no está vacío
-            if (!empty($storeData['business_hours'])) {
+            if (! empty($storeData['business_hours'])) {
                 $data['business_hours'] = $storeData['business_hours'];
             }
 
             Log::info('MercadoPagoQR - Datos a enviar', [
                 'data' => $data,
                 'json' => json_encode($data),
-                'url' => $this->baseUrl . '/users/' . $this->userId . '/stores',
-                'token' => substr($this->accessToken, 0, 20) . '...'
+                'url' => $this->baseUrl.'/users/'.$this->userId.'/stores',
+                'token' => substr($this->accessToken, 0, 20).'...',
             ]);
 
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken,
-                'Content-Type' => 'application/json'
-            ])->post($this->baseUrl . '/users/' . $this->userId . '/stores', $data);
+                'Authorization' => 'Bearer '.$this->accessToken,
+                'Content-Type' => 'application/json',
+            ])->post($this->baseUrl.'/users/'.$this->userId.'/stores', $data);
 
             Log::info('MercadoPagoQR - Respuesta recibida', [
                 'status' => $response->status(),
-                'body' => $response->body()
+                'body' => $response->body(),
             ]);
 
             if ($response->successful()) {
                 $responseData = $response->json();
-                
+
                 Log::info('MercadoPagoQR - Sucursal creada exitosamente', [
-                    'store_id' => $responseData['id'] ?? 'N/A'
+                    'store_id' => $responseData['id'] ?? 'N/A',
                 ]);
 
-                return $responseData;
-            } else {
-                $errorBody = $response->json();
-                $errorMessage = $errorBody['message'] ?? $response->body();
-                
-                Log::error('MercadoPagoQR - Error en la API', [
-                    'status' => $response->status(),
-                    'error_body' => $errorBody,
-                    'full_response' => $response->body()
-                ]);
-                
-                throw new Exception('Error en la API: ' . $errorMessage, $response->status());
+                return [
+                    'success' => true,
+                    'store_id' => $responseData['id'] ?? null,
+                    'id' => $responseData['id'] ?? null,
+                    'data' => $responseData,
+                ];
             }
+
+            $errorBody = $response->json();
+            $errorMessage = $errorBody['message'] ?? $response->body();
+
+            Log::error('MercadoPagoQR - Error en la API', [
+                'status' => $response->status(),
+                'error_body' => $errorBody,
+                'full_response' => $response->body(),
+            ]);
+
+            return $this->errorResponse($response->status(), $errorMessage, $errorBody);
 
         } catch (Exception $e) {
             Log::error('MercadoPagoQR - Error creando sucursal', [
-                'error_message' => $e->getMessage()
+                'error_message' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
-                'error_code' => $e->getCode()
+                'error_code' => $e->getCode(),
+                'causes' => [],
             ];
         }
     }
@@ -143,28 +150,28 @@ class MercadoPagoQRService
     {
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken,
-                'Content-Type' => 'application/json'
-            ])->get($this->baseUrl . '/users/' . $this->userId . '/stores/' . $storeId);
+                'Authorization' => 'Bearer '.$this->accessToken,
+                'Content-Type' => 'application/json',
+            ])->get($this->baseUrl.'/users/'.$this->userId.'/stores/'.$storeId);
 
             if ($response->successful()) {
                 return [
                     'success' => true,
-                    'data' => $response->json()
+                    'data' => $response->json(),
                 ];
             } else {
-                throw new Exception('Error obteniendo sucursal: ' . $response->body());
+                throw new Exception('Error obteniendo sucursal: '.$response->body());
             }
 
         } catch (Exception $e) {
             Log::error('MercadoPagoQR - Error obteniendo sucursal', [
                 'store_id' => $storeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -176,27 +183,27 @@ class MercadoPagoQRService
     {
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken,
-                'Content-Type' => 'application/json'
-            ])->get($this->baseUrl . '/users/' . $this->userId . '/stores');
+                'Authorization' => 'Bearer '.$this->accessToken,
+                'Content-Type' => 'application/json',
+            ])->get($this->baseUrl.'/users/'.$this->userId.'/stores');
 
             if ($response->successful()) {
                 return [
                     'success' => true,
-                    'data' => $response->json()
+                    'data' => $response->json(),
                 ];
             } else {
-                throw new Exception('Error listando sucursales: ' . $response->body());
+                throw new Exception('Error listando sucursales: '.$response->body());
             }
 
         } catch (Exception $e) {
             Log::error('MercadoPagoQR - Error listando sucursales', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -208,28 +215,38 @@ class MercadoPagoQRService
     {
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken,
-                'Content-Type' => 'application/json'
-            ])->put($this->baseUrl . '/users/' . $this->userId . '/stores/' . $storeId, $storeData);
+                'Authorization' => 'Bearer '.$this->accessToken,
+                'Content-Type' => 'application/json',
+            ])->put($this->baseUrl.'/users/'.$this->userId.'/stores/'.$storeId, $storeData);
 
             if ($response->successful()) {
                 return [
                     'success' => true,
-                    'data' => $response->json()
+                    'data' => $response->json(),
                 ];
-            } else {
-                throw new Exception('Error actualizando sucursal: ' . $response->body());
             }
+
+            $errorBody = $response->json();
+            $errorMessage = $errorBody['message'] ?? $response->body();
+
+            Log::error('MercadoPagoQR - Error actualizando sucursal', [
+                'store_id' => $storeId,
+                'status' => $response->status(),
+                'error_body' => $errorBody,
+            ]);
+
+            return $this->errorResponse($response->status(), $errorMessage, $errorBody);
 
         } catch (Exception $e) {
             Log::error('MercadoPagoQR - Error actualizando sucursal', [
                 'store_id' => $storeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'causes' => [],
             ];
         }
     }
@@ -241,28 +258,28 @@ class MercadoPagoQRService
     {
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken,
-                'Content-Type' => 'application/json'
-            ])->delete($this->baseUrl . '/users/' . $this->userId . '/stores/' . $storeId);
+                'Authorization' => 'Bearer '.$this->accessToken,
+                'Content-Type' => 'application/json',
+            ])->delete($this->baseUrl.'/users/'.$this->userId.'/stores/'.$storeId);
 
             if ($response->successful()) {
                 return [
                     'success' => true,
-                    'message' => 'Sucursal eliminada exitosamente'
+                    'message' => 'Sucursal eliminada exitosamente',
                 ];
             } else {
-                throw new Exception('Error eliminando sucursal: ' . $response->body());
+                throw new Exception('Error eliminando sucursal: '.$response->body());
             }
 
         } catch (Exception $e) {
             Log::error('MercadoPagoQR - Error eliminando sucursal', [
                 'store_id' => $storeId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -285,20 +302,20 @@ class MercadoPagoQRService
                 'store_id' => $posData['store_id'],
                 'external_store_id' => $posData['external_store_id'],
                 'external_id' => $posData['external_id'],
-                'category' => $posData['category'] ?? null
+                'category' => $posData['category'] ?? null,
             ];
 
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken,
-                'Content-Type' => 'application/json'
-            ])->post($this->baseUrl . '/pos', $data);
+                'Authorization' => 'Bearer '.$this->accessToken,
+                'Content-Type' => 'application/json',
+            ])->post($this->baseUrl.'/pos', $data);
 
             if ($response->successful()) {
                 $responseData = $response->json();
-                
+
                 Log::info('MercadoPagoQR - Caja/POS creada exitosamente', [
                     'pos_id' => $responseData['id'],
-                    'qr_code' => $responseData['qr']['image'] ?? 'No disponible'
+                    'qr_code' => $responseData['qr']['image'] ?? 'No disponible',
                 ]);
 
                 return [
@@ -307,21 +324,30 @@ class MercadoPagoQRService
                     'qr_code_image' => $responseData['qr']['image'] ?? null,
                     'qr_code_template' => $responseData['qr']['template_document'] ?? null,
                     'uuid' => $responseData['uuid'] ?? null,
-                    'data' => $responseData
+                    'data' => $responseData,
                 ];
-            } else {
-                throw new Exception('Error en la API: ' . $response->body(), $response->status());
             }
+
+            $errorBody = $response->json();
+            $errorMessage = $errorBody['message'] ?? $response->body();
+
+            Log::error('MercadoPagoQR - Error en la API al crear caja/POS', [
+                'status' => $response->status(),
+                'error_body' => $errorBody,
+            ]);
+
+            return $this->errorResponse($response->status(), $errorMessage, $errorBody);
 
         } catch (Exception $e) {
             Log::error('MercadoPagoQR - Error creando caja/POS', [
-                'error_message' => $e->getMessage()
+                'error_message' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
-                'error_code' => $e->getCode()
+                'error_code' => $e->getCode(),
+                'causes' => [],
             ];
         }
     }
@@ -333,28 +359,28 @@ class MercadoPagoQRService
     {
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken,
-                'Content-Type' => 'application/json'
-            ])->get($this->baseUrl . '/pos/' . $posId);
+                'Authorization' => 'Bearer '.$this->accessToken,
+                'Content-Type' => 'application/json',
+            ])->get($this->baseUrl.'/pos/'.$posId);
 
             if ($response->successful()) {
                 return [
                     'success' => true,
-                    'data' => $response->json()
+                    'data' => $response->json(),
                 ];
             } else {
-                throw new Exception('Error obteniendo caja: ' . $response->body());
+                throw new Exception('Error obteniendo caja: '.$response->body());
             }
 
         } catch (Exception $e) {
             Log::error('MercadoPagoQR - Error obteniendo caja', [
                 'pos_id' => $posId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -366,28 +392,28 @@ class MercadoPagoQRService
     {
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken,
-                'Content-Type' => 'application/json'
-            ])->delete($this->baseUrl . '/pos/' . $posId);
+                'Authorization' => 'Bearer '.$this->accessToken,
+                'Content-Type' => 'application/json',
+            ])->delete($this->baseUrl.'/pos/'.$posId);
 
             if ($response->successful()) {
                 return [
                     'success' => true,
-                    'message' => 'Caja eliminada exitosamente'
+                    'message' => 'Caja eliminada exitosamente',
                 ];
             } else {
-                throw new Exception('Error eliminando caja: ' . $response->body());
+                throw new Exception('Error eliminando caja: '.$response->body());
             }
 
         } catch (Exception $e) {
             Log::error('MercadoPagoQR - Error eliminando caja', [
                 'pos_id' => $posId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -398,26 +424,25 @@ class MercadoPagoQRService
 
     /**
      * Crear orden QR (modelo integrado - monto fijo)
-     * 
-     * @param string $posId ID del POS/Caja
-     * @param array $orderData Datos de la orden
-     * @return array
+     *
+     * @param  string  $posId  ID del POS/Caja
+     * @param  array  $orderData  Datos de la orden
      */
     public function createQROrder(string $posId, array $orderData): array
     {
         try {
             Log::info('MercadoPagoQR - Creando orden QR', [
                 'pos_id' => $posId,
-                'order_data' => $orderData
+                'order_data' => $orderData,
             ]);
 
             $data = [
-                'external_reference' => $orderData['external_reference'] ?? 'order-' . time(),
+                'external_reference' => $orderData['external_reference'] ?? 'order-'.time(),
                 'title' => $orderData['title'],
                 'description' => $orderData['description'] ?? '',
-                'notification_url' => $orderData['notification_url'] ?? config('app.url') . '/api/mercadopago/webhook/qr',
+                'notification_url' => $orderData['notification_url'] ?? MercadoPagoApiService::getBaseUrl().'/api/mercadopago/webhook/qr',
                 'total_amount' => floatval($orderData['total_amount']),
-                'items' => $orderData['items'] ?? []
+                'items' => $orderData['items'] ?? [],
             ];
 
             // Agregar tiempo de expiración si se proporciona
@@ -428,15 +453,15 @@ class MercadoPagoQRService
             // dd( 'Data to send:', $data , 'to URL: ' . $this->baseUrl . '/instore/orders/qr/seller/collectors/' . $this->userId . '/pos/' . $posId . '/qrs' , 'Using token: ' . ($this->accessToken) . '...');
 
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken,
-                'Content-Type' => 'application/json'
-            ])->post($this->baseUrl . '/instore/orders/qr/seller/collectors/' . $this->userId . '/pos/' . $posId . '/qrs', $data);
+                'Authorization' => 'Bearer '.$this->accessToken,
+                'Content-Type' => 'application/json',
+            ])->post($this->baseUrl.'/instore/orders/qr/seller/collectors/'.$this->userId.'/pos/'.$posId.'/qrs', $data);
 
             if ($response->successful()) {
                 $responseData = $response->json();
-                
+
                 Log::info('MercadoPagoQR - Orden QR creada exitosamente', [
-                    'qr_data' => $responseData
+                    'qr_data' => $responseData,
                 ]);
 
                 return [
@@ -444,21 +469,21 @@ class MercadoPagoQRService
                     'qr_data' => $responseData['qr_data'] ?? null,
                     'in_store_order_id' => $responseData['in_store_order_id'] ?? null,
                     'external_reference' => $data['external_reference'],
-                    'data' => $responseData
+                    'data' => $responseData,
                 ];
             } else {
-                throw new Exception('Error en la API: ' . $response->body(), $response->status());
+                throw new Exception('Error en la API: '.$response->body(), $response->status());
             }
 
         } catch (Exception $e) {
             Log::error('MercadoPagoQR - Error creando orden QR', [
-                'error_message' => $e->getMessage()
+                'error_message' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
-                'error_code' => $e->getCode()
+                'error_code' => $e->getCode(),
             ];
         }
     }
@@ -470,28 +495,28 @@ class MercadoPagoQRService
     {
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken,
-                'Content-Type' => 'application/json'
-            ])->get($this->baseUrl . '/v1/payments/' . $paymentId);
+                'Authorization' => 'Bearer '.$this->accessToken,
+                'Content-Type' => 'application/json',
+            ])->get($this->baseUrl.'/v1/payments/'.$paymentId);
 
             if ($response->successful()) {
                 return [
                     'success' => true,
-                    'data' => $response->json()
+                    'data' => $response->json(),
                 ];
             } else {
-                throw new Exception('Error obteniendo pago: ' . $response->body());
+                throw new Exception('Error obteniendo pago: '.$response->body());
             }
 
         } catch (Exception $e) {
             Log::error('MercadoPagoQR - Error obteniendo pago', [
                 'payment_id' => $paymentId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -503,28 +528,28 @@ class MercadoPagoQRService
     {
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken,
-                'Content-Type' => 'application/json'
-            ])->delete($this->baseUrl . '/instore/orders/qr/seller/collectors/' . $this->userId . '/pos/' . $posId . '/qrs');
+                'Authorization' => 'Bearer '.$this->accessToken,
+                'Content-Type' => 'application/json',
+            ])->delete($this->baseUrl.'/instore/orders/qr/seller/collectors/'.$this->userId.'/pos/'.$posId.'/qrs');
 
             if ($response->successful()) {
                 return [
                     'success' => true,
-                    'message' => 'Orden QR eliminada exitosamente'
+                    'message' => 'Orden QR eliminada exitosamente',
                 ];
             } else {
-                throw new Exception('Error eliminando orden QR: ' . $response->body());
+                throw new Exception('Error eliminando orden QR: '.$response->body());
             }
 
         } catch (Exception $e) {
             Log::error('MercadoPagoQR - Error eliminando orden QR', [
                 'pos_id' => $posId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -536,28 +561,28 @@ class MercadoPagoQRService
     {
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken,
-                'Content-Type' => 'application/json'
-            ])->get($this->baseUrl . '/instore/qr/seller/collectors/' . $this->userId . '/pos/' . $posId . '/orders');
+                'Authorization' => 'Bearer '.$this->accessToken,
+                'Content-Type' => 'application/json',
+            ])->get($this->baseUrl.'/instore/qr/seller/collectors/'.$this->userId.'/pos/'.$posId.'/orders');
 
             if ($response->successful()) {
                 return [
                     'success' => true,
-                    'data' => $response->json()
+                    'data' => $response->json(),
                 ];
             } else {
-                throw new Exception('Error obteniendo orden QR: ' . $response->body());
+                throw new Exception('Error obteniendo orden QR: '.$response->body());
             }
 
         } catch (Exception $e) {
             Log::error('MercadoPagoQR - Error obteniendo orden QR', [
                 'pos_id' => $posId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -565,6 +590,23 @@ class MercadoPagoQRService
     // ============================================================
     // MÉTODOS AUXILIARES
     // ============================================================
+
+    /**
+     * Construir una respuesta de error uniforme a partir de una respuesta de la API.
+     *
+     * Incluye "causes", que MercadoPago usa para devolver el detalle de los
+     * errores de validación (por ejemplo, la lista de ciudades válidas).
+     */
+    private function errorResponse(int $status, string $message, array $body = []): array
+    {
+        return [
+            'success' => false,
+            'error' => $message,
+            'error_code' => $status,
+            'causes' => is_array($body['causes'] ?? null) ? $body['causes'] : [],
+            'raw_response' => $body,
+        ];
+    }
 
     /**
      * Validar configuración QR
@@ -584,7 +626,7 @@ class MercadoPagoQRService
         return [
             'valid' => empty($errors),
             'errors' => $errors,
-            'sandbox_mode' => $this->sandbox
+            'sandbox_mode' => $this->sandbox,
         ];
     }
 
@@ -595,31 +637,31 @@ class MercadoPagoQRService
     {
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->accessToken,
-                'Content-Type' => 'application/json'
-            ])->get($this->baseUrl . '/users/me');
+                'Authorization' => 'Bearer '.$this->accessToken,
+                'Content-Type' => 'application/json',
+            ])->get($this->baseUrl.'/users/me');
 
             if ($response->successful()) {
                 $userData = $response->json();
-                
+
                 return [
                     'success' => true,
                     'user_id' => $userData['id'],
                     'email' => $userData['email'] ?? null,
-                    'data' => $userData
+                    'data' => $userData,
                 ];
             } else {
-                throw new Exception('Error obteniendo user ID: ' . $response->body());
+                throw new Exception('Error obteniendo user ID: '.$response->body());
             }
 
         } catch (Exception $e) {
             Log::error('MercadoPagoQR - Error obteniendo user ID', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }

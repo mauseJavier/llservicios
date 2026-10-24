@@ -201,6 +201,12 @@ function generarQR() {
   .then(response => response.json())
   .then(data => {
     if (data.success) {
+      // El servicio ya estaba pago (webhook o intento anterior)
+      if (data.already_paid) {
+        pagoExitoso(data.payment_id || '-', {{ $servicioPagar->total }});
+        return;
+      }
+
       orderId = data.order_id;
       
       // Mostrar QR
