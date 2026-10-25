@@ -61,6 +61,14 @@ ENV OPENSSL_CONF=/etc/ssl/openssl_legacy.cnf
 
 # 4. Ajustes de PHP
 RUN echo "memory_limit = 512M" > /usr/local/etc/php/conf.d/memory-limit.ini
+
+# 4b. Endurecimiento php2shell (CVE-2026-109619 / CVE-2026-115560).
+#     Debe aplicarse en php.ini/conf.d, nunca con ini_set() ni .user.ini.
+RUN printf '%s\n' \
+    "session.upload_progress.enabled=0" \
+    "expose_php=Off" \
+    > /usr/local/etc/php/conf.d/security-hardening.ini
+
 RUN printf '%s\n' \
     "opcache.enable=1" \
     "opcache.memory_consumption=256" \
