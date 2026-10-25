@@ -99,7 +99,7 @@
           <li><a role="button" href="#" data-theme-switcher="dark">Oscuro</a></li>
         </div>
 
-    @include('principal.menuAPP')
+    <livewire:menu-principal />
 
 
 

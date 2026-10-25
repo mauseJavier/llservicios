@@ -539,6 +539,12 @@ class ServicioPagarController extends Controller
     {
         $usuario = Auth::user();
 
+        $importe = round((float) $importe, 2);
+
+        if ($importe <= 0) {
+            abort(422, 'El importe a cobrar debe ser mayor a cero.');
+        }
+
         $servicioPagar = ServicioPagar::with(['servicio', 'cliente'])
             ->findOrFail($servicioPagar);
 
@@ -566,12 +572,15 @@ class ServicioPagarController extends Controller
     {
         $request->validate([
             'servicioPagar' => 'required|integer',
-            'importe' => 'required|numeric',
+            'importe' => 'required|numeric|min:0.01',
             'posMpId' => 'required|integer',
         ]);
 
         try {
             $usuario = Auth::user();
+
+            // Importe a cobrar (puede incluir descuento o incremento aplicado en caja)
+            $importe = round((float) $request->importe, 2);
 
             // Utilizar el modelo ServicioPagar con sus relaciones
             $servicioPagar = ServicioPagar::with(['servicio', 'cliente'])
@@ -656,7 +665,7 @@ class ServicioPagarController extends Controller
                 'external_reference' => $orderReference,
                 'title' => $servicioPagar->servicio->nombre ?: 'Pago en caja',
                 'description' => $servicioPagar->servicio->descripcion ?: 'Cobro mediante código QR',
-                'total_amount' => floatval($servicioPagar->precio) * floatval($servicioPagar->cantidad),
+                'total_amount' => $importe,
                 'notification_url' => $notificationUrl,
                 'items' => [
                     [
@@ -664,10 +673,10 @@ class ServicioPagarController extends Controller
                         'category' => 'marketplace',
                         'title' => $servicioPagar->servicio->nombre ?: 'Producto/Servicio',
                         'description' => $servicioPagar->servicio->descripcion ?: 'Cobro mediante código QR',
-                        'unit_price' => floatval($servicioPagar->precio),
-                        'quantity' => floatval($servicioPagar->cantidad),
+                        'unit_price' => $importe,
+                        'quantity' => 1,
                         'unit_measure' => 'unit',
-                        'total_amount' => floatval($servicioPagar->precio) * floatval($servicioPagar->cantidad),
+                        'total_amount' => $importe,
                     ],
                 ],
                 'expiration_date' => now()->addMinutes(10)->format('Y-m-d\TH:i:s.vP'),

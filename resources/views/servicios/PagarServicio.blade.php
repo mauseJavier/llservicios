@@ -2,6 +2,64 @@
 
 @section('body')
 
+<style>
+  .qr-pago-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 1rem 0;
+    padding: .9rem 1rem;
+    border: 1px solid var(--pico-border-color, rgba(0, 123, 255, .35));
+    border-left: 4px solid var(--pico-primary, #007bff);
+    border-radius: var(--pico-border-radius, .5rem);
+    background: var(--pico-card-sectioning-background-color, rgba(0, 123, 255, .06));
+  }
+  .qr-pago-info {
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+    min-width: 0;
+  }
+  .qr-pago-icon {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    border-radius: 12px;
+    background: var(--pico-primary, #007bff);
+    color: var(--pico-primary-inverse, #fff);
+    font-size: 1.4rem;
+  }
+  .qr-pago-info strong {
+    display: block;
+    font-size: .95rem;
+    margin: 0 0 .15rem;
+  }
+  .qr-pago-info small {
+    display: block;
+    color: var(--pico-muted-color, #6c757d);
+    font-size: .78rem;
+    line-height: 1.35;
+  }
+  .qr-pago-btn {
+    margin: 0;
+    width: auto;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+  }
+  @media (max-width: 576px) {
+    .qr-pago-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+</style>
+
 <div class="container">
 
   <nav>
@@ -122,6 +180,24 @@
             <strong>Formulario de Pago</strong>
           </header>
 
+          {{-- Acceso directo al cobro con QR de MercadoPago --}}
+          @if($posMpId)
+            <div class="qr-pago-card">
+              <div class="qr-pago-info">
+                <span class="qr-pago-icon"><i class="fas fa-qrcode"></i></span>
+                <div>
+                  <strong>Cobrar con QR de MercadoPago</strong>
+                  <small>Escaneá el código con la app de MercadoPago. El pago se acredita automáticamente.</small>
+                </div>
+              </div>
+              <a id="qrPagoLink" role="button" class="qr-pago-btn"
+                 data-url-template="{{ route('GenerarQRMercadoPago', ['posMpId' => $posMpId, 'importe' => '__IMPORTE__', 'servicioPagar' => $idServicioPagar]) }}"
+                 href="{{ route('GenerarQRMercadoPago', ['posMpId' => $posMpId, 'importe' => $importe, 'servicioPagar' => $idServicioPagar]) }}">
+                <i class="fas fa-qrcode"></i> Pagar con QR de MercadoPago
+              </a>
+            </div>
+          @endif
+
           <input type="hidden" id="idServicioPagar" name="idServicioPagar" value="{{$idServicioPagar}}" readonly>
           <input type="hidden" id="importeOriginal" name="importeOriginal" value="{{$importe}}" readonly>
 
@@ -209,11 +285,6 @@
               <input name="dosFormasPago" id="dosFormasPago" type="checkbox" role="switch" />
               Dividir pago en dos formas de pago
             </label>
-
-            @if($posMpId)
-              <a href="{{ route('GenerarQRMercadoPago', ['posMpId' => $posMpId, 'importe' => $importe, 'servicioPagar' => $idServicioPagar]) }}" target="_blank" class="button">Generar QR MercadoPago</a>
-            @endif
-
           </div>
 
 
@@ -308,8 +379,29 @@ document.addEventListener('DOMContentLoaded', function() {
     const mensajeAjuste = document.getElementById('mensajeAjuste');
     const detalleAjuste = document.getElementById('detalleAjuste');
     const importeHidden = document.getElementById('importe');
+    const qrPagoLink = document.getElementById('qrPagoLink');
     
     let totalPago = importeOriginal;
+
+    // Actualiza el importe del enlace al QR de MercadoPago con el total vigente
+    function actualizarLinkQR() {
+        if (!qrPagoLink) {
+            return;
+        }
+
+        const template = qrPagoLink.dataset.urlTemplate;
+        if (!template) {
+            return;
+        }
+
+        qrPagoLink.href = template.replace('__IMPORTE__', encodeURIComponent(totalPago.toFixed(2)));
+
+        // Sin importe válido no se puede generar el QR
+        const sinImporte = totalPago <= 0;
+        qrPagoLink.style.opacity = sinImporte ? '.5' : '';
+        qrPagoLink.style.pointerEvents = sinImporte ? 'none' : '';
+        qrPagoLink.title = sinImporte ? 'El importe debe ser mayor a cero' : '';
+    }
 
     // Función para calcular el importe final con ajuste
     function calcularImporteFinal() {
@@ -320,6 +412,7 @@ document.addEventListener('DOMContentLoaded', function() {
             importe1.value = totalPago.toFixed(2);
             mensajeAjuste.textContent = '';
             detalleAjuste.style.display = 'none';
+            actualizarLinkQR();
             return;
         }
 
@@ -334,6 +427,7 @@ document.addEventListener('DOMContentLoaded', function() {
             importe1.value = totalPago.toFixed(2);
             mensajeAjuste.textContent = 'Complete todos los campos para calcular el ajuste';
             detalleAjuste.style.display = 'block';
+            actualizarLinkQR();
             return;
         }
 
@@ -370,6 +464,7 @@ document.addEventListener('DOMContentLoaded', function() {
         importe1.value = totalPago.toFixed(2);
         mensajeAjuste.textContent = mensaje;
         detalleAjuste.style.display = 'block';
+        actualizarLinkQR();
 
         // Si hay dos formas de pago activas, recalcular
         if (dosFormasPagoCheckbox.checked) {

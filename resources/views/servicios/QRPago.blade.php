@@ -34,7 +34,7 @@
       <div id="statusPaid" style="display: none; color: green;">
         <h2>✓ Pago Recibido Exitosamente</h2>
         <p>ID de Pago: <strong id="paymentIdDisplay"></strong></p>
-        <p>Monto: <strong>${{number_format($servicioPagar->total, 2)}}</strong></p>
+        <p>Monto: <strong>${{number_format($importe, 2)}}</strong></p>
         <p><small>Redirigiendo en <span id="redirectCountdown">5</span> segundos...</small></p>
       </div>
 
@@ -138,7 +138,7 @@
       </div>
       <div>
         <small><strong>Total a Pagar:</strong></small>
-        <p><mark>${{number_format($servicioPagar->total, 2)}}</mark></p>
+        <p><mark>${{number_format($importe, 2)}}</mark></p>
       </div>
     </div>
   </article>
@@ -194,7 +194,7 @@ function generarQR() {
     },
     body: JSON.stringify({
       servicioPagar: {{ $servicioPagar->id }},
-      importe: {{ $servicioPagar->total }},
+      importe: {{ $importe }},
       posMpId: {{ $posMpId }}
     })
   })
@@ -203,7 +203,7 @@ function generarQR() {
     if (data.success) {
       // El servicio ya estaba pago (webhook o intento anterior)
       if (data.already_paid) {
-        pagoExitoso(data.payment_id || '-', {{ $servicioPagar->total }});
+        pagoExitoso(data.payment_id || '-', {{ $importe }});
         return;
       }
 

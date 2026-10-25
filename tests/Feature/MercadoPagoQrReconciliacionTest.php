@@ -215,6 +215,52 @@ class MercadoPagoQrReconciliacionTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_crea_orden_qr_con_el_importe_ajustado_en_caja(): void
+    {
+        $this->actingAs($this->usuario);
+
+        Http::fake([
+            'api.mercadopago.com/instore/orders/qr/*' => Http::response([
+                'qr_data' => '00020101021243650016COM.MERCADOLIBRE',
+                'in_store_order_id' => 'INSTORE-DESC',
+            ], 200),
+            '*' => Http::response([], 200),
+        ]);
+
+        $this->postJson('/api/qr/create', [
+            'servicioPagar' => $this->servicioPagar->id,
+            'importe' => 80,
+            'posMpId' => $this->orden->mercadopago_pos_id,
+        ])
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        // El importe ajustado (descuento/incremento) es el que se envía a MercadoPago.
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), '/instore/orders/qr/')
+                && (float) $request['total_amount'] === 80.0
+                && (float) $request['items'][0]['unit_price'] === 80.0;
+        });
+
+        $orden = MercadoPagoQROrder::latest('id')->first();
+        $this->assertSame(80.0, (float) $orden->total_amount);
+    }
+
+    public function test_no_crea_orden_qr_con_importe_cero(): void
+    {
+        $this->actingAs($this->usuario);
+
+        Http::fake();
+
+        $this->postJson('/api/qr/create', [
+            'servicioPagar' => $this->servicioPagar->id,
+            'importe' => 0,
+            'posMpId' => $this->orden->mercadopago_pos_id,
+        ])->assertStatus(422);
+
+        Http::assertNothingSent();
+    }
+
     public function test_base_url_usa_el_dominio_en_produccion(): void
     {
         config([
