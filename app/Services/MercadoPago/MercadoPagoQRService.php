@@ -523,6 +523,12 @@ class MercadoPagoQRService
 
     /**
      * Eliminar orden QR
+     *
+     * MercadoPago responde 400 "in_store_order_delete_error" o 404
+     * "point_of_sale_in_store_order_not_found" cuando la caja no tiene una
+     * orden pendiente que borrar (ya expiró, ya se pagó o nunca quedó
+     * registrada). Ambos casos significan que el QR ya no está activo, por eso
+     * se informan con "already_gone" en lugar de como error fatal.
      */
     public function deleteQROrder(string $posId): array
     {
@@ -536,10 +542,35 @@ class MercadoPagoQRService
                 return [
                     'success' => true,
                     'message' => 'Orden QR eliminada exitosamente',
+                    'status_code' => $response->status(),
+                    'already_gone' => false,
                 ];
-            } else {
-                throw new Exception('Error eliminando orden QR: '.$response->body());
             }
+
+            $body = $response->json();
+            $body = is_array($body) ? $body : [];
+            $errorCode = $body['error'] ?? null;
+            $alreadyGone = in_array($errorCode, [
+                'in_store_order_delete_error',
+                'point_of_sale_in_store_order_not_found',
+            ], true) || $response->status() === 404;
+
+            Log::warning('MercadoPagoQR - No se pudo eliminar la orden QR', [
+                'pos_id' => $posId,
+                'status_code' => $response->status(),
+                'error_code' => $errorCode,
+                'already_gone' => $alreadyGone,
+                'body' => $response->body(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => 'No se pudo cancelar la orden en Mercado Pago.',
+                'error_code' => $errorCode,
+                'status_code' => $response->status(),
+                'already_gone' => $alreadyGone,
+                'raw_response' => $body,
+            ];
 
         } catch (Exception $e) {
             Log::error('MercadoPagoQR - Error eliminando orden QR', [
@@ -549,7 +580,10 @@ class MercadoPagoQRService
 
             return [
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'No se pudo contactar a Mercado Pago para cancelar la orden.',
+                'error_code' => 'network_error',
+                'status_code' => null,
+                'already_gone' => false,
             ];
         }
     }
@@ -569,10 +603,31 @@ class MercadoPagoQRService
                 return [
                     'success' => true,
                     'data' => $response->json(),
+                    'status_code' => $response->status(),
+                    'not_found' => false,
                 ];
-            } else {
-                throw new Exception('Error obteniendo orden QR: '.$response->body());
             }
+
+            $body = $response->json();
+            $body = is_array($body) ? $body : [];
+            $notFound = $response->status() === 404
+                || ($body['error'] ?? null) === 'point_of_sale_in_store_order_not_found';
+
+            Log::info('MercadoPagoQR - La caja no tiene una orden QR consultable', [
+                'pos_id' => $posId,
+                'status_code' => $response->status(),
+                'error_code' => $body['error'] ?? null,
+                'not_found' => $notFound,
+            ]);
+
+            return [
+                'success' => false,
+                'error' => 'No hay una orden QR activa en la caja.',
+                'error_code' => $body['error'] ?? null,
+                'status_code' => $response->status(),
+                'not_found' => $notFound,
+                'raw_response' => $body,
+            ];
 
         } catch (Exception $e) {
             Log::error('MercadoPagoQR - Error obteniendo orden QR', [
@@ -582,7 +637,10 @@ class MercadoPagoQRService
 
             return [
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'No se pudo consultar la orden en Mercado Pago.',
+                'error_code' => 'network_error',
+                'status_code' => null,
+                'not_found' => false,
             ];
         }
     }

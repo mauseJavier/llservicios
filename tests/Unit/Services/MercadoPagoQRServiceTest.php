@@ -44,6 +44,43 @@ class MercadoPagoQRServiceTest extends TestCase
             && $request->url() === 'https://api.mercadopago.com/instore/orders/qr/seller/collectors/123456/pos/POS-001/qrs');
     }
 
+    public function test_cancelar_orden_sin_orden_activa_se_marca_already_gone(): void
+    {
+        Http::fake([
+            'api.mercadopago.com/*' => Http::response([
+                'error' => 'in_store_order_delete_error',
+                'message' => 'An error occurred when deleting the InStoreOrder',
+                'status' => 400,
+                'causes' => [],
+            ], 400),
+        ]);
+
+        $resultado = $this->service->deleteQROrder('POS-001');
+
+        $this->assertFalse($resultado['success']);
+        $this->assertTrue($resultado['already_gone']);
+        $this->assertSame('in_store_order_delete_error', $resultado['error_code']);
+        $this->assertSame(400, $resultado['status_code']);
+    }
+
+    public function test_consultar_orden_sin_orden_activa_se_marca_not_found(): void
+    {
+        Http::fake([
+            'api.mercadopago.com/*' => Http::response([
+                'error' => 'point_of_sale_in_store_order_not_found',
+                'message' => 'The required PointOfSaleInStoreOrder not found',
+                'status' => 404,
+                'causes' => [],
+            ], 404),
+        ]);
+
+        $resultado = $this->service->getQROrder('POS-001');
+
+        $this->assertFalse($resultado['success']);
+        $this->assertTrue($resultado['not_found']);
+        $this->assertSame(404, $resultado['status_code']);
+    }
+
     public function test_crear_orden_usa_la_ruta_legacy_correcta(): void
     {
         Http::fake([

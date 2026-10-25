@@ -45,7 +45,7 @@
 
       <div id="statusCancelled" style="display: none; color: orange;">
         <h3>⚠ Orden Cancelada</h3>
-        <p>La orden ha sido cancelada correctamente.</p>
+        <p id="cancelMessage">La orden ha sido cancelada correctamente.</p>
       </div>
 
       <div id="statusError" style="display: none; color: red;">
@@ -351,11 +351,12 @@ function ordenExpirada() {
 }
 
 // Orden cancelada
-function ordenCancelada() {
+function ordenCancelada(mensaje) {
   detenerPolling();
   detenerContador();
   
   ocultarTodosEstados();
+  document.getElementById('cancelMessage').textContent = mensaje || 'La orden ha sido cancelada correctamente.';
   document.getElementById('statusCancelled').style.display = 'block';
   document.getElementById('qrCodeContainer').style.display = 'none';
   document.getElementById('actionButtons').style.display = 'none';
@@ -385,7 +386,12 @@ function cancelarOrden() {
   .then(response => response.json())
   .then(data => {
     if (data.success) {
-      ordenCancelada();
+      if (data.status === 'paid') {
+        pagoExitoso(data.payment_id || '-', data.amount || {{ $importe }});
+        return;
+      }
+
+      ordenCancelada(data.message);
     } else {
       mostrarError(data.error || 'Error al cancelar la orden');
     }

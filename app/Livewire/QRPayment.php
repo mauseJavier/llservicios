@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\MercadoPagoPOS;
 use App\Models\MercadoPagoQROrder;
 use App\Services\MercadoPago\MercadoPagoApiService;
+use App\Services\MercadoPago\MercadoPagoQROrderCancellationService;
 use App\Services\MercadoPago\MercadoPagoQRService;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -63,6 +64,11 @@ class QRPayment extends Component
             ]);
 
             $qrService = new MercadoPagoQRService;
+
+            // MercadoPago mantiene una sola orden activa por caja: cerrar las
+            // pendientes anteriores para no dejar órdenes fantasma.
+            app(MercadoPagoQROrderCancellationService::class)
+                ->expirePreviousPendingOrders($pos);
 
             // Generar referencia única
             $this->orderReference = 'QR-'.time().'-'.Str::random(6);
@@ -157,6 +163,12 @@ class QRPayment extends Component
 
         $this->orderStatus = $order->status;
 
+        // Cerrar la orden si venció y nadie pagó.
+        if ($order->isPending() && $order->expires_at && $order->expires_at->isPast()) {
+            $order->update(['status' => 'expired']);
+            $this->orderStatus = 'expired';
+        }
+
         if ($order->isPaid()) {
             $this->polling = false;
             $this->paymentId = $order->payment_id;
@@ -182,29 +194,29 @@ class QRPayment extends Component
     {
         try {
             if ($this->orderId) {
-                $order = MercadoPagoQROrder::find($this->orderId);
+                $order = MercadoPagoQROrder::with('pos.store.empresa')->find($this->orderId);
 
-                if ($order && $order->isPending()) {
-                    $pos = $order->pos;
+                // Ya pagada: el botón se usa como "Nueva venta".
+                if (! $order || $order->isPaid()) {
+                    $this->reset(['orderId', 'orderReference', 'orderStatus', 'paymentId', 'showQR', 'polling', 'amount', 'description']);
+                    session()->flash('info', 'Orden finalizada');
 
-                    if (! $pos) {
-                        throw new \Exception('La orden no tiene una caja asociada');
-                    }
+                    return;
+                }
 
-                    // Configurar credenciales
-                    config([
-                        'services.mercadopago.access_token' => $pos->store->empresa->MP_ACCESS_TOKEN,
-                        'services.mercadopago.user_id' => $pos->store->empresa->MP_USER_ID,
-                    ]);
+                $resultado = app(MercadoPagoQROrderCancellationService::class)->cancel($order);
 
-                    $qrService = new MercadoPagoQRService;
-                    $resultado = $qrService->deleteQROrder($pos->external_id);
+                if (! $resultado['success']) {
+                    throw new \Exception($resultado['message'] ?? 'No se pudo cancelar la orden');
+                }
 
-                    if (empty($resultado['success'])) {
-                        throw new \Exception($resultado['error'] ?? 'No se pudo cancelar la orden en Mercado Pago');
-                    }
+                if ($resultado['status'] === 'paid') {
+                    $this->paymentId = $resultado['payment_id'] ?? null;
+                    $this->orderStatus = 'paid';
+                    $this->polling = false;
+                    session()->flash('success', $resultado['message']);
 
-                    $order->update(['status' => 'cancelled']);
+                    return;
                 }
             }
 

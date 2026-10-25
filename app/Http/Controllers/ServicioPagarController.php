@@ -14,6 +14,7 @@ use App\Models\Pagos;
 use App\Models\Servicio;
 use App\Models\ServicioPagar;
 use App\Services\MercadoPago\MercadoPagoApiService;
+use App\Services\MercadoPago\MercadoPagoQROrderCancellationService;
 use App\Services\MercadoPago\MercadoPagoQRPaymentService;
 use App\Services\MercadoPago\MercadoPagoQRService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -628,6 +629,11 @@ class ServicioPagarController extends Controller
                 }
             }
 
+            // MercadoPago mantiene una sola orden activa por caja: cerrar las
+            // pendientes anteriores para no dejar órdenes fantasma.
+            app(MercadoPagoQROrderCancellationService::class)
+                ->expirePreviousPendingOrders($pos);
+
             // Configurar credenciales
             config([
                 'services.mercadopago.access_token' => $empresaPos->MP_ACCESS_TOKEN,
@@ -735,6 +741,13 @@ class ServicioPagarController extends Controller
                 $order->refresh();
             }
 
+            // Si venció y nadie pagó, cerrarla para que deje de figurar como
+            // pendiente (MercadoPago ya no tiene una orden activa en la caja).
+            if ($order->isPending() && $order->expires_at && $order->expires_at->isPast()) {
+                $order->update(['status' => 'expired']);
+                $order->refresh();
+            }
+
             return response()->json([
                 'success' => true,
                 'status' => $order->status,
@@ -765,7 +778,7 @@ class ServicioPagarController extends Controller
         ]);
 
         try {
-            $order = MercadoPagoQROrder::find($request->order_id);
+            $order = MercadoPagoQROrder::with('pos.store.empresa')->find($request->order_id);
 
             if (! $order) {
                 return response()->json([
@@ -774,44 +787,9 @@ class ServicioPagarController extends Controller
                 ], 404);
             }
 
-            if ($order->isPending()) {
-                $pos = $order->pos;
+            $resultado = app(MercadoPagoQROrderCancellationService::class)->cancel($order);
 
-                if (! $pos) {
-                    return response()->json([
-                        'success' => false,
-                        'error' => 'La orden no tiene una caja asociada',
-                    ], 400);
-                }
-
-                // Configurar credenciales
-                config([
-                    'services.mercadopago.access_token' => $pos->store->empresa->MP_ACCESS_TOKEN,
-                    'services.mercadopago.user_id' => $pos->store->empresa->MP_USER_ID,
-                ]);
-
-                $qrService = new MercadoPagoQRService;
-                $resultado = $qrService->deleteQROrder($pos->external_id);
-
-                if (empty($resultado['success'])) {
-                    return response()->json([
-                        'success' => false,
-                        'error' => 'No se pudo cancelar la orden en Mercado Pago: '.($resultado['error'] ?? 'error desconocido'),
-                    ], 400);
-                }
-
-                $order->update(['status' => 'cancelled']);
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Orden cancelada correctamente',
-                ]);
-            }
-
-            return response()->json([
-                'success' => false,
-                'error' => 'La orden no puede ser cancelada en su estado actual',
-            ], 400);
+            return response()->json($resultado, $resultado['success'] ? 200 : 400);
 
         } catch (\Exception $e) {
             \Log::error('Error cancelando orden', [
